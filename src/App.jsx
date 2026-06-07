@@ -17,7 +17,7 @@ const HW = {
   border:"#333333", text:"#F5F5F5", muted:"#888888", white:"#FFFFFF",
 };
 
-function HuaweiLogo({ size=32 }) {
+function HuaweiLogo({size=32}) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100">
       {[0,60,120,180,240,300].map(r=>(
@@ -29,13 +29,13 @@ function HuaweiLogo({ size=32 }) {
 }
 
 function getDistance(lat1,lng1,lat2,lng2) {
-  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
 async function analyzeReport(text) {
-  const res = await fetch("https://api.anthropic.com/v1/messages",{
+  const res=await fetch("https://api.anthropic.com/v1/messages",{
     method:"POST",
     headers:{"Content-Type":"application/json","x-api-key":CLAUDE_KEY,
       "anthropic-version":"2023-06-01",
@@ -56,7 +56,7 @@ function PieChart({data}) {
   const entries=Object.entries(data);
   let cum=0;
   const slices=entries.map(([label,pct],i)=>{
-    const val=pct/100, s=cum*2*Math.PI; cum+=val; const e=cum*2*Math.PI;
+    const val=pct/100,s=cum*2*Math.PI;cum+=val;const e=cum*2*Math.PI;
     const x1=Math.cos(s-Math.PI/2),y1=Math.sin(s-Math.PI/2);
     const x2=Math.cos(e-Math.PI/2),y2=Math.sin(e-Math.PI/2);
     return{label,pct,color:colors[i],
@@ -83,6 +83,69 @@ function PieChart({data}) {
   );
 }
 
+// ── Bar Chart ────────────────────────────────────────
+function BarChart({data,color=HW.red}) {
+  const max=Math.max(...data.map(d=>d.value),1);
+  return (
+    <div style={{display:"flex",alignItems:"flex-end",gap:8,height:120,padding:"0 4px"}}>
+      {data.map((d,i)=>(
+        <div key={i} style={{flex:1,display:"flex",flexDirection:"column",
+          alignItems:"center",gap:4}}>
+          <div style={{fontSize:10,color:HW.muted,fontWeight:700}}>{d.value}</div>
+          <div style={{width:"100%",background:color,borderRadius:"4px 4px 0 0",
+            height:`${(d.value/max)*80}px`,minHeight:4,transition:"height .5s ease"}}/>
+          <div style={{fontSize:9,color:HW.muted,textAlign:"center",
+            whiteSpace:"nowrap",overflow:"hidden",maxWidth:40}}>{d.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── OKR Progress Bar ─────────────────────────────────
+function OKRBar({okr,onUpdate,isManager}) {
+  const pct=Math.min((okr.current/okr.target)*100,100).toFixed(0);
+  const color=pct>=80?HW.red:pct>=50?"#FFA500":"#666";
+  return (
+    <div style={{background:HW.surface2,borderRadius:12,padding:16,marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",
+        alignItems:"flex-start",marginBottom:8}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,color:HW.muted,marginBottom:2}}>{okr.department}</div>
+          <div style={{fontWeight:600,fontSize:14,marginBottom:2}}>{okr.objective}</div>
+          <div style={{fontSize:13,color:HW.muted}}>{okr.key_result}</div>
+        </div>
+        <div style={{textAlign:"right",marginLeft:12}}>
+          <div style={{fontSize:22,fontWeight:800,color}}>{pct}%</div>
+          <div style={{fontSize:11,color:HW.muted}}>
+            {okr.current}/{okr.target} {okr.unit}
+          </div>
+        </div>
+      </div>
+      <div style={{height:8,background:HW.border,borderRadius:10,overflow:"hidden"}}>
+        <div style={{height:"100%",borderRadius:10,background:color,
+          width:`${pct}%`,transition:"width .6s ease"}}/>
+      </div>
+      {okr.due_date&&(
+        <div style={{fontSize:11,color:HW.muted,marginTop:6}}>
+          Due: {new Date(okr.due_date).toLocaleDateString("en-GB",{
+            day:"numeric",month:"short",year:"numeric"})}
+        </div>
+      )}
+      {isManager&&onUpdate&&(
+        <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center"}}>
+          <input type="number" defaultValue={okr.current}
+            style={{background:HW.surface,border:`1px solid ${HW.border}`,
+              color:HW.text,borderRadius:6,padding:"4px 8px",
+              width:80,fontSize:13}}
+            onBlur={e=>onUpdate(okr.id,parseFloat(e.target.value))}/>
+          <span style={{fontSize:12,color:HW.muted}}>Update progress</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReminderPopup({onDismiss}) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",
@@ -94,8 +157,7 @@ function ReminderPopup({onDismiss}) {
         <div style={{fontSize:52,marginBottom:12}}>⏰</div>
         <h3 style={{color:HW.red,fontSize:22,marginBottom:8}}>Task Submission Reminder</h3>
         <p style={{color:HW.muted,fontSize:14,lineHeight:1.6,marginBottom:20}}>
-          It is <strong style={{color:HW.text}}>4:30 PM</strong> — please complete
-          and submit your daily task report before you leave today!
+          It is <strong style={{color:HW.text}}>4:30 PM</strong> — please submit your daily report!
         </p>
         <button onClick={onDismiss} style={{background:HW.red,color:HW.white,
           border:"none",borderRadius:8,padding:"12px 32px",fontWeight:700,
@@ -109,12 +171,16 @@ function ReminderPopup({onDismiss}) {
 
 export default function App() {
   const [view,setView]               = useState("login");
+  const [mgmtTab,setMgmtTab]         = useState("trainees"); // trainees | analytics
   const [user,setUser]               = useState(null);
   const [trainees,setTrainees]       = useState([]);
   const [selected,setSelected]       = useState(null);
   const [reports,setReports]         = useState([]);
   const [logs,setLogs]               = useState([]);
   const [penalties,setPenalties]     = useState([]);
+  const [okrs,setOkrs]               = useState([]);
+  const [allReports,setAllReports]   = useState([]);
+  const [allPenalties,setAllPenalties] = useState([]);
   const [loading,setLoading]         = useState(false);
   const [aiLoading,setAiLoading]     = useState(false);
   const [msg,setMsg]                 = useState("");
@@ -138,8 +204,11 @@ export default function App() {
   const [excuseText,setExcuseText]   = useState("");
   const [excusePhoto,setExcusePhoto] = useState(null);
   const [excusePreview,setExcusePreview] = useState(null);
-  const videoRef=useRef(), canvasRef=useRef();
-  const streamRef=useRef(), excuseRef=useRef(), photoRef=useRef();
+  const [newOkr,setNewOkr]           = useState({department:"",objective:"",
+    key_result:"",target:100,current:0,unit:"%",due_date:""});
+  const [showAddOkr,setShowAddOkr]   = useState(false);
+  const videoRef=useRef(),canvasRef=useRef(),streamRef=useRef();
+  const excuseRef=useRef(),photoRef=useRef();
 
   const [profile,setProfile] = useState({
     full_name:"",civil_id:"",phone_number:"",
@@ -180,7 +249,6 @@ export default function App() {
     return score>=80?HW.red:score>=60?"#FFA500":"#666";
   }
 
-  // ── 4:30 PM Reminder ────────────────────────────────
   useEffect(()=>{
     const check=()=>{
       const now=new Date();
@@ -195,12 +263,11 @@ export default function App() {
     return ()=>clearInterval(interval);
   },[]);
 
-  // ── Session ──────────────────────────────────────────
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
       if(session) handleSession(session.user);
     });
-    const {data:listener}=supabase.auth.onAuthStateChange((_e,session)=>{
+    const{data:listener}=supabase.auth.onAuthStateChange((_e,session)=>{
       if(session) handleSession(session.user);
       else{setUser(null);setView("login");}
     });
@@ -209,20 +276,21 @@ export default function App() {
 
   async function handleSession(authUser) {
     setUser(authUser);
-    const {data}=await supabase.from("profiles")
+    const{data}=await supabase.from("profiles")
       .select("role,trainee_id").eq("id",authUser.id).single();
     if(data){
-      if(data.role==="management"){setView("mgmt");fetchTrainees();}
-      else{
+      if(data.role==="management"){
+        setView("mgmt");fetchTrainees();fetchOkrs();fetchAllData();
+      } else {
         setView("trainee");
         if(data.trainee_id){
-          const {data:t}=await supabase.from("trainees")
+          const{data:t}=await supabase.from("trainees")
             .select("*").eq("id",data.trainee_id).single();
           if(t) setProfile({full_name:t.full_name||"",civil_id:t.civil_id||"",
             phone_number:t.phone_number||"",department:t.department||"",
             assigned_mentor:t.assigned_mentor||"",gpa:t.gpa||""});
-          const start=new Date(); start.setDate(1);
-          const {data:tc}=await supabase.from("traffic_excuses")
+          const start=new Date();start.setDate(1);
+          const{data:tc}=await supabase.from("traffic_excuses")
             .select("id").eq("trainee_id",data.trainee_id)
             .gte("created_at",start.toISOString());
           if(tc) setTrafficCount(tc.length);
@@ -259,22 +327,22 @@ export default function App() {
     setFaceCapture(null);setFaceCaptured(false);stopCamera();
   }
 
-  // ── Geofence ─────────────────────────────────────────
   function checkLocation(){
     setGeoStatus("checking");setGeoMsg("📍 Checking your location…");
     if(!navigator.geolocation){setGeoStatus("error");setGeoMsg("❌ Browser does not support location.");return;}
     navigator.geolocation.getCurrentPosition(
       (pos)=>{
         const dist=getDistance(pos.coords.latitude,pos.coords.longitude,WORK_LAT,WORK_LNG);
-        if(dist<=WORK_RADIUS){setLocationOk(true);setGeoStatus("ok");setGeoMsg(`✅ Verified — ${Math.round(dist)}m from workplace.`);}
-        else{setLocationOk(false);setGeoStatus("error");setGeoMsg(`❌ You are ${Math.round(dist)}m away. Must be within 500m.`);}
+        if(dist<=WORK_RADIUS){setLocationOk(true);setGeoStatus("ok");
+          setGeoMsg(`✅ Verified — ${Math.round(dist)}m from workplace.`);}
+        else{setLocationOk(false);setGeoStatus("error");
+          setGeoMsg(`❌ You are ${Math.round(dist)}m away. Must be within 500m.`);}
       },
       ()=>{setGeoStatus("error");setGeoMsg("❌ Location denied.");},
       {enableHighAccuracy:true,timeout:10000}
     );
   }
 
-  // ── Camera ───────────────────────────────────────────
   async function startCamera(){
     try{
       const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
@@ -294,8 +362,8 @@ export default function App() {
     const canvas=canvasRef.current,video=videoRef.current;
     canvas.width=video.videoWidth;canvas.height=video.videoHeight;
     canvas.getContext("2d").drawImage(video,0,0);
-    canvas.toBlob(blob=>{setFaceCapture(blob);setFaceCaptured(true);stopCamera();setMsg("✅ Face captured!");},
-      "image/jpeg",0.8);
+    canvas.toBlob(blob=>{setFaceCapture(blob);setFaceCaptured(true);stopCamera();
+      setMsg("✅ Face captured!");},"image/jpeg",0.8);
   }
 
   function handleProofPhoto(e){const f=e.target.files[0];if(!f)return;setPhotoFile(f);setPhotoPreview(URL.createObjectURL(f));}
@@ -307,7 +375,6 @@ export default function App() {
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
-  // ── Submit Report ────────────────────────────────────
   async function submitReport(){
     if(!locationOk){setMsg("📍 Please verify your location first.");return;}
     if(!faceCaptured){setMsg("🤳 Please complete Face ID verification first.");return;}
@@ -370,12 +437,23 @@ export default function App() {
     setLoading(false);setAiLoading(false);
   }
 
-  // ── Fetch ────────────────────────────────────────────
   async function fetchTrainees(){
     setLoading(true);
     const{data}=await supabase.from("trainees").select("*").order("full_name");
     if(data) setTrainees(data);
     setLoading(false);
+  }
+
+  async function fetchOkrs(){
+    const{data}=await supabase.from("okrs").select("*").order("department");
+    if(data) setOkrs(data);
+  }
+
+  async function fetchAllData(){
+    const{data:reps}=await supabase.from("daily_reports").select("*");
+    const{data:pens}=await supabase.from("penalties").select("*");
+    if(reps) setAllReports(reps);
+    if(pens) setAllPenalties(pens);
   }
 
   async function fetchReports(tid){
@@ -433,11 +511,9 @@ export default function App() {
       transferred:"Trainee transferred to another department",
       active:"Trainee reactivated in the program",
     };
-    // Set quitting date when dropped
     const updateData={status:newStatus};
     if(newStatus==="dropped") updateData.quitting_date=new Date().toISOString().split("T")[0];
     if(newStatus==="active") updateData.quitting_date=null;
-
     const{error}=await supabase.from("trainees").update(updateData).eq("id",selected.id);
     if(error){setMsg(error.message);return;}
     await logEvent(selected.id,newStatus==="active"?"reactivated":newStatus,
@@ -447,201 +523,160 @@ export default function App() {
     setMsg(`✅ Status updated to ${newStatus}`);
   }
 
-  // ── PDF Export ───────────────────────────────────────
-  async function exportPDF(trainee) {
-    const doc = new jsPDF();
-    const t = trainee || selected;
+  async function updateOkr(id,newValue){
+    await supabase.from("okrs").update({current:newValue}).eq("id",id);
+    fetchOkrs();
+  }
 
-    // Header
+  async function addOkr(){
+    if(!newOkr.department||!newOkr.objective||!newOkr.key_result){
+      setMsg("Please fill all OKR fields.");return;}
+    await supabase.from("okrs").insert({...newOkr,created_by:user?.email});
+    setShowAddOkr(false);
+    setNewOkr({department:"",objective:"",key_result:"",target:100,current:0,unit:"%",due_date:""});
+    fetchOkrs();setMsg("✅ OKR added successfully!");
+  }
+
+  async function exportPDF(trainee){
+    const doc=new jsPDF();
+    const t=trainee||selected;
     doc.setFillColor(207,10,44);
     doc.rect(0,0,210,40,"F");
     doc.setTextColor(255,255,255);
-    doc.setFontSize(20);
-    doc.setFont("helvetica","bold");
+    doc.setFontSize(20);doc.setFont("helvetica","bold");
     doc.text("TraineeOS — Weekly Performance Report",14,18);
-    doc.setFontSize(11);
-    doc.setFont("helvetica","normal");
+    doc.setFontSize(11);doc.setFont("helvetica","normal");
     doc.text(`Generated: ${new Date().toLocaleDateString("en-GB")}`,14,30);
-
-    // Trainee Info
     doc.setTextColor(0,0,0);
-    doc.setFontSize(14);
-    doc.setFont("helvetica","bold");
+    doc.setFontSize(14);doc.setFont("helvetica","bold");
     doc.text("Trainee Information",14,52);
-
     autoTable(doc,{
       startY:56,
       head:[["Field","Details"]],
       body:[
-        ["Full Name", t.full_name||"—"],
-        ["Civil ID", t.civil_id||"—"],
-        ["Department", t.department||"—"],
-        ["Assigned Mentor", t.assigned_mentor||"—"],
-        ["GPA", t.gpa?.toString()||"—"],
-        ["Status", t.status||"—"],
-        ["Joining Date", t.joining_date||"—"],
-        ["Quitting Date", t.quitting_date||"Still Active"],
-        ["Days in Program", t.joining_date
-          ? Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24))+" days"
-          :"—"],
+        ["Full Name",t.full_name||"—"],["Civil ID",t.civil_id||"—"],
+        ["Department",t.department||"—"],["Assigned Mentor",t.assigned_mentor||"—"],
+        ["GPA",t.gpa?.toString()||"—"],["Status",t.status||"—"],
+        ["Joining Date",t.joining_date||"—"],
+        ["Quitting Date",t.quitting_date||"Still Active"],
+        ["Days in Program",t.joining_date
+          ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24))+" days":"—"],
       ],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
-
-    // Reports
-    const reportsY = doc.lastAutoTable.finalY+10;
-    doc.setFontSize(14);
-    doc.setFont("helvetica","bold");
+    const reportsY=doc.lastAutoTable.finalY+10;
+    doc.setFontSize(14);doc.setFont("helvetica","bold");
     doc.text("Weekly Reports",14,reportsY);
-
     const{data:reps}=await supabase.from("daily_reports").select("*")
       .eq("trainee_id",t.id).order("report_date",{ascending:false}).limit(7);
-
     if(reps&&reps.length>0){
       autoTable(doc,{
         startY:reportsY+4,
-        head:[["Date","Attended","Sign-in","KPI Score","Penalty","Report"]],
-        body:reps.map(r=>[
-          r.report_date,
-          r.attended?"✓ Yes":"✗ No",
-          r.signin_time||"—",
-          r.kpi_score?.toString()||"—",
-          r.penalty_applied?`-${r.penalty_amount}%`:"None",
-          (r.report_text||"").substring(0,60)+"...",
-        ]),
+        head:[["Date","Attended","Sign-in","KPI","Penalty","Report"]],
+        body:reps.map(r=>[r.report_date,r.attended?"✓":"✗",r.signin_time||"—",
+          r.kpi_score||"—",r.penalty_applied?`-${r.penalty_amount}%`:"None",
+          (r.report_text||"").substring(0,50)+"..."]),
         headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
         alternateRowStyles:{fillColor:[245,245,245]},
-        columnStyles:{5:{cellWidth:60}},
       });
     }
-
-    // Penalties
-    const penY = doc.lastAutoTable?.finalY+10 || reportsY+60;
-    doc.setFontSize(14);
-    doc.setFont("helvetica","bold");
+    const penY=doc.lastAutoTable?.finalY+10||reportsY+60;
+    doc.setFontSize(14);doc.setFont("helvetica","bold");
     doc.text("Penalty Summary",14,penY);
-
-    const{data:pens}=await supabase.from("penalties").select("*")
-      .eq("trainee_id",t.id).order("created_at",{ascending:false});
-
+    const{data:pens}=await supabase.from("penalties").select("*").eq("trainee_id",t.id);
     autoTable(doc,{
       startY:penY+4,
       head:[["Date","Reason","Deduction"]],
-      body:pens&&pens.length>0
-        ?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`])
-        :[["—","No penalties recorded","—"]],
+      body:pens&&pens.length>0?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`]):[["—","No penalties","—"]],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
-
-    // Total penalty
-    const total = pens?(pens.length*PENALTY_PCT).toFixed(2):0;
-    const totalY = doc.lastAutoTable.finalY+6;
-    doc.setFontSize(11);
-    doc.setFont("helvetica","bold");
-    doc.setTextColor(207,10,44);
-    doc.text(`Total Deduction: ${total}%`,14,totalY);
-
-    // Footer
-    doc.setTextColor(150,150,150);
-    doc.setFontSize(9);
-    doc.setFont("helvetica","normal");
+    const total=pens?(pens.length*PENALTY_PCT).toFixed(2):0;
+    doc.setTextColor(207,10,44);doc.setFontSize(11);doc.setFont("helvetica","bold");
+    doc.text(`Total Deduction: ${total}%`,14,doc.lastAutoTable.finalY+6);
+    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");
     doc.text("TraineeOS • Powered by Huawei • Confidential",14,285);
-
     doc.save(`${t.full_name}_weekly_report.pdf`);
   }
 
-  // ── Excel Export ─────────────────────────────────────
   async function exportExcel(){
     setMsg("📊 Preparing Excel export…");
-
-    // Fetch all data
-    const{data:allTrainees}=await supabase.from("trainees").select("*").order("full_name");
-    const{data:allReports}=await supabase.from("daily_reports").select("*").order("report_date");
-    const{data:allPenalties}=await supabase.from("penalties").select("*").order("created_at");
-    const{data:allLogs}=await supabase.from("trainee_logs").select("*").order("created_at");
-
-    const wb = XLSX.utils.book_new();
-
-    // Sheet 1 — Trainees
-    const traineeRows = (allTrainees||[]).map(t=>({
-      "Full Name":         t.full_name,
-      "Civil ID":          t.civil_id,
-      "Phone":             t.phone_number,
-      "Department":        t.department,
-      "Mentor":            t.assigned_mentor,
-      "GPA":               t.gpa,
-      "Status":            t.status,
-      "Joining Date":      t.joining_date,
-      "Quitting Date":     t.quitting_date||"Still Active",
-      "Days in Program":   t.joining_date
-        ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24))
-        :"—",
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(traineeRows), "Trainees");
-
-    // Sheet 2 — Daily Reports
-    const reportRows = (allReports||[]).map(r=>({
-      "Trainee ID":    r.trainee_id,
-      "Date":          r.report_date,
-      "Attended":      r.attended?"Yes":"No",
-      "Sign-in Time":  r.signin_time||"—",
-      "KPI Score":     r.kpi_score||"—",
-      "Report Text":   r.report_text,
-      "Talent Notes":  r.talent_notes||"—",
-      "Penalty":       r.penalty_applied?`-${r.penalty_amount}%`:"None",
-      "Excuse Type":   r.excuse_type||"—",
-      "Excuse Text":   r.excuse_text||"—",
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportRows), "Daily Reports");
-
-    // Sheet 3 — Penalties
-    const penRows = (allPenalties||[]).map(p=>({
-      "Trainee ID":  p.trainee_id,
-      "Date":        p.report_date,
-      "Reason":      p.reason,
-      "Deduction":   `-${p.amount}%`,
-      "Created At":  new Date(p.created_at).toLocaleDateString("en-GB"),
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penRows), "Penalties");
-
-    // Sheet 4 — Timeline Logs
-    const logRows = (allLogs||[]).map(l=>({
-      "Trainee ID":  l.trainee_id,
-      "Event":       l.event_type,
-      "Description": l.description,
-      "Old Value":   l.old_value||"—",
-      "New Value":   l.new_value||"—",
-      "Logged By":   l.logged_by,
-      "Date":        new Date(l.created_at).toLocaleDateString("en-GB"),
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(logRows), "Timeline");
-
-    // Summary Sheet
-    const summaryRows = (allTrainees||[]).map(t=>{
-      const tReports = (allReports||[]).filter(r=>r.trainee_id===t.id);
-      const tPenalties = (allPenalties||[]).filter(p=>p.trainee_id===t.id);
-      const avgKpi = tReports.filter(r=>r.kpi_score)
-        .reduce((a,r,_,arr)=>a+r.kpi_score/arr.length,0);
-      return {
-        "Full Name":       t.full_name,
-        "Department":      t.department,
-        "Status":          t.status,
-        "Joining Date":    t.joining_date||"—",
-        "Quitting Date":   t.quitting_date||"Still Active",
-        "Total Reports":   tReports.length,
-        "Attended Days":   tReports.filter(r=>r.attended).length,
-        "Absent Days":     tReports.filter(r=>!r.attended).length,
-        "Avg KPI Score":   avgKpi?avgKpi.toFixed(1):"—",
-        "Total Penalties": tPenalties.length,
-        "Total Deduction": `${(tPenalties.length*PENALTY_PCT).toFixed(2)}%`,
-      };
-    });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
-
-    XLSX.writeFile(wb, `TraineeOS_Export_${new Date().toISOString().split("T")[0]}.xlsx`);
+    const{data:allT}=await supabase.from("trainees").select("*").order("full_name");
+    const{data:allR}=await supabase.from("daily_reports").select("*").order("report_date");
+    const{data:allP}=await supabase.from("penalties").select("*").order("created_at");
+    const{data:allL}=await supabase.from("trainee_logs").select("*").order("created_at");
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({
+      "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
+      "Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,
+      "Status":t.status,"Joining Date":t.joining_date,
+      "Quitting Date":t.quitting_date||"Still Active",
+      "Days in Program":t.joining_date?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24)):"—",
+    }))),"Trainees");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allR||[]).map(r=>({
+      "Trainee ID":r.trainee_id,"Date":r.report_date,"Attended":r.attended?"Yes":"No",
+      "Sign-in":r.signin_time||"—","KPI Score":r.kpi_score||"—",
+      "Report":r.report_text,"Talent Notes":r.talent_notes||"—",
+      "Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
+      "Excuse":r.excuse_type||"—",
+    }))),"Daily Reports");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allP||[]).map(p=>({
+      "Trainee ID":p.trainee_id,"Date":p.report_date,"Reason":p.reason,
+      "Deduction":`-${p.amount}%`,
+    }))),"Penalties");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allL||[]).map(l=>({
+      "Trainee ID":l.trainee_id,"Event":l.event_type,"Description":l.description,
+      "Old":l.old_value||"—","New":l.new_value||"—","By":l.logged_by,
+      "Date":new Date(l.created_at).toLocaleDateString("en-GB"),
+    }))),"Timeline");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>{
+      const tr=(allR||[]).filter(r=>r.trainee_id===t.id);
+      const tp=(allP||[]).filter(p=>p.trainee_id===t.id);
+      const avg=tr.filter(r=>r.kpi_score).reduce((a,r,_,arr)=>a+r.kpi_score/arr.length,0);
+      return{"Full Name":t.full_name,"Department":t.department,"Status":t.status,
+        "Joining":t.joining_date||"—","Quitting":t.quitting_date||"Active",
+        "Reports":tr.length,"Attended":tr.filter(r=>r.attended).length,
+        "Absent":tr.filter(r=>!r.attended).length,
+        "Avg KPI":avg?avg.toFixed(1):"—","Penalties":tp.length,
+        "Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`};
+    })),"Summary");
+    XLSX.writeFile(wb,`TraineeOS_Export_${new Date().toISOString().split("T")[0]}.xlsx`);
     setMsg("✅ Excel exported successfully!");
+  }
+
+  // ── Analytics calculations ───────────────────────────
+  function getAnalytics() {
+    const active=trainees.filter(t=>t.status==="active");
+    const totalReports=allReports.length;
+    const attended=allReports.filter(r=>r.attended).length;
+    const attendanceRate=totalReports>0?((attended/totalReports)*100).toFixed(1):0;
+    const kpiReports=allReports.filter(r=>r.kpi_score);
+    const avgKpi=kpiReports.length>0
+      ?(kpiReports.reduce((a,r)=>a+r.kpi_score,0)/kpiReports.length).toFixed(1):0;
+    const totalPenalties=allPenalties.length;
+
+    // KPI per trainee for leaderboard
+    const traineeKpi=trainees.map(t=>{
+      const tr=allReports.filter(r=>r.trainee_id===t.id&&r.kpi_score);
+      const avg=tr.length>0?tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length:0;
+      const tp=allPenalties.filter(p=>p.trainee_id===t.id).length;
+      return{...t,avgKpi:avg.toFixed(1),penalties:tp,reports:allReports.filter(r=>r.trainee_id===t.id).length};
+    }).sort((a,b)=>b.avgKpi-a.avgKpi);
+
+    // Dept performance
+    const depts=[...new Set(trainees.map(t=>t.department).filter(Boolean))];
+    const deptData=depts.map(dept=>{
+      const dTrainees=trainees.filter(t=>t.department===dept);
+      const dReports=allReports.filter(r=>dTrainees.some(t=>t.id===r.trainee_id)&&r.kpi_score);
+      const avg=dReports.length>0?dReports.reduce((a,r)=>a+r.kpi_score,0)/dReports.length:0;
+      return{label:dept.substring(0,8),value:Math.round(avg)};
+    });
+
+    // At risk trainees (KPI < 60 or penalties > 2)
+    const atRisk=traineeKpi.filter(t=>parseFloat(t.avgKpi)<60||t.penalties>2);
+
+    return{active,attendanceRate,avgKpi,totalPenalties,traineeKpi,deptData,atRisk};
   }
 
   // ══════════════════════════════════════════════════
@@ -771,30 +806,23 @@ export default function App() {
           <h3 style={{margin:0,fontSize:16}}>Step 2 — Face ID Verification</h3>
         </div>
         {!cameraActive&&!faceCaptured&&(
-          <button style={{...s.btn,background:HW.red,color:HW.white}} onClick={startCamera}>
-            📷 Open Camera
-          </button>
+          <button style={{...s.btn,background:HW.red,color:HW.white}} onClick={startCamera}>📷 Open Camera</button>
         )}
         {cameraActive&&(
           <div>
             <video ref={videoRef} autoPlay playsInline
-              style={{width:"100%",maxWidth:320,borderRadius:12,
-                border:`2px solid ${HW.red}`,display:"block",marginBottom:12}}/>
+              style={{width:"100%",maxWidth:320,borderRadius:12,border:`2px solid ${HW.red}`,display:"block",marginBottom:12}}/>
             <canvas ref={canvasRef} style={{display:"none"}}/>
             <div style={{display:"flex",gap:8}}>
-              <button style={{...s.btn,background:HW.red,color:HW.white}} onClick={captureface}>
-                📸 Capture Face
-              </button>
-              <button style={{...s.btn,background:HW.surface2,color:HW.muted,
-                border:`1px solid ${HW.border}`}} onClick={stopCamera}>Cancel</button>
+              <button style={{...s.btn,background:HW.red,color:HW.white}} onClick={captureface}>📸 Capture Face</button>
+              <button style={{...s.btn,background:HW.surface2,color:HW.muted,border:`1px solid ${HW.border}`}} onClick={stopCamera}>Cancel</button>
             </div>
           </div>
         )}
         {faceCaptured&&(
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:60,height:60,borderRadius:"50%",
-              background:"rgba(207,10,44,.15)",display:"flex",
-              alignItems:"center",justifyContent:"center",fontSize:28}}>✅</div>
+            <div style={{width:60,height:60,borderRadius:"50%",background:"rgba(207,10,44,.15)",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>✅</div>
             <div>
               <div style={{fontWeight:700,color:HW.red}}>Face Captured Successfully</div>
               <button style={{...s.btn,background:"none",color:HW.muted,padding:"4px 0",fontSize:12}}
@@ -853,7 +881,7 @@ export default function App() {
           {(!report.attended||(report.signin_time&&report.signin_time>MAX_SIGNIN&&!isLate))&&(
             <div style={{background:"rgba(207,10,44,.1)",border:`1px solid rgba(207,10,44,.3)`,
               borderRadius:8,padding:10,fontSize:12,color:HW.red}}>
-              ⚠️ <b>Penalty Warning:</b> {!report.attended?"Not marked as attended":"Sign-in after 9:00 AM"} — <b>8.33% deduction</b> will be applied.
+              ⚠️ <b>Penalty Warning:</b> {!report.attended?"Not marked as attended":"Sign-in after 9:00 AM"} — <b>8.33% deduction</b>
             </div>
           )}
           <div style={{gridColumn:"1/-1"}}>
@@ -885,39 +913,29 @@ export default function App() {
               </div>
               <div>
                 <label style={s.label}>Proof Photo {excuseType==="traffic"?"(Required)":"(Optional)"}</label>
-                <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:10,alignItems:"center"}}>
                   <button style={{...s.btn,background:HW.surface,color:HW.text,border:`1px dashed ${HW.border}`}}
                     onClick={()=>excuseRef.current.click()}>
-                    📷 {excusePhoto?"Change Photo":"Upload Proof"}
+                    📷 {excusePhoto?"Change":"Upload Proof"}
                   </button>
-                  <input ref={excuseRef} type="file" accept="image/*"
-                    style={{display:"none"}} onChange={handleExcusePhoto}/>
-                  {excusePreview&&(
-                    <img src={excusePreview} alt="excuse proof"
-                      style={{width:70,height:70,objectFit:"cover",borderRadius:8,border:`1px solid ${HW.border}`}}/>
-                  )}
+                  <input ref={excuseRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleExcusePhoto}/>
+                  {excusePreview&&<img src={excusePreview} alt="proof" style={{width:60,height:60,objectFit:"cover",borderRadius:8}}/>}
                 </div>
                 {excuseType==="traffic"&&(
-                  <p style={{fontSize:11,color:HW.muted,marginTop:6}}>
-                    Traffic excuses used: <b style={{color:trafficCount>=2?HW.red:HW.text}}>{trafficCount}/2</b>
-                  </p>
+                  <p style={{fontSize:11,color:HW.muted,marginTop:6}}>Traffic excuses: <b style={{color:trafficCount>=2?HW.red:HW.text}}>{trafficCount}/2</b></p>
                 )}
               </div>
             </div>
           )}
           <div style={{gridColumn:"1/-1"}}>
             <label style={s.label}>📸 Proof Photo (optional)</label>
-            <div style={{display:"flex",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
               <button style={{...s.btn,background:HW.surface2,color:HW.text,border:`1px dashed ${HW.border}`}}
                 onClick={()=>photoRef.current.click()}>
                 {photoFile?"📷 Change Photo":"📷 Upload Photo"}
               </button>
-              <input ref={photoRef} type="file" accept="image/*"
-                style={{display:"none"}} onChange={handleProofPhoto}/>
-              {photoPreview&&(
-                <img src={photoPreview} alt="preview"
-                  style={{width:70,height:70,objectFit:"cover",borderRadius:8,border:`1px solid ${HW.border}`}}/>
-              )}
+              <input ref={photoRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleProofPhoto}/>
+              {photoPreview&&<img src={photoPreview} alt="preview" style={{width:60,height:60,objectFit:"cover",borderRadius:8}}/>}
             </div>
           </div>
         </div>
@@ -941,7 +959,6 @@ export default function App() {
           fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
       </div>
 
-      {/* AI Results */}
       {aiResult&&(
         <div style={{...s.card,border:`1px solid rgba(207,10,44,.4)`}}>
           <h3 style={{marginBottom:20,color:HW.red}}>🤖 AI Analysis Result</h3>
@@ -976,315 +993,288 @@ export default function App() {
   // ══════════════════════════════════════════════════
   // MANAGEMENT DASHBOARD
   // ══════════════════════════════════════════════════
-  if(view==="mgmt") return (
-    <div style={s.page}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-        marginBottom:28,paddingBottom:20,borderBottom:`1px solid ${HW.border}`}}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <HuaweiLogo size={36}/>
+  if(view==="mgmt") {
+    const analytics=getAnalytics();
+    return (
+      <div style={s.page}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+          marginBottom:28,paddingBottom:20,borderBottom:`1px solid ${HW.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <HuaweiLogo size={36}/>
+            <div>
+              <h2 style={{margin:0,fontSize:20}}>Management Dashboard</h2>
+              <p style={{color:HW.muted,fontSize:12,margin:0}}>{user?.email}</p>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red}}
+              onClick={exportExcel}>📊 Export Excel</button>
+            <button style={{...s.btn,background:HW.red,color:HW.white}} onClick={logout}>Sign out</button>
+          </div>
+        </div>
+
+        {/* Main Tabs */}
+        <div style={{display:"flex",gap:4,background:HW.surface2,borderRadius:10,
+          padding:4,marginBottom:24}}>
+          {["trainees","analytics","okr"].map(tab=>(
+            <button key={tab} onClick={()=>{setMgmtTab(tab);setSelected(null);setMsg("");}}
+              style={{...s.btn,flex:1,padding:"10px",
+                background:mgmtTab===tab?HW.surface:"none",
+                color:mgmtTab===tab?HW.text:HW.muted,fontSize:13,borderRadius:7,
+                borderBottom:mgmtTab===tab?`2px solid ${HW.red}`:"none"}}>
+              {tab==="trainees"?"👥 Trainees":tab==="analytics"?"📊 KPI Analytics":"🎯 OKR Tracking"}
+            </button>
+          ))}
+        </div>
+
+        {/* ── TRAINEES TAB ── */}
+        {mgmtTab==="trainees"&&!selected&&(
+          <div style={s.card}>
+            <h3 style={{marginBottom:16}}>All Trainees
+              <span style={{fontSize:13,color:HW.muted,fontWeight:400,marginLeft:8}}>
+                — click a row to view profile
+              </span>
+            </h3>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr>
+                {["Name","Department","Mentor","GPA","Joined","Status",""].map(h=>(
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {trainees.map(t=>(
+                  <tr key={t.id} style={{cursor:"pointer",opacity:t.status==="dropped"?0.4:1}}
+                    onClick={()=>openProfile(t)}>
+                    <td style={s.td}><b>{t.full_name}</b></td>
+                    <td style={s.td}>{t.department}</td>
+                    <td style={{...s.td,color:HW.muted,fontSize:13}}>{t.assigned_mentor}</td>
+                    <td style={s.td}><b>{t.gpa}</b></td>
+                    <td style={{...s.td,color:HW.muted,fontSize:12}}>{t.joining_date||"—"}</td>
+                    <td style={s.td}>
+                      <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
+                        background:statusColors[t.status]?.bg,color:statusColors[t.status]?.color}}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td style={s.td}>
+                      <button style={{...s.btn,background:"rgba(207,10,44,.1)",color:HW.red,
+                        fontSize:11,padding:"4px 10px"}}
+                        onClick={e=>{e.stopPropagation();exportPDF(t);}}>
+                        📄 PDF
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+              fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
+          </div>
+        )}
+
+        {/* ── PROFILE VIEW ── */}
+        {mgmtTab==="trainees"&&selected&&(
           <div>
-            <h2 style={{margin:0,fontSize:20}}>Management Dashboard</h2>
-            <p style={{color:HW.muted,fontSize:12,margin:0}}>{user?.email}</p>
-          </div>
-        </div>
-        <div style={{display:"flex",gap:8}}>
-          <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red}}
-            onClick={exportExcel}>📊 Export Excel</button>
-          <button style={{...s.btn,background:HW.red,color:HW.white}} onClick={logout}>Sign out</button>
-        </div>
-      </div>
+            <button style={{...s.btn,background:HW.surface2,color:HW.text,
+              marginBottom:20,border:`1px solid ${HW.border}`}}
+              onClick={()=>{setSelected(null);setMsg("");}}>
+              ← Back to table
+            </button>
 
-      {!selected&&(
-        <div style={s.card}>
-          <h3 style={{marginBottom:16}}>All Trainees
-            <span style={{fontSize:13,color:HW.muted,fontWeight:400,marginLeft:8}}>
-              — click a row to view profile
-            </span>
-          </h3>
-          <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr>
-              {["Name","Department","Mentor","GPA","Joined","Status",""].map(h=>(
-                <th key={h} style={s.th}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {trainees.map(t=>(
-                <tr key={t.id} style={{cursor:"pointer",opacity:t.status==="dropped"?0.4:1}}
-                  onClick={()=>openProfile(t)}>
-                  <td style={s.td}><b>{t.full_name}</b></td>
-                  <td style={s.td}>{t.department}</td>
-                  <td style={{...s.td,color:HW.muted,fontSize:13}}>{t.assigned_mentor}</td>
-                  <td style={s.td}><b>{t.gpa}</b></td>
-                  <td style={{...s.td,color:HW.muted,fontSize:12}}>{t.joining_date||"—"}</td>
-                  <td style={s.td}>
-                    <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
-                      background:statusColors[t.status]?.bg,color:statusColors[t.status]?.color}}>
-                      {t.status}
-                    </span>
-                  </td>
-                  <td style={s.td}>
-                    <button style={{...s.btn,background:"rgba(207,10,44,.1)",color:HW.red,
-                      fontSize:11,padding:"4px 10px"}}
-                      onClick={e=>{e.stopPropagation();exportPDF(t);}}>
-                      📄 PDF
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
-            fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
-        </div>
-      )}
-
-      {selected&&(
-        <div>
-          <button style={{...s.btn,background:HW.surface2,color:HW.text,
-            marginBottom:20,border:`1px solid ${HW.border}`}}
-            onClick={()=>{setSelected(null);setMsg("");}}>
-            ← Back to table
-          </button>
-
-          {/* Header */}
-          <div style={{...s.card,display:"flex",alignItems:"center",
-            justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
-            <div style={{display:"flex",alignItems:"center",gap:16}}>
-              <div style={{width:56,height:56,borderRadius:14,
-                background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,
-                display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:22,fontWeight:800,color:HW.white}}>
-                {selected.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}
-              </div>
-              <div>
-                <div style={{fontWeight:700,fontSize:18}}>{selected.full_name}</div>
-                <div style={{color:HW.muted,fontSize:13}}>
-                  {selected.department} · {selected.assigned_mentor}
+            <div style={{...s.card,display:"flex",alignItems:"center",
+              justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:16}}>
+                <div style={{width:56,height:56,borderRadius:14,
+                  background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:22,fontWeight:800,color:HW.white}}>
+                  {selected.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}
                 </div>
-                {/* Joining & Quitting dates */}
-                <div style={{display:"flex",gap:16,marginTop:6,flexWrap:"wrap"}}>
-                  <span style={{fontSize:12,color:HW.muted}}>
-                    📅 Joined: <b style={{color:HW.text}}>{selected.joining_date||"—"}</b>
-                  </span>
-                  {selected.quitting_date&&(
+                <div>
+                  <div style={{fontWeight:700,fontSize:18}}>{selected.full_name}</div>
+                  <div style={{color:HW.muted,fontSize:13}}>{selected.department} · {selected.assigned_mentor}</div>
+                  <div style={{display:"flex",gap:16,marginTop:4,flexWrap:"wrap"}}>
                     <span style={{fontSize:12,color:HW.muted}}>
-                      🚪 Quit: <b style={{color:HW.red}}>{selected.quitting_date}</b>
+                      📅 Joined: <b style={{color:HW.text}}>{selected.joining_date||"—"}</b>
                     </span>
-                  )}
-                  {selected.joining_date&&(
-                    <span style={{fontSize:12,color:HW.muted}}>
-                      ⏱ Duration: <b style={{color:HW.text}}>
-                        {Math.floor((new Date(selected.quitting_date||new Date())-new Date(selected.joining_date))/(1000*60*60*24))} days
-                      </b>
-                    </span>
-                  )}
-                </div>
-                <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
-                  marginTop:6,display:"inline-block",
-                  background:statusColors[selected.status]?.bg,color:statusColors[selected.status]?.color}}>
-                  {selected.status}
-                </span>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
-                onClick={()=>exportPDF()}>📄 Export PDF</button>
-              {selected.status!=="active"&&(
-                <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
-                  onClick={()=>changeStatus("active")}>✅ Reactivate</button>
-              )}
-              {selected.status!=="transferred"&&(
-                <button style={{...s.btn,background:"rgba(255,165,0,.15)",color:"#FFA500",fontSize:12}}
-                  onClick={()=>changeStatus("transferred")}>🔄 Transferred</button>
-              )}
-              {selected.status!=="inactive"&&(
-                <button style={{...s.btn,background:"rgba(136,136,136,.15)",color:HW.muted,fontSize:12}}
-                  onClick={()=>changeStatus("inactive")}>⏸ Inactive</button>
-              )}
-              {selected.status!=="dropped"&&(
-                <button style={{...s.btn,background:"rgba(100,100,100,.2)",color:"#666",fontSize:12}}
-                  onClick={()=>changeStatus("dropped")}>🔴 Dropped</button>
-              )}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div style={{display:"flex",gap:4,background:HW.surface2,borderRadius:10,padding:4,marginBottom:20}}>
-            {["timeline","edit","reports","penalties"].map(tab=>(
-              <button key={tab} onClick={()=>setProfileTab(tab)}
-                style={{...s.btn,flex:1,padding:"8px",
-                  background:profileTab===tab?HW.surface:"none",
-                  color:profileTab===tab?HW.text:HW.muted,
-                  fontSize:12,borderRadius:7,
-                  borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
-                {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":
-                 tab==="reports"?"📋 Reports":"⚠️ Penalties"}
-              </button>
-            ))}
-          </div>
-
-          {/* TIMELINE */}
-          {profileTab==="timeline"&&(
-            <div style={s.card}>
-              <h3 style={{marginBottom:20}}>Activity Timeline</h3>
-              {logs.length===0
-                ?<p style={{color:HW.muted}}>No activity logged yet.</p>
-                :logs.map((log,i)=>(
-                  <div key={log.id} style={{display:"flex",gap:16,marginBottom:20,position:"relative"}}>
-                    {i<logs.length-1&&(
-                      <div style={{position:"absolute",left:19,top:40,width:2,
-                        height:"calc(100% + 4px)",background:HW.border}}/>
+                    {selected.quitting_date&&(
+                      <span style={{fontSize:12,color:HW.muted}}>
+                        🚪 Quit: <b style={{color:HW.red}}>{selected.quitting_date}</b>
+                      </span>
                     )}
-                    <div style={{width:40,height:40,borderRadius:"50%",background:HW.surface2,
-                      border:`2px solid ${HW.border}`,display:"flex",alignItems:"center",
-                      justifyContent:"center",fontSize:18,flexShrink:0,zIndex:1}}>
-                      {eventIcons[log.event_type]||"📌"}
-                    </div>
-                    <div style={{flex:1,paddingTop:6}}>
-                      <div style={{fontWeight:600,fontSize:14}}>{log.description}</div>
-                      {log.old_value&&log.new_value&&(
-                        <div style={{fontSize:12,color:HW.muted,marginTop:4}}>
-                          <span style={{color:"#f87171"}}>{log.old_value}</span>{" → "}
-                          <span style={{color:"#34d399"}}>{log.new_value}</span>
-                        </div>
-                      )}
-                      <div style={{fontSize:11,color:HW.muted,marginTop:4}}>
-                        {new Date(log.created_at).toLocaleDateString("en-GB",{
-                          day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"
-                        })}
-                        {log.logged_by&&` · by ${log.logged_by}`}
-                      </div>
-                    </div>
+                    {selected.joining_date&&(
+                      <span style={{fontSize:12,color:HW.muted}}>
+                        ⏱ <b style={{color:HW.text}}>
+                          {Math.floor((new Date(selected.quitting_date||new Date())-new Date(selected.joining_date))/(1000*60*60*24))} days
+                        </b>
+                      </span>
+                    )}
                   </div>
-                ))
-              }
-            </div>
-          )}
-
-          {/* EDIT */}
-          {profileTab==="edit"&&(
-            <div style={s.card}>
-              <h3 style={{marginBottom:18}}>Edit Profile</h3>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-                <div><label style={s.label}>Department</label>
-                  <input style={s.input} value={selected.department||""}
-                    onChange={e=>setSelected({...selected,department:e.target.value,
-                      _original:selected._original||{...selected}})}/></div>
-                <div><label style={s.label}>Assigned Mentor</label>
-                  <input style={s.input} value={selected.assigned_mentor||""}
-                    onChange={e=>setSelected({...selected,assigned_mentor:e.target.value,
-                      _original:selected._original||{...selected}})}/></div>
-                <div><label style={s.label}>GPA</label>
-                  <input style={s.input} type="number" step="0.01" min="0" max="4"
-                    value={selected.gpa||""}
-                    onChange={e=>setSelected({...selected,gpa:e.target.value})}/></div>
-                <div><label style={s.label}>Joining Date</label>
-                  <input style={s.input} type="date" value={selected.joining_date||""}
-                    onChange={e=>setSelected({...selected,joining_date:e.target.value})}/></div>
+                  <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
+                    marginTop:6,display:"inline-block",
+                    background:statusColors[selected.status]?.bg,color:statusColors[selected.status]?.color}}>
+                    {selected.status}
+                  </span>
+                </div>
               </div>
-              <button style={{...s.btn,background:HW.red,color:HW.white,marginTop:16}}
-                onClick={saveProfile}>Save Changes</button>
-              {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
-                fontSize:13,marginTop:10}}>{msg}</p>}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
+                  onClick={()=>exportPDF()}>📄 Export PDF</button>
+                {selected.status!=="active"&&(
+                  <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
+                    onClick={()=>changeStatus("active")}>✅ Reactivate</button>
+                )}
+                {selected.status!=="transferred"&&(
+                  <button style={{...s.btn,background:"rgba(255,165,0,.15)",color:"#FFA500",fontSize:12}}
+                    onClick={()=>changeStatus("transferred")}>🔄 Transferred</button>
+                )}
+                {selected.status!=="inactive"&&(
+                  <button style={{...s.btn,background:"rgba(136,136,136,.15)",color:HW.muted,fontSize:12}}
+                    onClick={()=>changeStatus("inactive")}>⏸ Inactive</button>
+                )}
+                {selected.status!=="dropped"&&(
+                  <button style={{...s.btn,background:"rgba(100,100,100,.2)",color:"#666",fontSize:12}}
+                    onClick={()=>changeStatus("dropped")}>🔴 Dropped</button>
+                )}
+              </div>
             </div>
-          )}
 
-          {/* REPORTS */}
-          {profileTab==="reports"&&(
-            <div style={s.card}>
-              <h3 style={{marginBottom:16}}>Daily Reports + AI Analysis</h3>
-              {reports.length===0
-                ?<p style={{color:HW.muted}}>No reports submitted yet.</p>
-                :reports.map(r=>{
-                  let pie=null;
-                  try{pie=r.pie_chart_json?JSON.parse(r.pie_chart_json):null;}catch(e){}
-                  return (
-                    <div key={r.id} style={{background:HW.surface2,borderRadius:12,padding:16,marginBottom:14}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                        <div style={{fontWeight:600}}>📅 {r.report_date}</div>
-                        <div style={{display:"flex",alignItems:"center",gap:12}}>
-                          {r.penalty_applied&&(
-                            <span style={{fontSize:11,color:HW.red,background:"rgba(207,10,44,.1)",
-                              padding:"2px 8px",borderRadius:10,fontWeight:700}}>
-                              ⚠️ -{r.penalty_amount}%
-                            </span>
-                          )}
-                          {r.kpi_score&&(
-                            <div style={{fontSize:22,fontWeight:800,color:kpiColor(r.kpi_score)}}>
-                              {r.kpi_score}<span style={{fontSize:11,color:HW.muted,fontWeight:400}}> KPI</span>
-                            </div>
-                          )}
-                        </div>
+            <div style={{display:"flex",gap:4,background:HW.surface2,borderRadius:10,padding:4,marginBottom:20}}>
+              {["timeline","edit","reports","penalties"].map(tab=>(
+                <button key={tab} onClick={()=>setProfileTab(tab)}
+                  style={{...s.btn,flex:1,padding:"8px",
+                    background:profileTab===tab?HW.surface:"none",
+                    color:profileTab===tab?HW.text:HW.muted,
+                    fontSize:12,borderRadius:7,
+                    borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
+                  {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":
+                   tab==="reports"?"📋 Reports":"⚠️ Penalties"}
+                </button>
+              ))}
+            </div>
+
+            {profileTab==="timeline"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:20}}>Activity Timeline</h3>
+                {logs.length===0?<p style={{color:HW.muted}}>No activity logged yet.</p>
+                  :logs.map((log,i)=>(
+                    <div key={log.id} style={{display:"flex",gap:16,marginBottom:20,position:"relative"}}>
+                      {i<logs.length-1&&(
+                        <div style={{position:"absolute",left:19,top:40,width:2,height:"calc(100% + 4px)",background:HW.border}}/>
+                      )}
+                      <div style={{width:40,height:40,borderRadius:"50%",background:HW.surface2,
+                        border:`2px solid ${HW.border}`,display:"flex",alignItems:"center",
+                        justifyContent:"center",fontSize:18,flexShrink:0,zIndex:1}}>
+                        {eventIcons[log.event_type]||"📌"}
                       </div>
-                      <div style={{fontSize:11,color:HW.muted,marginBottom:8}}>
-                        {r.signin_time||"no sign-in"} ·{" "}
-                        <span style={{color:r.attended?"#34d399":HW.red}}>
-                          {r.attended?"● Attended":"○ Absent"}
-                        </span>
-                      </div>
-                      {r.excuse_type&&(
-                        <div style={{background:"rgba(255,165,0,.08)",borderRadius:8,padding:10,
-                          marginBottom:10,borderLeft:"3px solid #FFA500"}}>
-                          <div style={{fontSize:11,color:"#FFA500",fontWeight:700,marginBottom:4}}>
-                            Excuse: {r.excuse_type}
+                      <div style={{flex:1,paddingTop:6}}>
+                        <div style={{fontWeight:600,fontSize:14}}>{log.description}</div>
+                        {log.old_value&&log.new_value&&(
+                          <div style={{fontSize:12,color:HW.muted,marginTop:4}}>
+                            <span style={{color:"#f87171"}}>{log.old_value}</span>{" → "}
+                            <span style={{color:"#34d399"}}>{log.new_value}</span>
                           </div>
-                          <div style={{fontSize:12}}>{r.excuse_text}</div>
-                          {r.excuse_photo_url&&(
-                            <img src={r.excuse_photo_url} alt="excuse"
-                              style={{width:80,height:80,objectFit:"cover",borderRadius:6,
-                                marginTop:8,border:`1px solid ${HW.border}`}}/>
-                          )}
+                        )}
+                        <div style={{fontSize:11,color:HW.muted,marginTop:4}}>
+                          {new Date(log.created_at).toLocaleDateString("en-GB",{
+                            day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"
+                          })}
+                          {log.logged_by&&` · by ${log.logged_by}`}
                         </div>
-                      )}
-                      <div style={{fontSize:13,marginBottom:12,borderLeft:`3px solid ${HW.red}`,paddingLeft:10}}>
-                        {r.report_text}
                       </div>
-                      {r.face_capture_url&&(
-                        <div style={{marginBottom:10}}>
-                          <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                            textTransform:"uppercase",marginBottom:6}}>🤳 Face ID</div>
-                          <img src={r.face_capture_url} alt="face"
-                            style={{width:80,height:80,objectFit:"cover",
-                              borderRadius:"50%",border:`2px solid ${HW.red}`}}/>
-                        </div>
-                      )}
-                      {r.photo_url&&(
-                        <div style={{marginBottom:12}}>
-                          <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                            textTransform:"uppercase",marginBottom:6}}>📸 Proof Photo</div>
-                          <img src={r.photo_url} alt="proof"
-                            style={{maxWidth:"100%",maxHeight:200,borderRadius:8,
-                              border:`1px solid ${HW.border}`,objectFit:"cover"}}/>
-                        </div>
-                      )}
-                      {pie&&(
-                        <div style={{marginBottom:12}}>
-                          <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                            textTransform:"uppercase",marginBottom:8}}>Task Breakdown</div>
-                          <PieChart data={pie}/>
-                        </div>
-                      )}
-                      {r.talent_notes&&(
-                        <div style={{background:"rgba(207,10,44,.06)",borderRadius:8,padding:10,
-                          borderLeft:`3px solid ${HW.red}`}}>
-                          <div style={{fontSize:11,color:HW.red,fontWeight:700,marginBottom:4}}>🌟 AI Talent Notes</div>
-                          <div style={{fontSize:12,lineHeight:1.6}}>{r.talent_notes}</div>
-                        </div>
-                      )}
                     </div>
-                  );
-                })
-              }
-            </div>
-          )}
+                  ))
+                }
+              </div>
+            )}
 
-          {/* PENALTIES */}
-          {profileTab==="penalties"&&(
-            <div style={s.card}>
-              <h3 style={{marginBottom:16}}>⚠️ Penalty Log</h3>
-              {penalties.length===0
-                ?<p style={{color:HW.muted}}>No penalties recorded.</p>
-                :(
+            {profileTab==="edit"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:18}}>Edit Profile</h3>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  <div><label style={s.label}>Department</label>
+                    <input style={s.input} value={selected.department||""}
+                      onChange={e=>setSelected({...selected,department:e.target.value,_original:selected._original||{...selected}})}/></div>
+                  <div><label style={s.label}>Assigned Mentor</label>
+                    <input style={s.input} value={selected.assigned_mentor||""}
+                      onChange={e=>setSelected({...selected,assigned_mentor:e.target.value,_original:selected._original||{...selected}})}/></div>
+                  <div><label style={s.label}>GPA</label>
+                    <input style={s.input} type="number" step="0.01" min="0" max="4" value={selected.gpa||""}
+                      onChange={e=>setSelected({...selected,gpa:e.target.value})}/></div>
+                  <div><label style={s.label}>Joining Date</label>
+                    <input style={s.input} type="date" value={selected.joining_date||""}
+                      onChange={e=>setSelected({...selected,joining_date:e.target.value})}/></div>
+                </div>
+                <button style={{...s.btn,background:HW.red,color:HW.white,marginTop:16}} onClick={saveProfile}>Save Changes</button>
+                {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:10}}>{msg}</p>}
+              </div>
+            )}
+
+            {profileTab==="reports"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:16}}>Daily Reports + AI Analysis</h3>
+                {reports.length===0?<p style={{color:HW.muted}}>No reports yet.</p>
+                  :reports.map(r=>{
+                    let pie=null;
+                    try{pie=r.pie_chart_json?JSON.parse(r.pie_chart_json):null;}catch(e){}
+                    return (
+                      <div key={r.id} style={{background:HW.surface2,borderRadius:12,padding:16,marginBottom:14}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                          <div style={{fontWeight:600}}>📅 {r.report_date}</div>
+                          <div style={{display:"flex",alignItems:"center",gap:12}}>
+                            {r.penalty_applied&&(
+                              <span style={{fontSize:11,color:HW.red,background:"rgba(207,10,44,.1)",
+                                padding:"2px 8px",borderRadius:10,fontWeight:700}}>⚠️ -{r.penalty_amount}%</span>
+                            )}
+                            {r.kpi_score&&(
+                              <div style={{fontSize:22,fontWeight:800,color:kpiColor(r.kpi_score)}}>
+                                {r.kpi_score}<span style={{fontSize:11,color:HW.muted,fontWeight:400}}> KPI</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{fontSize:11,color:HW.muted,marginBottom:8}}>
+                          {r.signin_time||"no sign-in"} ·{" "}
+                          <span style={{color:r.attended?"#34d399":HW.red}}>{r.attended?"● Attended":"○ Absent"}</span>
+                        </div>
+                        {r.excuse_type&&(
+                          <div style={{background:"rgba(255,165,0,.08)",borderRadius:8,padding:10,
+                            marginBottom:10,borderLeft:"3px solid #FFA500"}}>
+                            <div style={{fontSize:11,color:"#FFA500",fontWeight:700,marginBottom:4}}>Excuse: {r.excuse_type}</div>
+                            <div style={{fontSize:12}}>{r.excuse_text}</div>
+                          </div>
+                        )}
+                        <div style={{fontSize:13,marginBottom:12,borderLeft:`3px solid ${HW.red}`,paddingLeft:10}}>{r.report_text}</div>
+                        {r.face_capture_url&&(
+                          <div style={{marginBottom:10}}>
+                            <div style={{fontSize:11,color:HW.muted,fontWeight:700,textTransform:"uppercase",marginBottom:6}}>🤳 Face ID</div>
+                            <img src={r.face_capture_url} alt="face"
+                              style={{width:80,height:80,objectFit:"cover",borderRadius:"50%",border:`2px solid ${HW.red}`}}/>
+                          </div>
+                        )}
+                        {pie&&(
+                          <div style={{marginBottom:12}}>
+                            <div style={{fontSize:11,color:HW.muted,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Task Breakdown</div>
+                            <PieChart data={pie}/>
+                          </div>
+                        )}
+                        {r.talent_notes&&(
+                          <div style={{background:"rgba(207,10,44,.06)",borderRadius:8,padding:10,borderLeft:`3px solid ${HW.red}`}}>
+                            <div style={{fontSize:11,color:HW.red,fontWeight:700,marginBottom:4}}>🌟 AI Talent Notes</div>
+                            <div style={{fontSize:12,lineHeight:1.6}}>{r.talent_notes}</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            )}
+
+            {profileTab==="penalties"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:16}}>⚠️ Penalty Log</h3>
+                {penalties.length===0?<p style={{color:HW.muted}}>No penalties recorded.</p>:(
                   <>
                     <div style={{background:"rgba(207,10,44,.08)",border:`1px solid rgba(207,10,44,.2)`,
                       borderRadius:10,padding:14,marginBottom:16}}>
@@ -1293,9 +1283,8 @@ export default function App() {
                       </div>
                     </div>
                     {penalties.map(p=>(
-                      <div key={p.id} style={{display:"flex",justifyContent:"space-between",
-                        alignItems:"center",background:HW.surface2,borderRadius:10,
-                        borderLeft:`3px solid ${HW.red}`,padding:12,marginBottom:10}}>
+                      <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                        background:HW.surface2,borderRadius:10,borderLeft:`3px solid ${HW.red}`,padding:12,marginBottom:10}}>
                         <div>
                           <div style={{fontSize:13,fontWeight:600}}>📅 {p.report_date}</div>
                           <div style={{fontSize:12,color:HW.muted,marginTop:3}}>{p.reason}</div>
@@ -1304,12 +1293,219 @@ export default function App() {
                       </div>
                     ))}
                   </>
-                )
-              }
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ ANALYTICS TAB ══ */}
+        {mgmtTab==="analytics"&&(
+          <div>
+            {/* KPI Summary Cards */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:16,marginBottom:24}}>
+              {[
+                {label:"Active Trainees",value:analytics.active.length,icon:"👥",color:HW.red},
+                {label:"Avg KPI Score",value:`${analytics.avgKpi}`,icon:"📊",color:"#FFA500"},
+                {label:"Attendance Rate",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},
+                {label:"Total Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},
+                {label:"Total Reports",value:allReports.length,icon:"📋",color:HW.red},
+                {label:"Departments",value:[...new Set(trainees.map(t=>t.department).filter(Boolean))].length,icon:"🏢",color:"#FFA500"},
+              ].map((stat,i)=>(
+                <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                  borderRadius:14,padding:20,borderTop:`3px solid ${stat.color}`}}>
+                  <div style={{fontSize:24,marginBottom:8}}>{stat.icon}</div>
+                  <div style={{fontSize:28,fontWeight:800,color:stat.color}}>{stat.value}</div>
+                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>{stat.label}</div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20}}>
+              {/* KPI Leaderboard */}
+              <div style={s.card}>
+                <h3 style={{marginBottom:16}}>🏆 KPI Leaderboard</h3>
+                {analytics.traineeKpi.length===0
+                  ?<p style={{color:HW.muted}}>No data yet.</p>
+                  :analytics.traineeKpi.slice(0,8).map((t,i)=>(
+                    <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,
+                      padding:"10px 0",borderBottom:`1px solid ${HW.border}`}}>
+                      <div style={{width:28,height:28,borderRadius:"50%",
+                        background:i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":HW.surface2,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:12,fontWeight:800,color:i<3?HW.dark:HW.muted,flexShrink:0}}>
+                        {i+1}
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:600,fontSize:14}}>{t.full_name}</div>
+                        <div style={{fontSize:11,color:HW.muted}}>{t.department} · {t.reports} reports</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:18,fontWeight:800,color:kpiColor(parseFloat(t.avgKpi))}}>
+                          {t.avgKpi}
+                        </div>
+                        <div style={{fontSize:10,color:HW.muted}}>avg KPI</div>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+
+              {/* Department Performance */}
+              <div style={s.card}>
+                <h3 style={{marginBottom:16}}>🏢 Department KPI Performance</h3>
+                {analytics.deptData.length===0
+                  ?<p style={{color:HW.muted}}>No data yet.</p>
+                  :<BarChart data={analytics.deptData}/>
+                }
+                <div style={{marginTop:16}}>
+                  {analytics.deptData.map((d,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",
+                      alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${HW.border}`}}>
+                      <span style={{fontSize:13,color:HW.muted}}>{d.label}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{width:80,height:6,background:HW.border,borderRadius:10,overflow:"hidden"}}>
+                          <div style={{height:"100%",background:HW.red,borderRadius:10,
+                            width:`${d.value}%`}}/>
+                        </div>
+                        <span style={{fontSize:13,fontWeight:700,color:kpiColor(d.value),minWidth:30}}>
+                          {d.value}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* At Risk Trainees */}
+            {analytics.atRisk.length>0&&(
+              <div style={{...s.card,border:`1px solid rgba(248,113,113,.3)`}}>
+                <h3 style={{marginBottom:16,color:"#f87171"}}>
+                  ⚠️ At Risk Trainees
+                  <span style={{fontSize:13,color:HW.muted,fontWeight:400,marginLeft:8}}>
+                    — KPI below 60 or more than 2 penalties
+                  </span>
+                </h3>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
+                  {analytics.atRisk.map(t=>(
+                    <div key={t.id} style={{background:HW.surface2,borderRadius:12,padding:16,
+                      borderLeft:`3px solid #f87171`}}>
+                      <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>{t.full_name}</div>
+                      <div style={{fontSize:12,color:HW.muted,marginBottom:8}}>{t.department}</div>
+                      <div style={{display:"flex",gap:12}}>
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:20,fontWeight:800,color:"#f87171"}}>{t.avgKpi}</div>
+                          <div style={{fontSize:10,color:HW.muted}}>Avg KPI</div>
+                        </div>
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:20,fontWeight:800,color:"#f87171"}}>{t.penalties}</div>
+                          <div style={{fontSize:10,color:HW.muted}}>Penalties</div>
+                        </div>
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:20,fontWeight:800,color:HW.muted}}>{t.reports}</div>
+                          <div style={{fontSize:10,color:HW.muted}}>Reports</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ OKR TAB ══ */}
+        {mgmtTab==="okr"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",
+              alignItems:"center",marginBottom:20}}>
+              <div>
+                <h3 style={{margin:0}}>🎯 OKR Tracking</h3>
+                <p style={{color:HW.muted,fontSize:13,margin:"4px 0 0"}}>
+                  Objectives and Key Results by Department
+                </p>
+              </div>
+              <button style={{...s.btn,background:HW.red,color:HW.white}}
+                onClick={()=>setShowAddOkr(!showAddOkr)}>
+                {showAddOkr?"Cancel":"+ Add OKR"}
+              </button>
+            </div>
+
+            {/* Add OKR Form */}
+            {showAddOkr&&(
+              <div style={{...s.card,border:`1px solid rgba(207,10,44,.3)`}}>
+                <h4 style={{marginBottom:16,color:HW.red}}>Add New OKR</h4>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  <div><label style={s.label}>Department</label>
+                    <input style={s.input} placeholder="e.g. Engineering" value={newOkr.department}
+                      onChange={e=>setNewOkr({...newOkr,department:e.target.value})}/></div>
+                  <div><label style={s.label}>Due Date</label>
+                    <input style={s.input} type="date" value={newOkr.due_date}
+                      onChange={e=>setNewOkr({...newOkr,due_date:e.target.value})}/></div>
+                  <div style={{gridColumn:"1/-1"}}><label style={s.label}>Objective</label>
+                    <input style={s.input} placeholder="e.g. Improve Technical Skills" value={newOkr.objective}
+                      onChange={e=>setNewOkr({...newOkr,objective:e.target.value})}/></div>
+                  <div style={{gridColumn:"1/-1"}}><label style={s.label}>Key Result</label>
+                    <input style={s.input} placeholder="e.g. Complete 20 lab sessions" value={newOkr.key_result}
+                      onChange={e=>setNewOkr({...newOkr,key_result:e.target.value})}/></div>
+                  <div><label style={s.label}>Target</label>
+                    <input style={s.input} type="number" value={newOkr.target}
+                      onChange={e=>setNewOkr({...newOkr,target:parseFloat(e.target.value)})}/></div>
+                  <div><label style={s.label}>Unit</label>
+                    <select style={s.input} value={newOkr.unit}
+                      onChange={e=>setNewOkr({...newOkr,unit:e.target.value})}>
+                      <option value="%">% (Percentage)</option>
+                      <option value="sessions">Sessions</option>
+                      <option value="reports">Reports</option>
+                      <option value="tasks">Tasks</option>
+                      <option value="reviews">Reviews</option>
+                      <option value="workflows">Workflows</option>
+                    </select>
+                  </div>
+                </div>
+                <button style={{...s.btn,background:HW.red,color:HW.white,marginTop:16}} onClick={addOkr}>
+                  Add OKR
+                </button>
+                {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:10}}>{msg}</p>}
+              </div>
+            )}
+
+            {/* OKR Summary */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:16,marginBottom:20}}>
+              {[
+                {label:"Total OKRs",value:okrs.length,color:HW.red},
+                {label:"On Track (≥80%)",value:okrs.filter(o=>(o.current/o.target)>=.8).length,color:"#34d399"},
+                {label:"In Progress",value:okrs.filter(o=>(o.current/o.target)>=.5&&(o.current/o.target)<.8).length,color:"#FFA500"},
+                {label:"Behind (<50%)",value:okrs.filter(o=>(o.current/o.target)<.5).length,color:"#f87171"},
+              ].map((s2,i)=>(
+                <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                  borderRadius:14,padding:16,textAlign:"center",borderTop:`3px solid ${s2.color}`}}>
+                  <div style={{fontSize:28,fontWeight:800,color:s2.color}}>{s2.value}</div>
+                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>{s2.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* OKR List by Department */}
+            {[...new Set(okrs.map(o=>o.department))].map(dept=>(
+              <div key={dept} style={s.card}>
+                <h4 style={{marginBottom:16,color:HW.red}}>🏢 {dept}</h4>
+                {okrs.filter(o=>o.department===dept).map(okr=>(
+                  <OKRBar key={okr.id} okr={okr} isManager={true} onUpdate={updateOkr}/>
+                ))}
+              </div>
+            ))}
+
+            {okrs.length===0&&(
+              <div style={{...s.card,textAlign:"center",padding:40}}>
+                <div style={{fontSize:40,marginBottom:12}}>🎯</div>
+                <p style={{color:HW.muted}}>No OKRs yet. Click "+ Add OKR" to create your first one!</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 }
