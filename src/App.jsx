@@ -11,6 +11,15 @@ const WORK_RADIUS = 500;
 const MAX_SIGNIN  = "09:00";
 const PENALTY_PCT = 8.33;
 
+const KRA_CATEGORIES = [
+  { id:"attendance",    label:"Attendance & Punctuality",  icon:"⏰", color:"#CF0A2C" },
+  { id:"technical",     label:"Technical Skills",          icon:"🔧", color:"#FFA500" },
+  { id:"reporting",     label:"Reporting & Documentation", icon:"📋", color:"#34d399" },
+  { id:"teamwork",      label:"Teamwork & Communication",  icon:"🤝", color:"#4f8ef7" },
+  { id:"learning",      label:"Learning & Development",    icon:"📚", color:"#7c5cfc" },
+  { id:"initiative",    label:"Initiative & Innovation",   icon:"💡", color:"#FFD700" },
+];
+
 const HW = {
   red:"#CF0A2C", darkRed:"#A00820", black:"#1A1A1A",
   dark:"#0D0D0D", surface:"#1E1E1E", surface2:"#2A2A2A",
@@ -137,6 +146,93 @@ function OKRBar({okr,onUpdate}) {
   );
 }
 
+// ── Goal Card Component ──────────────────────────────
+function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
+  const kra = KRA_CATEGORIES.find(k=>k.id===goal.kra)||KRA_CATEGORIES[0];
+  const pct = Math.min((goal.current_value/goal.target_value)*100,100).toFixed(0);
+  const isOverdue = goal.due_date && new Date(goal.due_date)<new Date() && goal.status!=="completed";
+  const statusColors = {
+    not_started:{bg:"rgba(136,136,136,.15)",color:"#888"},
+    in_progress:{bg:"rgba(79,142,247,.15)",color:"#4f8ef7"},
+    completed:{bg:"rgba(52,211,153,.15)",color:"#34d399"},
+    overdue:{bg:"rgba(248,113,113,.15)",color:"#f87171"},
+  };
+  const status = isOverdue && goal.status!=="completed" ? "overdue" : goal.status;
+
+  return (
+    <div style={{background:HW.surface2,borderRadius:14,padding:18,marginBottom:14,
+      borderLeft:`4px solid ${kra.color}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+        <div style={{flex:1}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+            <span style={{fontSize:18}}>{kra.icon}</span>
+            <span style={{fontSize:11,color:kra.color,fontWeight:700,textTransform:"uppercase"}}>{kra.label}</span>
+          </div>
+          <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>{goal.goal_title}</div>
+          {goal.description&&<div style={{fontSize:13,color:HW.muted}}>{goal.description}</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+          <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
+            background:statusColors[status]?.bg,color:statusColors[status]?.color}}>
+            {status==="not_started"?"⬜ Not Started":
+             status==="in_progress"?"🔵 In Progress":
+             status==="completed"?"✅ Completed":"🔴 Overdue"}
+          </span>
+          {goal.due_date&&(
+            <div style={{fontSize:11,color:isOverdue?HW.red:HW.muted}}>
+              Due: {new Date(goal.due_date).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
+          <span style={{color:HW.muted}}>Progress</span>
+          <span style={{fontWeight:700,color:kra.color}}>{goal.current_value}/{goal.target_value} {goal.unit} ({pct}%)</span>
+        </div>
+        <div style={{height:8,background:HW.border,borderRadius:10,overflow:"hidden"}}>
+          <div style={{height:"100%",borderRadius:10,background:kra.color,
+            width:`${pct}%`,transition:"width .6s ease"}}/>
+        </div>
+      </div>
+
+      {/* Update progress (trainee only) */}
+      {isTrainee&&goal.status!=="completed"&&(
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <input type="number" placeholder="Update progress"
+            style={{background:HW.surface,border:`1px solid ${HW.border}`,color:HW.text,
+              borderRadius:6,padding:"6px 10px",width:130,fontSize:13}}
+            onBlur={e=>{if(e.target.value) onUpdate(goal.id,parseFloat(e.target.value));}}/>
+          <button style={{padding:"6px 14px",borderRadius:6,border:"none",
+            background:kra.color,color:HW.white,fontWeight:700,fontSize:12,cursor:"pointer"}}
+            onClick={()=>{
+              const input=document.querySelector(`#prog_${goal.id}`);
+              if(input) onUpdate(goal.id,parseFloat(input.value));
+            }}>
+            Update
+          </button>
+          {parseFloat(pct)>=100&&(
+            <button style={{padding:"6px 14px",borderRadius:6,border:"none",
+              background:"rgba(52,211,153,.15)",color:"#34d399",fontWeight:700,fontSize:12,cursor:"pointer"}}
+              onClick={()=>onUpdate(goal.id,goal.target_value,"completed")}>
+              ✅ Mark Complete
+            </button>
+          )}
+          {onDelete&&(
+            <button style={{padding:"6px 14px",borderRadius:6,border:"none",
+              background:"rgba(248,113,113,.1)",color:"#f87171",fontWeight:700,fontSize:12,cursor:"pointer"}}
+              onClick={()=>onDelete(goal.id)}>
+              🗑 Delete
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReminderPopup({onDismiss}) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",
@@ -164,11 +260,14 @@ export default function App() {
   const [traineeTab,setTraineeTab]   = useState("attendance");
   const [mgmtTab,setMgmtTab]         = useState("trainees");
   const [user,setUser]               = useState(null);
+  const [traineeId,setTraineeId]     = useState(null);
   const [trainees,setTrainees]       = useState([]);
   const [selected,setSelected]       = useState(null);
   const [reports,setReports]         = useState([]);
   const [logs,setLogs]               = useState([]);
   const [penalties,setPenalties]     = useState([]);
+  const [goals,setGoals]             = useState([]);
+  const [selectedGoals,setSelectedGoals] = useState([]);
   const [okrs,setOkrs]               = useState([]);
   const [allReports,setAllReports]   = useState([]);
   const [allPenalties,setAllPenalties] = useState([]);
@@ -198,6 +297,14 @@ export default function App() {
   const [newOkr,setNewOkr]           = useState({department:"",objective:"",
     key_result:"",target:100,current:0,unit:"%",due_date:""});
   const [showAddOkr,setShowAddOkr]   = useState(false);
+  const [showAddGoal,setShowAddGoal] = useState(false);
+  const [newGoal,setNewGoal]         = useState({
+    kra:"attendance",goal_title:"",description:"",
+    target_value:100,current_value:0,unit:"%",
+    start_date:new Date().toISOString().split("T")[0],
+    due_date:"",status:"not_started"
+  });
+  const [goalFilter,setGoalFilter]   = useState("all");
   const videoRef=useRef(),canvasRef=useRef(),streamRef=useRef();
   const excuseRef=useRef(),photoRef=useRef();
 
@@ -274,10 +381,12 @@ export default function App() {
       else{
         setView("trainee");
         if(data.trainee_id){
+          setTraineeId(data.trainee_id);
           const{data:t}=await supabase.from("trainees").select("*").eq("id",data.trainee_id).single();
           if(t) setProfile({full_name:t.full_name||"",civil_id:t.civil_id||"",
             phone_number:t.phone_number||"",department:t.department||"",
             assigned_mentor:t.assigned_mentor||"",gpa:t.gpa||""});
+          fetchGoals(data.trainee_id);
           const start=new Date();start.setDate(1);
           const{data:tc}=await supabase.from("traffic_excuses").select("id")
             .eq("trainee_id",data.trainee_id).gte("created_at",start.toISOString());
@@ -313,6 +422,7 @@ export default function App() {
     setAiResult(null);setPhotoFile(null);setPhotoPreview(null);
     setLocationOk(false);setGeoStatus("idle");setGeoMsg("");
     setFaceCapture(null);setFaceCaptured(false);stopCamera();
+    setTraineeId(null);setGoals([]);
   }
 
   function checkLocation(){
@@ -382,6 +492,7 @@ export default function App() {
     },{onConflict:"civil_id"}).select().single();
     if(tErr){setMsg("Error: "+tErr.message);setLoading(false);return;}
     await supabase.from("profiles").update({trainee_id:traineeData.id}).eq("id",user.id);
+    setTraineeId(traineeData.id);
     const tid=traineeData.id,ts=Date.now();
     const faceUrl=faceCapture?await uploadFile("report-photos",`${tid}/face_${ts}.jpg`,faceCapture):null;
     let excusePhotoUrl=null;
@@ -433,6 +544,54 @@ export default function App() {
     setLoading(false);setAiLoading(false);
   }
 
+  // ── Goals Functions ──────────────────────────────────
+  async function fetchGoals(tid) {
+    const{data}=await supabase.from("goals").select("*")
+      .eq("trainee_id",tid).order("created_at",{ascending:false});
+    if(data) setGoals(data);
+  }
+
+  async function addGoal() {
+    if(!newGoal.goal_title){setMsg("Please enter a goal title.");return;}
+    if(!traineeId){setMsg("Please submit attendance first to set up your profile.");return;}
+    setLoading(true);setMsg("");
+    const{error}=await supabase.from("goals").insert({
+      ...newGoal,trainee_id:traineeId,
+    });
+    if(error){setMsg(error.message);}
+    else{
+      setMsg("✅ Goal added successfully!");
+      setShowAddGoal(false);
+      setNewGoal({kra:"attendance",goal_title:"",description:"",
+        target_value:100,current_value:0,unit:"%",
+        start_date:new Date().toISOString().split("T")[0],
+        due_date:"",status:"in_progress"});
+      fetchGoals(traineeId);
+    }
+    setLoading(false);
+  }
+
+  async function updateGoal(id,newValue,newStatus) {
+    const updates={current_value:newValue};
+    if(newStatus) updates.status=newStatus;
+    else if(newValue>=goals.find(g=>g.id===id)?.target_value) updates.status="completed";
+    await supabase.from("goals").update(updates).eq("id",id);
+    fetchGoals(traineeId);
+    setMsg("✅ Goal updated!");
+  }
+
+  async function deleteGoal(id) {
+    await supabase.from("goals").delete().eq("id",id);
+    fetchGoals(traineeId);
+    setMsg("✅ Goal deleted.");
+  }
+
+  async function fetchSelectedGoals(tid) {
+    const{data}=await supabase.from("goals").select("*")
+      .eq("trainee_id",tid).order("created_at",{ascending:false});
+    if(data) setSelectedGoals(data);
+  }
+
   async function fetchTrainees(){
     setLoading(true);
     const{data}=await supabase.from("trainees").select("*").order("full_name");
@@ -472,7 +631,8 @@ export default function App() {
 
   async function openProfile(t){
     setSelected({...t});setProfileTab("timeline");setMsg("");
-    await fetchReports(t.id);await fetchLogs(t.id);await fetchPenalties(t.id);
+    await fetchReports(t.id);await fetchLogs(t.id);
+    await fetchPenalties(t.id);await fetchSelectedGoals(t.id);
   }
 
   async function logEvent(tid,type,desc,old="",nw=""){
@@ -587,6 +747,7 @@ export default function App() {
     const{data:allR}=await supabase.from("daily_reports").select("*").order("report_date");
     const{data:allP}=await supabase.from("penalties").select("*").order("created_at");
     const{data:allL}=await supabase.from("trainee_logs").select("*").order("created_at");
+    const{data:allG}=await supabase.from("goals").select("*").order("created_at");
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({
       "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
@@ -599,25 +760,26 @@ export default function App() {
       "Trainee ID":r.trainee_id,"Date":r.report_date,"Attended":r.attended?"Yes":"No",
       "Sign-in":r.signin_time||"—","KPI":r.kpi_score||"—","Report":r.report_text,
       "Talent Notes":r.talent_notes||"—","Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
-      "Excuse":r.excuse_type||"—",
     }))),"Daily Reports");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allP||[]).map(p=>({
       "Trainee ID":p.trainee_id,"Date":p.report_date,"Reason":p.reason,"Deduction":`-${p.amount}%`,
     }))),"Penalties");
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allL||[]).map(l=>({
-      "Trainee ID":l.trainee_id,"Event":l.event_type,"Description":l.description,
-      "Old":l.old_value||"—","New":l.new_value||"—","By":l.logged_by,
-      "Date":new Date(l.created_at).toLocaleDateString("en-GB"),
-    }))),"Timeline");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allG||[]).map(g=>({
+      "Trainee ID":g.trainee_id,"KRA":g.kra,"Goal":g.goal_title,
+      "Description":g.description||"—","Target":g.target_value,
+      "Current":g.current_value,"Unit":g.unit,"Status":g.status,
+      "Due Date":g.due_date||"—",
+      "Progress %":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%",
+    }))),"Goals");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>{
       const tr=(allR||[]).filter(r=>r.trainee_id===t.id);
       const tp=(allP||[]).filter(p=>p.trainee_id===t.id);
+      const tg=(allG||[]).filter(g=>g.trainee_id===t.id);
       const avg=tr.filter(r=>r.kpi_score).reduce((a,r,_,arr)=>a+r.kpi_score/arr.length,0);
       return{"Full Name":t.full_name,"Department":t.department,"Status":t.status,
-        "Joining":t.joining_date||"—","Quitting":t.quitting_date||"Active",
         "Reports":tr.length,"Attended":tr.filter(r=>r.attended).length,
-        "Absent":tr.filter(r=>!r.attended).length,
         "Avg KPI":avg?avg.toFixed(1):"—","Penalties":tp.length,
+        "Goals Set":tg.length,"Goals Completed":tg.filter(g=>g.status==="completed").length,
         "Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`};
     })),"Summary");
     XLSX.writeFile(wb,`TraineeOS_Export_${new Date().toISOString().split("T")[0]}.xlsx`);
@@ -648,6 +810,13 @@ export default function App() {
     return{active,attendanceRate,avgKpi,totalPenalties:allPenalties.length,traineeKpi,deptData,atRisk};
   }
 
+  // ── Filtered goals ───────────────────────────────────
+  const filteredGoals = goalFilter==="all" ? goals
+    : goals.filter(g=>g.kra===goalFilter||g.status===goalFilter);
+
+  // ══════════════════════════════════════════════════
+  // LOGIN
+  // ══════════════════════════════════════════════════
   if(view==="login") return (
     <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{...s.card,width:420}}>
@@ -686,6 +855,9 @@ export default function App() {
     </div>
   );
 
+  // ══════════════════════════════════════════════════
+  // SIGNUP
+  // ══════════════════════════════════════════════════
   if(view==="signup") return (
     <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{...s.card,width:420}}>
@@ -717,6 +889,9 @@ export default function App() {
     </div>
   );
 
+  // ══════════════════════════════════════════════════
+  // TRAINEE DASHBOARD
+  // ══════════════════════════════════════════════════
   if(view==="trainee") return (
     <div style={s.page}>
       {showReminder&&<ReminderPopup onDismiss={()=>setShowReminder(false)}/>}
@@ -736,8 +911,13 @@ export default function App() {
         </div>
       </div>
 
+      {/* Tabs — now 3 tabs */}
       <div style={{display:"flex",gap:4,background:HW.surface2,borderRadius:12,padding:5,marginBottom:28}}>
-        {[{id:"attendance",icon:"✅",label:"Attendance"},{id:"tasks",icon:"📋",label:"Daily Tasks"}].map(tab=>(
+        {[
+          {id:"attendance",icon:"✅",label:"Attendance"},
+          {id:"tasks",icon:"📋",label:"Daily Tasks"},
+          {id:"goals",icon:"🎯",label:"My Goals"},
+        ].map(tab=>(
           <button key={tab.id} onClick={()=>setTraineeTab(tab.id)}
             style={{...s.btn,flex:1,padding:"13px",
               background:traineeTab===tab.id?HW.red:"none",
@@ -748,6 +928,7 @@ export default function App() {
         ))}
       </div>
 
+      {/* ══ ATTENDANCE TAB ══ */}
       {traineeTab==="attendance"&&(
         <div>
           <div style={s.card}>
@@ -777,8 +958,7 @@ export default function App() {
           <div style={{...s.card,border:locationOk?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
             <h3 style={{marginBottom:12,color:HW.red}}>📍 Location Verification</h3>
             <p style={{color:HW.muted,fontSize:13,marginBottom:14}}>
-              Must be within <b style={{color:HW.text}}>500m</b> of workplace.
-              Max sign-in: <b style={{color:HW.red}}>9:00 AM</b>.
+              Must be within <b style={{color:HW.text}}>500m</b> of workplace. Max sign-in: <b style={{color:HW.red}}>9:00 AM</b>.
             </p>
             <button style={{...s.btn,background:locationOk?"rgba(207,10,44,.15)":HW.red,
               color:locationOk?HW.red:HW.white,opacity:geoStatus==="checking"?0.6:1}}
@@ -834,14 +1014,12 @@ export default function App() {
               {(!attendance.attended||(attendance.signin_time&&attendance.signin_time>MAX_SIGNIN&&!isLate))&&(
                 <div style={{background:"rgba(207,10,44,.1)",border:`1px solid rgba(207,10,44,.3)`,
                   borderRadius:8,padding:10,fontSize:12,color:HW.red}}>
-                  ⚠️ <b>Penalty Warning:</b> {!attendance.attended
-                    ?"Not marked as attended":"Sign-in after 9:00 AM"} — <b>8.33% deduction</b>
+                  ⚠️ <b>Penalty Warning:</b> {!attendance.attended?"Not marked as attended":"Sign-in after 9:00 AM"} — <b>8.33% deduction</b>
                 </div>
               )}
             </div>
             {isLate&&(
-              <div style={{marginTop:16,background:HW.surface2,borderRadius:12,padding:16,
-                border:`1px solid rgba(207,10,44,.3)`}}>
+              <div style={{marginTop:16,background:HW.surface2,borderRadius:12,padding:16,border:`1px solid rgba(207,10,44,.3)`}}>
                 <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>⚠️ Late Arrival — Please Provide Excuse</div>
                 <div style={{marginBottom:10}}>
                   <label style={s.label}>Excuse Type</label>
@@ -863,9 +1041,7 @@ export default function App() {
                   <label style={s.label}>Proof Photo {excuseType==="traffic"?"(Required)":"(Optional)"}</label>
                   <div style={{display:"flex",gap:10,alignItems:"center"}}>
                     <button style={{...s.btn,background:HW.surface,color:HW.text,border:`1px dashed ${HW.border}`}}
-                      onClick={()=>excuseRef.current.click()}>
-                      📷 {excusePhoto?"Change":"Upload Proof"}
-                    </button>
+                      onClick={()=>excuseRef.current.click()}>📷 {excusePhoto?"Change":"Upload Proof"}</button>
                     <input ref={excuseRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleExcusePhoto}/>
                     {excusePreview&&<img src={excusePreview} alt="proof" style={{width:60,height:60,objectFit:"cover",borderRadius:8}}/>}
                   </div>
@@ -881,8 +1057,7 @@ export default function App() {
               background:(locationOk&&faceCaptured)?HW.red:HW.surface2,
               color:(locationOk&&faceCaptured)?HW.white:HW.muted,
               marginTop:16,width:"100%",padding:14,fontSize:15,
-              opacity:loading?0.6:1,
-              cursor:(locationOk&&faceCaptured)?"pointer":"not-allowed"}}
+              opacity:loading?0.6:1,cursor:(locationOk&&faceCaptured)?"pointer":"not-allowed"}}
               onClick={submitAttendance} disabled={loading||!locationOk||!faceCaptured}>
               {loading?"Saving…":"✅ Submit Attendance"}
             </button>
@@ -892,12 +1067,12 @@ export default function App() {
                   :!locationOk?"📍 Verify location first":"🤳 Complete face ID first"}
               </p>
             )}
-            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
-              fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
+            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
         </div>
       )}
 
+      {/* ══ TASKS TAB ══ */}
       {traineeTab==="tasks"&&(
         <div>
           <div style={s.card}>
@@ -916,7 +1091,7 @@ export default function App() {
               <div style={{gridColumn:"1/-1"}}>
                 <label style={s.label}>What did you work on today? *</label>
                 <textarea style={{...s.input,height:160,resize:"vertical"}}
-                  placeholder="Example: Completed the circuit analysis report, attended a 2-hour lab session with my mentor Dr. Fatima, reviewed safety protocols document, submitted weekly KPI update to supervisor..."
+                  placeholder="Example: Completed the circuit analysis report, attended a 2-hour lab session with my mentor Dr. Fatima, reviewed safety protocols document..."
                   value={taskReport.report_text}
                   onChange={e=>setTaskReport({...taskReport,report_text:e.target.value})}/>
               </div>
@@ -937,8 +1112,7 @@ export default function App() {
               onClick={submitTasks} disabled={loading||aiLoading}>
               {aiLoading?"🤖 AI Analyzing…":loading?"Saving…":"📋 Submit Daily Tasks ✓"}
             </button>
-            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":
-              msg.startsWith("🤖")?"#FFA500":HW.red,
+            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":msg.startsWith("🤖")?"#FFA500":HW.red,
               fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
           {aiResult&&(
@@ -971,9 +1145,150 @@ export default function App() {
           )}
         </div>
       )}
+
+      {/* ══ GOALS TAB ══ */}
+      {traineeTab==="goals"&&(
+        <div>
+          {/* KRA Summary Cards */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:24}}>
+            {KRA_CATEGORIES.map(kra=>{
+              const kraGoals=goals.filter(g=>g.kra===kra.id);
+              const completed=kraGoals.filter(g=>g.status==="completed").length;
+              return (
+                <div key={kra.id} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                  borderRadius:12,padding:16,cursor:"pointer",
+                  borderTop:`3px solid ${kra.color}`,
+                  opacity:goalFilter===kra.id?1:0.7,
+                  outline:goalFilter===kra.id?`2px solid ${kra.color}`:"none"}}
+                  onClick={()=>setGoalFilter(goalFilter===kra.id?"all":kra.id)}>
+                  <div style={{fontSize:22,marginBottom:6}}>{kra.icon}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:kra.color,textTransform:"uppercase",marginBottom:4}}>{kra.label}</div>
+                  <div style={{fontSize:13,color:HW.muted}}>{kraGoals.length} goals · {completed} done</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Goal stats */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+            {[
+              {label:"Total Goals",value:goals.length,color:HW.red},
+              {label:"In Progress",value:goals.filter(g=>g.status==="in_progress").length,color:"#4f8ef7"},
+              {label:"Completed",value:goals.filter(g=>g.status==="completed").length,color:"#34d399"},
+              {label:"Overdue",value:goals.filter(g=>g.due_date&&new Date(g.due_date)<new Date()&&g.status!=="completed").length,color:"#f87171"},
+            ].map((stat,i)=>(
+              <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                borderRadius:12,padding:14,textAlign:"center",borderTop:`3px solid ${stat.color}`}}>
+                <div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div>
+                <div style={{fontSize:11,color:HW.muted,marginTop:4}}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add Goal Button */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <h3 style={{margin:0}}>
+              {goalFilter==="all"?"All Goals":`${KRA_CATEGORIES.find(k=>k.id===goalFilter)?.label||""} Goals`}
+              <span style={{fontSize:13,color:HW.muted,fontWeight:400,marginLeft:8}}>
+                ({filteredGoals.length} goals)
+              </span>
+            </h3>
+            <div style={{display:"flex",gap:8}}>
+              {goalFilter!=="all"&&(
+                <button style={{...s.btn,background:HW.surface2,color:HW.muted,fontSize:12}}
+                  onClick={()=>setGoalFilter("all")}>Show All</button>
+              )}
+              <button style={{...s.btn,background:HW.red,color:HW.white}}
+                onClick={()=>setShowAddGoal(!showAddGoal)}>
+                {showAddGoal?"Cancel":"+ Add Goal"}
+              </button>
+            </div>
+          </div>
+
+          {/* Add Goal Form */}
+          {showAddGoal&&(
+            <div style={{...s.card,border:`1px solid rgba(207,10,44,.3)`,marginBottom:20}}>
+              <h4 style={{marginBottom:16,color:HW.red}}>🎯 Set New Goal</h4>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                <div><label style={s.label}>Key Result Area (KRA)</label>
+                  <select style={s.input} value={newGoal.kra}
+                    onChange={e=>setNewGoal({...newGoal,kra:e.target.value})}>
+                    {KRA_CATEGORIES.map(k=>(
+                      <option key={k.id} value={k.id}>{k.icon} {k.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div><label style={s.label}>Status</label>
+                  <select style={s.input} value={newGoal.status}
+                    onChange={e=>setNewGoal({...newGoal,status:e.target.value})}>
+                    <option value="not_started">⬜ Not Started</option>
+                    <option value="in_progress">🔵 In Progress</option>
+                  </select>
+                </div>
+                <div style={{gridColumn:"1/-1"}}><label style={s.label}>Goal Title *</label>
+                  <input style={s.input} placeholder="e.g. Achieve 95% attendance rate this month"
+                    value={newGoal.goal_title}
+                    onChange={e=>setNewGoal({...newGoal,goal_title:e.target.value})}/></div>
+                <div style={{gridColumn:"1/-1"}}><label style={s.label}>Description (optional)</label>
+                  <textarea style={{...s.input,height:70,resize:"vertical"}}
+                    placeholder="Describe how you plan to achieve this goal…"
+                    value={newGoal.description}
+                    onChange={e=>setNewGoal({...newGoal,description:e.target.value})}/></div>
+                <div><label style={s.label}>Target Value</label>
+                  <input style={s.input} type="number" value={newGoal.target_value}
+                    onChange={e=>setNewGoal({...newGoal,target_value:parseFloat(e.target.value)})}/></div>
+                <div><label style={s.label}>Unit</label>
+                  <select style={s.input} value={newGoal.unit}
+                    onChange={e=>setNewGoal({...newGoal,unit:e.target.value})}>
+                    <option value="%">% (Percentage)</option>
+                    <option value="days">Days</option>
+                    <option value="sessions">Sessions</option>
+                    <option value="reports">Reports</option>
+                    <option value="tasks">Tasks</option>
+                    <option value="hours">Hours</option>
+                    <option value="score">Score</option>
+                  </select>
+                </div>
+                <div><label style={s.label}>Start Date</label>
+                  <input style={s.input} type="date" value={newGoal.start_date}
+                    onChange={e=>setNewGoal({...newGoal,start_date:e.target.value})}/></div>
+                <div><label style={s.label}>Due Date</label>
+                  <input style={s.input} type="date" value={newGoal.due_date}
+                    onChange={e=>setNewGoal({...newGoal,due_date:e.target.value})}/></div>
+              </div>
+              <button style={{...s.btn,background:HW.red,color:HW.white,marginTop:16,opacity:loading?0.6:1}}
+                onClick={addGoal} disabled={loading}>
+                {loading?"Saving…":"🎯 Set Goal"}
+              </button>
+              {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:10}}>{msg}</p>}
+            </div>
+          )}
+
+          {/* Goals List */}
+          {filteredGoals.length===0?(
+            <div style={{...s.card,textAlign:"center",padding:40}}>
+              <div style={{fontSize:40,marginBottom:12}}>🎯</div>
+              <p style={{color:HW.muted,marginBottom:16}}>No goals set yet. Click "+ Add Goal" to get started!</p>
+              <p style={{fontSize:13,color:HW.muted}}>
+                Set goals for each Key Result Area to track your progress throughout the program.
+              </p>
+            </div>
+          ):(
+            filteredGoals.map(goal=>(
+              <GoalCard key={goal.id} goal={goal}
+                onUpdate={updateGoal} onDelete={deleteGoal} isTrainee={true}/>
+            ))
+          )}
+          {msg&&!showAddGoal&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+            fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
+        </div>
+      )}
     </div>
   );
 
+  // ══════════════════════════════════════════════════
+  // MANAGEMENT DASHBOARD
+  // ══════════════════════════════════════════════════
   if(view==="mgmt") {
     const analytics=getAnalytics();
     return (
@@ -1049,6 +1364,7 @@ export default function App() {
           <div>
             <button style={{...s.btn,background:HW.surface2,color:HW.text,marginBottom:20,border:`1px solid ${HW.border}`}}
               onClick={()=>{setSelected(null);setMsg("");}}>← Back to table</button>
+
             <div style={{...s.card,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
               <div style={{display:"flex",alignItems:"center",gap:16}}>
                 <div style={{width:56,height:56,borderRadius:14,
@@ -1080,14 +1396,16 @@ export default function App() {
               </div>
             </div>
 
+            {/* Profile Tabs — now includes Goals */}
             <div style={{display:"flex",gap:4,background:HW.surface2,borderRadius:10,padding:4,marginBottom:20}}>
-              {["timeline","edit","reports","penalties"].map(tab=>(
+              {["timeline","edit","reports","penalties","goals"].map(tab=>(
                 <button key={tab} onClick={()=>setProfileTab(tab)}
                   style={{...s.btn,flex:1,padding:"8px",
                     background:profileTab===tab?HW.surface:"none",
-                    color:profileTab===tab?HW.text:HW.muted,fontSize:12,borderRadius:7,
+                    color:profileTab===tab?HW.text:HW.muted,fontSize:11,borderRadius:7,
                     borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
-                  {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":tab==="reports"?"📋 Reports":"⚠️ Penalties"}
+                  {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":
+                   tab==="reports"?"📋 Reports":tab==="penalties"?"⚠️ Penalties":"🎯 Goals"}
                 </button>
               ))}
             </div>
@@ -1218,6 +1536,37 @@ export default function App() {
                     ))}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* GOALS TAB — Manager View */}
+            {profileTab==="goals"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:16}}>🎯 Trainee Goals</h3>
+
+                {/* KRA Summary for this trainee */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:20}}>
+                  {KRA_CATEGORIES.map(kra=>{
+                    const kraGoals=selectedGoals.filter(g=>g.kra===kra.id);
+                    const completed=kraGoals.filter(g=>g.status==="completed").length;
+                    return (
+                      <div key={kra.id} style={{background:HW.surface2,borderRadius:10,padding:12,
+                        borderTop:`3px solid ${kra.color}`,textAlign:"center"}}>
+                        <div style={{fontSize:18,marginBottom:4}}>{kra.icon}</div>
+                        <div style={{fontSize:10,color:kra.color,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>{kra.label.split(" ")[0]}</div>
+                        <div style={{fontSize:13,fontWeight:700}}>{kraGoals.length} goals</div>
+                        <div style={{fontSize:11,color:"#34d399"}}>{completed} completed</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedGoals.length===0
+                  ?<p style={{color:HW.muted}}>No goals set by this trainee yet.</p>
+                  :selectedGoals.map(goal=>(
+                    <GoalCard key={goal.id} goal={goal} isTrainee={false}/>
+                  ))
+                }
               </div>
             )}
           </div>
