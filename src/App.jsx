@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 const CLAUDE_KEY  = import.meta.env.VITE_CLAUDE_API_KEY;
 const WORK_LAT    = 23.5896598;
 const WORK_LNG    = 58.4125277;
-const WORK_RADIUS = 500;
+const WORK_RADIUS = 50;
 const MAX_SIGNIN  = "09:00";
 const PENALTY_PCT = 8.33;
 
@@ -327,8 +327,8 @@ function GreetingPopup({name,onDismiss}) {
       const msg = new SpeechSynthesisUtterance(
         `${greeting}, ${name}! Welcome to TraineeOS. ${quote.english}`
       );
-      msg.rate = 0.9;
-      msg.pitch = 1;
+      msg.rate = 1.1;
+      msg.pitch = 1.6;
       msg.volume = 1;
       // Try to find a good voice
       const voices = window.speechSynthesis.getVoices();
