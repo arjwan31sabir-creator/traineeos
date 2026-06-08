@@ -39,24 +39,6 @@ const HW = {
   border:"#333333", text:"#F5F5F5", muted:"#888888", white:"#FFFFFF",
 };
 
-// ── Get current week (Sun–Thu) ───────────────────────
-function getCurrentWeek() {
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  // Find last Sunday
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() - day);
-  // Thursday = Sunday + 4
-  const thursday = new Date(sunday);
-  thursday.setDate(sunday.getDate() + 4);
-  const fmt = (d) => d.toISOString().split("T")[0];
-  return {
-    week_start: fmt(sunday),
-    week_end: fmt(thursday),
-    label: `${sunday.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} – ${thursday.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`,
-  };
-}
-
 function HuaweiLogo({size=32}) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100">
@@ -83,7 +65,7 @@ async function analyzeReport(text) {
       "anthropic-dangerous-direct-browser-access":"true"},
     body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1024,
       messages:[{role:"user",content:
-        `Analyze this trainee weekly report and respond ONLY with JSON:
+        `Analyze this trainee daily report and respond ONLY with JSON:
 Report: "${text}"
 {"kpi_score":<0-100>,"pie_chart":{"Tasks Completed":<pct>,"Planning":<pct>,"Challenges":<pct>,"Learning":<pct>},"talent_notes":"<2-3 sentences>","summary":"<one sentence>"}`
       }]})
@@ -271,14 +253,14 @@ function ReminderPopup({onDismiss}) {
         borderRadius:20,padding:40,maxWidth:380,textAlign:"center",
         boxShadow:`0 0 60px rgba(207,10,44,.3)`}}>
         <div style={{fontSize:52,marginBottom:12}}>⏰</div>
-        <h3 style={{color:HW.red,fontSize:22,marginBottom:8}}>Weekly Report Reminder</h3>
+        <h3 style={{color:HW.red,fontSize:22,marginBottom:8}}>Task Submission Reminder</h3>
         <p style={{color:HW.muted,fontSize:14,lineHeight:1.6,marginBottom:20}}>
-          Don't forget to submit your <strong style={{color:HW.text}}>weekly report</strong> before Thursday!
+          It is <strong style={{color:HW.text}}>4:30 PM</strong> — please submit your daily report!
         </p>
         <button onClick={onDismiss} style={{background:HW.red,color:HW.white,border:"none",
           borderRadius:8,padding:"12px 32px",fontWeight:700,fontSize:14,
           cursor:"pointer",width:"100%"}}>
-          Got it!
+          Got it — I'll submit now!
         </button>
       </div>
     </div>
@@ -327,8 +309,12 @@ function GreetingPopup({name,onDismiss}) {
         </div>
         <div style={{fontSize:13,color:HW.muted,marginBottom:4,
           letterSpacing:".1em",textTransform:"uppercase"}}>{greetingAr}</div>
-        <h2 style={{fontSize:32,fontWeight:800,color:HW.white,margin:"0 0 4px"}}>{greeting},</h2>
-        <h2 style={{fontSize:36,fontWeight:800,color:HW.red,margin:"0 0 24px"}}>{name}! 👋</h2>
+        <h2 style={{fontSize:32,fontWeight:800,color:HW.white,margin:"0 0 4px"}}>
+          {greeting},
+        </h2>
+        <h2 style={{fontSize:36,fontWeight:800,color:HW.red,margin:"0 0 24px"}}>
+          {name}! 👋
+        </h2>
         <div style={{height:1,background:HW.border,marginBottom:24}}/>
         <div style={{background:HW.surface2,borderRadius:16,padding:20,
           marginBottom:20,border:`1px solid ${HW.border}`}}>
@@ -371,7 +357,6 @@ export default function App() {
   const [trainees,setTrainees]       = useState([]);
   const [selected,setSelected]       = useState(null);
   const [reports,setReports]         = useState([]);
-  const [weeklyReports,setWeeklyReports] = useState([]);
   const [logs,setLogs]               = useState([]);
   const [penalties,setPenalties]     = useState([]);
   const [goals,setGoals]             = useState([]);
@@ -388,8 +373,8 @@ export default function App() {
   const [confirmPwd,setConfirmPwd]   = useState("");
   const [profileTab,setProfileTab]   = useState("timeline");
   const [aiResult,setAiResult]       = useState(null);
-  const [weeklyPhotoFile,setWeeklyPhotoFile] = useState(null);
-  const [weeklyPhotoPreview,setWeeklyPhotoPreview] = useState(null);
+  const [photoFile,setPhotoFile]     = useState(null);
+  const [photoPreview,setPhotoPreview] = useState(null);
   const [geoStatus,setGeoStatus]     = useState("idle");
   const [geoMsg,setGeoMsg]           = useState("");
   const [locationOk,setLocationOk]   = useState(false);
@@ -397,6 +382,10 @@ export default function App() {
   const [showGreeting,setShowGreeting] = useState(false);
   const [traineeName,setTraineeName] = useState("");
   const [trafficCount,setTrafficCount] = useState(0);
+  const [faceCapture,setFaceCapture] = useState(null);
+  const [faceCaptured,setFaceCaptured] = useState(false);
+  const [facePreviewUrl,setFacePreviewUrl] = useState(null);
+  const [cameraActive,setCameraActive] = useState(false);
   const [isLate,setIsLate]           = useState(false);
   const [excuseType,setExcuseType]   = useState("");
   const [excuseText,setExcuseText]   = useState("");
@@ -416,9 +405,6 @@ export default function App() {
   const [currentTime,setCurrentTime] = useState(new Date());
   const [signedOut,setSignedOut]     = useState(false);
   const [signoutTime,setSignoutTime] = useState("");
-  const [currentWeek]                = useState(getCurrentWeek());
-  const [weeklyText,setWeeklyText]   = useState("");
-  const [weeklySubmitted,setWeeklySubmitted] = useState(false);
 
   const [setupProfile,setSetupProfile] = useState({
     full_name:"",civil_id:"",phone_number:"",
@@ -426,7 +412,8 @@ export default function App() {
     date_of_birth:"",gender:"",nationality:"Omani",
   });
 
-  const excuseRef=useRef(),weeklyPhotoRef=useRef();
+  const videoRef=useRef(),canvasRef=useRef(),streamRef=useRef();
+  const excuseRef=useRef(),photoRef=useRef();
 
   const [profile,setProfile] = useState({
     full_name:"",civil_id:"",phone_number:"",
@@ -435,6 +422,9 @@ export default function App() {
   const [attendance,setAttendance] = useState({
     report_date:new Date().toISOString().split("T")[0],
     attended:false,
+  });
+  const [taskReport,setTaskReport] = useState({
+    report_text:"",report_date:new Date().toISOString().split("T")[0],
   });
 
   const s = {
@@ -485,7 +475,7 @@ export default function App() {
       if(now.getHours()===16&&now.getMinutes()===30){
         setShowReminder(true);
         if(Notification.permission==="granted")
-          new Notification("TraineeOS",{body:"Reminder: Submit your weekly report!"});
+          new Notification("TraineeOS",{body:"4:30 PM — Submit your daily report!"});
       }
     };
     if(Notification.permission==="default") Notification.requestPermission();
@@ -563,8 +553,7 @@ export default function App() {
               setTimeout(()=>setShowGreeting(true),500);
             }
             fetchGoals(data.trainee_id);
-            fetchWeeklyReport(data.trainee_id);
-            // Check sign out
+            // Check if already signed out today
             const today=new Date().toISOString().split("T")[0];
             const{data:todayReport}=await supabase.from("daily_reports")
               .select("signout_time").eq("trainee_id",data.trainee_id)
@@ -580,23 +569,6 @@ export default function App() {
           }
         }
       }
-    }
-  }
-
-  async function fetchWeeklyReport(tid){
-    const week=getCurrentWeek();
-    const{data}=await supabase.from("daily_reports")
-      .select("*").eq("trainee_id",tid)
-      .eq("week_start",week.week_start).single();
-    if(data){
-      setWeeklySubmitted(true);
-      setWeeklyText(data.weekly_tasks||"");
-      if(data.kpi_score) setAiResult({
-        kpi_score:data.kpi_score,
-        pie_chart:data.pie_chart_json?JSON.parse(data.pie_chart_json):null,
-        talent_notes:data.talent_notes,
-        summary:data.report_text,
-      });
     }
   }
 
@@ -652,12 +624,12 @@ export default function App() {
   async function logout(){
     await supabase.auth.signOut();
     setView("login");setUser(null);setSelected(null);setMsg("");
-    setAiResult(null);setWeeklyPhotoFile(null);setWeeklyPhotoPreview(null);
+    setAiResult(null);setPhotoFile(null);setPhotoPreview(null);
     setLocationOk(false);setGeoStatus("idle");setGeoMsg("");
-    setTraineeId(null);setGoals([]);setLiveSignins([]);
+    setFaceCapture(null);setFaceCaptured(false);setFacePreviewUrl(null);
+    stopCamera();setTraineeId(null);setGoals([]);setLiveSignins([]);
     setShowGreeting(false);setTraineeName("");
     setSignedOut(false);setSignoutTime("");
-    setWeeklySubmitted(false);setWeeklyText("");
   }
 
   function checkLocation(){
@@ -681,8 +653,35 @@ export default function App() {
     );
   }
 
+  async function startCamera(){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
+      streamRef.current=stream;
+      if(videoRef.current) videoRef.current.srcObject=stream;
+      setCameraActive(true);
+    }catch(e){setMsg("❌ Camera access denied.");}
+  }
+
+  function stopCamera(){
+    if(streamRef.current){streamRef.current.getTracks().forEach(t=>t.stop());streamRef.current=null;}
+    setCameraActive(false);
+  }
+
+  function captureface(){
+    if(!videoRef.current||!canvasRef.current) return;
+    const canvas=canvasRef.current,video=videoRef.current;
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    canvas.getContext("2d").drawImage(video,0,0);
+    const previewUrl=canvas.toDataURL("image/jpeg",0.8);
+    setFacePreviewUrl(previewUrl);
+    canvas.toBlob(blob=>{
+      setFaceCapture(blob);setFaceCaptured(true);stopCamera();
+      setMsg("✅ Face captured successfully!");
+    },"image/jpeg",0.8);
+  }
+
+  function handleProofPhoto(e){const f=e.target.files[0];if(!f)return;setPhotoFile(f);setPhotoPreview(URL.createObjectURL(f));}
   function handleExcusePhoto(e){const f=e.target.files[0];if(!f)return;setExcusePhoto(f);setExcusePreview(URL.createObjectURL(f));}
-  function handleWeeklyPhoto(e){const f=e.target.files[0];if(!f)return;setWeeklyPhotoFile(f);setWeeklyPhotoPreview(URL.createObjectURL(f));}
 
   async function uploadFile(bucket,path,file){
     const{error}=await supabase.storage.from(bucket).upload(path,file);
@@ -692,6 +691,7 @@ export default function App() {
 
   async function submitAttendance(){
     if(!locationOk){setMsg("📍 Please verify your location first.");return;}
+    if(!faceCaptured){setMsg("🤳 Please complete Face ID first.");return;}
     const now=new Date();
     const timeStr=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
     if(timeStr>MAX_SIGNIN&&!excuseText){
@@ -704,6 +704,8 @@ export default function App() {
     const penaltyApplied=!attendance.attended||(timeStr>MAX_SIGNIN&&!excuseText);
     setLoading(true);setMsg("");
     const tid=traineeId;const ts=Date.now();
+    const faceUrl=faceCapture
+      ?await uploadFile("report-photos",`${tid}/face_${ts}.jpg`,faceCapture):null;
     let excusePhotoUrl=null;
     if(excusePhoto)
       excusePhotoUrl=await uploadFile("report-photos",`${tid}/excuse_${ts}.jpg`,excusePhoto);
@@ -722,6 +724,7 @@ export default function App() {
     await supabase.from("daily_reports").upsert({
       trainee_id:tid,report_date:attendance.report_date,
       attended:attendance.attended,signin_time:timeStr,
+      face_capture_url:faceUrl,
       excuse_type:excuseType||null,excuse_text:excuseText||null,
       excuse_photo_url:excusePhotoUrl,traffic_excuse:excuseType==="traffic",
       penalty_applied:penaltyApplied,penalty_amount:penaltyApplied?PENALTY_PCT:0,
@@ -732,6 +735,7 @@ export default function App() {
     setLoading(false);
   }
 
+  // ── Sign Out ─────────────────────────────────────────
   async function submitSignOut(){
     if(!traineeId){setMsg("Please submit attendance first.");return;}
     setLoading(true);setMsg("");
@@ -739,39 +743,37 @@ export default function App() {
     const timeStr=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
     const today=new Date().toISOString().split("T")[0];
     const{error}=await supabase.from("daily_reports")
-      .update({signout_time:timeStr}).eq("trainee_id",traineeId).eq("report_date",today);
+      .update({signout_time:timeStr})
+      .eq("trainee_id",traineeId)
+      .eq("report_date",today);
     if(error){setMsg("Error: "+error.message);}
-    else{setSignedOut(true);setSignoutTime(timeStr);setMsg(`✅ Sign out recorded at ${timeStr}`);}
+    else{
+      setSignedOut(true);setSignoutTime(timeStr);
+      setMsg(`✅ Sign out recorded at ${timeStr}`);
+    }
     setLoading(false);
   }
 
-  // ── Submit Weekly Report ─────────────────────────────
-  async function submitWeeklyReport(){
-    if(!weeklyText){setMsg("Please write your weekly tasks.");return;}
+  async function submitTasks(){
+    if(!taskReport.report_text){setMsg("Please write your daily tasks.");return;}
     setLoading(true);setAiLoading(true);setMsg("");setAiResult(null);
     const tid=traineeId;
     if(!tid){setMsg("Please submit attendance first.");setLoading(false);setAiLoading(false);return;}
     const ts=Date.now();
-    const week=getCurrentWeek();
-    const photoUrl=weeklyPhotoFile
-      ?await uploadFile("report-photos",`${tid}/weekly_${ts}.jpg`,weeklyPhotoFile):null;
-    setMsg("🤖 AI is analyzing your weekly report…");
+    const photoUrl=photoFile
+      ?await uploadFile("report-photos",`${tid}/proof_${ts}.jpg`,photoFile):null;
+    setMsg("🤖 AI is analyzing your report…");
     let ai=null;
-    try{ai=await analyzeReport(weeklyText);setAiResult(ai);}catch(e){console.error(e);}
+    try{ai=await analyzeReport(taskReport.report_text);setAiResult(ai);}
+    catch(e){console.error(e);}
     await supabase.from("daily_reports").upsert({
-      trainee_id:tid,
-      report_date:week.week_start,
-      week_start:week.week_start,
-      week_end:week.week_end,
-      weekly_tasks:weeklyText,
-      weekly_photo_url:photoUrl,
-      report_text:ai?.summary||weeklyText.substring(0,100),
+      trainee_id:tid,report_date:taskReport.report_date,
+      report_text:taskReport.report_text,photo_url:photoUrl,
       kpi_score:ai?.kpi_score||null,
       pie_chart_json:ai?.pie_chart?JSON.stringify(ai.pie_chart):null,
       talent_notes:ai?.talent_notes||null,
     },{onConflict:"trainee_id,report_date"});
-    setWeeklySubmitted(true);
-    setMsg("✅ Weekly report submitted and AI analysis complete!");
+    setMsg("✅ Tasks submitted and AI analysis complete!");
     setLoading(false);setAiLoading(false);
   }
 
@@ -931,16 +933,19 @@ export default function App() {
         ["Department",t.department||"—"],["Mentor",t.assigned_mentor||"—"],
         ["GPA",t.gpa?.toString()||"—"],["Status",t.status||"—"],
         ["Joining Date",t.joining_date||"—"],
-        ["Quitting Date",t.quitting_date||"Still Active"]],
+        ["Quitting Date",t.quitting_date||"Still Active"],
+        ["Days in Program",t.joining_date
+          ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24))+" days":"—"]],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
-    const rY=doc.lastAutoTable.finalY+10;
-    doc.setFontSize(14);doc.setFont("helvetica","bold");doc.text("Attendance Records",14,rY);
+    const reportsY=doc.lastAutoTable.finalY+10;
+    doc.setFontSize(14);doc.setFont("helvetica","bold");
+    doc.text("Weekly Reports",14,reportsY);
     const{data:reps}=await supabase.from("daily_reports").select("*")
-      .eq("trainee_id",t.id).order("report_date",{ascending:false}).limit(14);
+      .eq("trainee_id",t.id).order("report_date",{ascending:false}).limit(7);
     if(reps?.length>0){
-      autoTable(doc,{startY:rY+4,
+      autoTable(doc,{startY:reportsY+4,
         head:[["Date","Attended","Time In","Time Out","KPI","Penalty"]],
         body:reps.map(r=>[r.report_date,r.attended?"✓":"✗",
           r.signin_time||"—",r.signout_time||"—",
@@ -949,21 +954,7 @@ export default function App() {
         alternateRowStyles:{fillColor:[245,245,245]},
       });
     }
-    const wY=doc.lastAutoTable?.finalY+10||rY+60;
-    doc.setFontSize(14);doc.setFont("helvetica","bold");doc.text("Weekly Reports",14,wY);
-    const weeklyReps=reps?.filter(r=>r.weekly_tasks)||[];
-    if(weeklyReps.length>0){
-      autoTable(doc,{startY:wY+4,
-        head:[["Week","KPI Score","Weekly Tasks Summary"]],
-        body:weeklyReps.map(r=>[
-          `${r.week_start||r.report_date} to ${r.week_end||"—"}`,
-          r.kpi_score||"—",
-          (r.weekly_tasks||"").substring(0,80)+"..."]),
-        headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
-        alternateRowStyles:{fillColor:[245,245,245]},
-      });
-    }
-    const penY=doc.lastAutoTable?.finalY+10||wY+40;
+    const penY=doc.lastAutoTable?.finalY+10||reportsY+60;
     doc.setFontSize(14);doc.setFont("helvetica","bold");doc.text("Penalties",14,penY);
     const{data:pens}=await supabase.from("penalties").select("*").eq("trainee_id",t.id);
     autoTable(doc,{startY:penY+4,
@@ -978,7 +969,7 @@ export default function App() {
       14,doc.lastAutoTable.finalY+6);
     doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");
     doc.text("TraineeOS • Powered by Huawei • Confidential",14,285);
-    doc.save(`${t.full_name}_report.pdf`);
+    doc.save(`${t.full_name}_weekly_report.pdf`);
   }
 
   async function exportExcel(){
@@ -986,8 +977,11 @@ export default function App() {
     const{data:allT}=await supabase.from("trainees").select("*").order("full_name");
     const{data:allR}=await supabase.from("daily_reports").select("*").order("report_date");
     const{data:allP}=await supabase.from("penalties").select("*").order("created_at");
+    const{data:allL}=await supabase.from("trainee_logs").select("*").order("created_at");
     const{data:allG}=await supabase.from("goals").select("*").order("created_at");
     const wb=XLSX.utils.book_new();
+
+    // ── Trainees Sheet ───────────────────────────────
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>({
         "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
@@ -995,53 +989,76 @@ export default function App() {
         "Gender":t.gender||"—","Nationality":t.nationality||"—",
         "DOB":t.date_of_birth||"—","Status":t.status,
         "Joining Date":t.joining_date,"Quitting Date":t.quitting_date||"Still Active",
+        "Days":t.joining_date
+          ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24)):"—",
       }))),"Trainees");
-    // Daily Attendance
+
+    // ── Daily Attendance Sheet (with Time In + Time Out) ──
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
-      (allR||[]).filter(r=>r.attended!==null&&!r.week_start).map(r=>{
+      (allR||[]).map(r=>{
         const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
         const dateObj=new Date(r.report_date+"T00:00:00");
+        const dayName=dateObj.toLocaleDateString("en-GB",{weekday:"long"});
+        const dateFormatted=dateObj.toLocaleDateString("en-GB",{
+          day:"numeric",month:"long",year:"numeric"});
         return{
           "Full Name":trainee?.full_name||"—",
           "Department":trainee?.department||"—",
-          "Day":dateObj.toLocaleDateString("en-GB",{weekday:"long"}),
-          "Date":dateObj.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
+          "Day":dayName,
+          "Date":dateFormatted,
           "Attended":r.attended?"Yes":"No",
           "Time In":r.signin_time||"—",
           "Time Out":r.signout_time||"—",
+          "Duration":r.signin_time&&r.signout_time?(()=>{
+            const [ih,im]=r.signin_time.split(":").map(Number);
+            const [oh,om]=r.signout_time.split(":").map(Number);
+            const mins=(oh*60+om)-(ih*60+im);
+            return mins>0?`${Math.floor(mins/60)}h ${mins%60}m`:"—";
+          })():"—",
+          "KPI Score":r.kpi_score||"—",
           "Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
           "Excuse":r.excuse_type||"—",
+          "Report":r.report_text||"—",
         };
       })),"Daily Attendance");
-    // Weekly Reports
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
-      (allR||[]).filter(r=>r.weekly_tasks).map(r=>{
-        const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
-        return{
-          "Full Name":trainee?.full_name||"—",
-          "Department":trainee?.department||"—",
-          "Week Start":r.week_start||r.report_date,
-          "Week End":r.week_end||"—",
-          "Weekly Tasks":r.weekly_tasks||"—",
-          "KPI Score":r.kpi_score||"—",
-          "AI Summary":r.report_text||"—",
-          "Talent Notes":r.talent_notes||"—",
-        };
-      })),"Weekly Reports");
+
+    // ── Penalties Sheet ──────────────────────────────
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allP||[]).map(p=>({
         "Full Name":(allT||[]).find(t=>t.id===p.trainee_id)?.full_name||"—",
         "Date":p.report_date,"Reason":p.reason,"Deduction":`-${p.amount}%`,
       }))),"Penalties");
+
+    // ── Goals Sheet ──────────────────────────────────
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allG||[]).map(g=>({
         "Full Name":(allT||[]).find(t=>t.id===g.trainee_id)?.full_name||"—",
         "KRA":g.kra,"Goal":g.goal_title,"Target":g.target_value,
         "Current":g.current_value,"Unit":g.unit,"Status":g.status,
+        "Due Date":g.due_date||"—",
         "Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%",
       }))),"Goals");
-    XLSX.writeFile(wb,`TraineeOS_${new Date().toISOString().split("T")[0]}.xlsx`);
-    setMsg("✅ Excel exported!");
+
+    // ── Summary Sheet ────────────────────────────────
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
+      (allT||[]).map(t=>{
+        const tr=(allR||[]).filter(r=>r.trainee_id===t.id);
+        const tp=(allP||[]).filter(p=>p.trainee_id===t.id);
+        const tg=(allG||[]).filter(g=>g.trainee_id===t.id);
+        const avg=tr.filter(r=>r.kpi_score).reduce((a,r,_,arr)=>a+r.kpi_score/arr.length,0);
+        return{
+          "Full Name":t.full_name,"Department":t.department,"Status":t.status,
+          "Days Present":tr.filter(r=>r.attended).length,
+          "Days Absent":tr.filter(r=>!r.attended).length,
+          "Avg KPI":avg?avg.toFixed(1):"—","Penalties":tp.length,
+          "Goals Set":tg.length,
+          "Goals Completed":tg.filter(g=>g.status==="completed").length,
+          "Total Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`,
+        };
+      })),"Summary");
+
+    XLSX.writeFile(wb,`TraineeOS_Attendance_${new Date().toISOString().split("T")[0]}.xlsx`);
+    setMsg("✅ Excel exported successfully!");
   }
 
   function getAnalytics(){
@@ -1171,6 +1188,18 @@ export default function App() {
             Please complete your profile. You only need to do this once.
           </p>
         </div>
+        <div style={{display:"flex",alignItems:"center",
+          justifyContent:"center",gap:8,marginBottom:32}}>
+          {["Personal Info","Academic","Contact"].map((step,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:HW.red,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:12,fontWeight:800,color:HW.white}}>{i+1}</div>
+              <span style={{fontSize:12,color:HW.muted}}>{step}</span>
+              {i<2&&<div style={{width:30,height:1,background:HW.border}}/>}
+            </div>
+          ))}
+        </div>
         <div style={s.card}>
           <h3 style={{marginBottom:20,color:HW.red}}>👤 Personal Information</h3>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
@@ -1223,7 +1252,7 @@ export default function App() {
           <button style={{...s.btn,background:HW.red,color:HW.white,
             width:"100%",padding:14,fontSize:15,marginTop:24,opacity:loading?0.6:1}}
             onClick={saveSetupProfile} disabled={loading}>
-            {loading?"Saving…":"Complete Profile & Start →"}
+            {loading?"Saving your profile…":"Complete Profile & Start →"}
           </button>
           {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
             fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
@@ -1274,7 +1303,7 @@ export default function App() {
         borderRadius:12,padding:5,marginBottom:28}}>
         {[
           {id:"attendance",icon:"✅",label:"Attendance"},
-          {id:"weekly",icon:"📅",label:"Weekly Report"},
+          {id:"tasks",icon:"📋",label:"Daily Tasks"},
           {id:"goals",icon:"🎯",label:"My Goals"},
         ].map(tab=>(
           <button key={tab.id} onClick={()=>setTraineeTab(tab.id)}
@@ -1314,14 +1343,19 @@ export default function App() {
           </div>
 
           {isLate&&(
-            <div style={{background:"rgba(207,10,44,.08)",border:`1px solid rgba(207,10,44,.3)`,
-              borderRadius:12,padding:16,marginBottom:20,display:"flex",alignItems:"center",gap:12}}>
+            <div style={{background:"rgba(207,10,44,.08)",
+              border:`1px solid rgba(207,10,44,.3)`,
+              borderRadius:12,padding:16,marginBottom:20,
+              display:"flex",alignItems:"center",gap:12}}>
               <span style={{fontSize:28}}>🔒</span>
               <div>
-                <div style={{fontWeight:700,color:HW.red,fontSize:15}}>Attendance Time Locked</div>
+                <div style={{fontWeight:700,color:HW.red,fontSize:15}}>
+                  Attendance Time Locked
+                </div>
                 <div style={{fontSize:13,color:HW.muted,marginTop:4}}>
                   Sign-in deadline was <b style={{color:HW.text}}>9:00 AM</b>.
-                  Provide an excuse below. A <b style={{color:HW.red}}>penalty of 8.33%</b> will apply.
+                  Provide an excuse below. A{" "}
+                  <b style={{color:HW.red}}>penalty of 8.33%</b> will apply.
                 </div>
               </div>
             </div>
@@ -1407,8 +1441,53 @@ export default function App() {
               </div>
             )}
 
-            {/* Location */}
+            {/* Face ID */}
             <div style={{marginTop:16,padding:16,background:HW.surface2,borderRadius:12,
+              border:faceCaptured?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
+              <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>🤳 Face ID Verification</div>
+              {!cameraActive&&!faceCaptured&&(
+                <button style={{...s.btn,background:HW.red,color:HW.white}}
+                  onClick={startCamera}>📷 Open Camera</button>
+              )}
+              {cameraActive&&(
+                <div>
+                  <video ref={videoRef} autoPlay playsInline
+                    style={{width:"100%",maxWidth:280,borderRadius:10,
+                      border:`2px solid ${HW.red}`,display:"block",marginBottom:10}}/>
+                  <canvas ref={canvasRef} style={{display:"none"}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button style={{...s.btn,background:HW.red,color:HW.white}}
+                      onClick={captureface}>📸 Capture</button>
+                    <button style={{...s.btn,background:HW.surface,color:HW.muted,
+                      border:`1px solid ${HW.border}`}} onClick={stopCamera}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {faceCaptured&&facePreviewUrl&&(
+                <div style={{display:"flex",alignItems:"center",gap:16}}>
+                  <img src={facePreviewUrl} alt="Face ID"
+                    style={{width:90,height:90,borderRadius:"50%",objectFit:"cover",
+                      border:`3px solid ${HW.red}`,
+                      boxShadow:`0 0 20px rgba(207,10,44,.3)`}}/>
+                  <div>
+                    <div style={{fontWeight:700,color:HW.red,fontSize:15,marginBottom:4}}>
+                      ✅ Face Captured Successfully
+                    </div>
+                    <div style={{fontSize:12,color:HW.muted,marginBottom:8}}>
+                      Identity verified
+                    </div>
+                    <button style={{...s.btn,background:"rgba(207,10,44,.1)",
+                      color:HW.red,padding:"5px 12px",fontSize:12}}
+                      onClick={()=>{
+                        setFaceCaptured(false);setFaceCapture(null);setFacePreviewUrl(null);
+                      }}>🔄 Retake</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Location */}
+            <div style={{marginTop:12,padding:16,background:HW.surface2,borderRadius:12,
               border:locationOk?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
               <div style={{fontWeight:700,color:HW.red,marginBottom:10}}>📍 Location Verification</div>
               <p style={{fontSize:12,color:HW.muted,marginBottom:10}}>
@@ -1424,207 +1503,146 @@ export default function App() {
                 color:geoStatus==="ok"?"#34d399":HW.red}}>{geoMsg}</p>}
             </div>
 
+            {/* Submit Attendance Button */}
             <button style={{...s.btn,
-              background:locationOk?HW.red:HW.surface2,
-              color:locationOk?HW.white:HW.muted,
+              background:(locationOk&&faceCaptured)?HW.red:HW.surface2,
+              color:(locationOk&&faceCaptured)?HW.white:HW.muted,
               marginTop:16,width:"100%",padding:14,fontSize:15,
-              opacity:loading?0.6:1,cursor:locationOk?"pointer":"not-allowed"}}
-              onClick={submitAttendance} disabled={loading||!locationOk}>
+              opacity:loading?0.6:1,
+              cursor:(locationOk&&faceCaptured)?"pointer":"not-allowed"}}
+              onClick={submitAttendance}
+              disabled={loading||!locationOk||!faceCaptured}>
               {loading?"Saving…":"✅ Submit Attendance"}
             </button>
-            {!locationOk&&(
-              <p style={{fontSize:12,color:HW.muted,textAlign:"center",marginTop:8}}>
-                📍 Verify your location above first
-              </p>
-            )}
 
-            {/* Sign Out */}
+            {/* Sign Out Button */}
             <div style={{marginTop:10,padding:16,background:HW.surface2,
               borderRadius:12,border:`1px solid ${HW.border}`}}>
-              <div style={{fontWeight:700,color:"#4f8ef7",marginBottom:8}}>🚪 Sign Out</div>
+              <div style={{fontWeight:700,color:"#4f8ef7",marginBottom:8}}>
+                🚪 Sign Out
+              </div>
               {signedOut?(
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div style={{width:40,height:40,borderRadius:"50%",
                     background:"rgba(79,142,247,.15)",display:"flex",
                     alignItems:"center",justifyContent:"center",fontSize:20}}>✅</div>
                   <div>
-                    <div style={{fontWeight:700,color:"#4f8ef7"}}>Signed out at {signoutTime}</div>
-                    <div style={{fontSize:12,color:HW.muted}}>Time out recorded</div>
+                    <div style={{fontWeight:700,color:"#4f8ef7"}}>
+                      Signed out at {signoutTime}
+                    </div>
+                    <div style={{fontSize:12,color:HW.muted}}>
+                      Your time out has been recorded
+                    </div>
                   </div>
                 </div>
               ):(
-                <button style={{...s.btn,background:"rgba(79,142,247,.15)",color:"#4f8ef7",
+                <button style={{...s.btn,
+                  background:"rgba(79,142,247,.15)",color:"#4f8ef7",
                   width:"100%",padding:12,fontSize:14,
-                  border:`1px solid rgba(79,142,247,.3)`,opacity:loading?0.6:1}}
+                  border:`1px solid rgba(79,142,247,.3)`,
+                  opacity:loading?0.6:1}}
                   onClick={submitSignOut} disabled={loading}>
                   {loading?"Recording…":"🚪 Record Time Out"}
                 </button>
               )}
             </div>
 
+            {(!locationOk||!faceCaptured)&&(
+              <p style={{fontSize:12,color:HW.muted,textAlign:"center",marginTop:8}}>
+                {!locationOk&&!faceCaptured?"Verify location and face ID above"
+                  :!locationOk?"📍 Verify location first":"🤳 Complete face ID first"}
+              </p>
+            )}
             {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
               fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
         </div>
       )}
 
-      {/* ══ WEEKLY REPORT TAB ══ */}
-      {traineeTab==="weekly"&&(
+      {/* ══ TASKS TAB ══ */}
+      {traineeTab==="tasks"&&(
         <div>
-          {/* Week info card */}
-          <div style={{...s.card,background:`linear-gradient(135deg,rgba(207,10,44,.1),rgba(207,10,44,.05))`,
-            border:`1px solid rgba(207,10,44,.3)`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                  textTransform:"uppercase",marginBottom:6}}>Current Week</div>
-                <div style={{fontSize:22,fontWeight:800,color:HW.white}}>
-                  {currentWeek.label}
-                </div>
-                <div style={{fontSize:13,color:HW.muted,marginTop:4}}>
-                  Sunday — Thursday (Oman Work Week)
-                </div>
+          <div style={s.card}>
+            <h3 style={{marginBottom:8,color:HW.red}}>📋 Daily Tasks Report</h3>
+            <p style={{color:HW.muted,fontSize:13,marginBottom:20}}>
+              Describe everything you worked on today. AI will analyze your report and generate a KPI score.
+            </p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div><label style={s.label}>Report Date</label>
+                <input style={s.input} type="date" value={taskReport.report_date}
+                  onChange={e=>setTaskReport({...taskReport,report_date:e.target.value})}/></div>
+              <div style={{display:"flex",alignItems:"center",gap:8,paddingTop:22}}>
+                <span style={{fontSize:20}}>💡</span>
+                <span style={{fontSize:12,color:HW.muted}}>More detail = higher AI score!</span>
               </div>
-              <div style={{textAlign:"center"}}>
-                {weeklySubmitted?(
-                  <div style={{background:"rgba(52,211,153,.15)",border:"1px solid rgba(52,211,153,.3)",
-                    borderRadius:12,padding:"12px 20px"}}>
-                    <div style={{fontSize:22}}>✅</div>
-                    <div style={{fontSize:12,color:"#34d399",fontWeight:700,marginTop:4}}>
-                      Submitted
-                    </div>
-                  </div>
-                ):(
-                  <div style={{background:"rgba(255,165,0,.15)",border:"1px solid rgba(255,165,0,.3)",
-                    borderRadius:12,padding:"12px 20px"}}>
-                    <div style={{fontSize:22}}>📝</div>
-                    <div style={{fontSize:12,color:"#FFA500",fontWeight:700,marginTop:4}}>
-                      Pending
-                    </div>
-                  </div>
-                )}
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={s.label}>What did you work on today? *</label>
+                <textarea style={{...s.input,height:180,resize:"vertical"}}
+                  placeholder="Example: Completed the circuit analysis report and submitted it to my mentor. Attended a 2-hour lab session. Reviewed safety protocols..."
+                  value={taskReport.report_text}
+                  onChange={e=>setTaskReport({...taskReport,report_text:e.target.value})}/>
               </div>
-            </div>
-          </div>
-
-          {weeklySubmitted&&aiResult?(
-            // Already submitted — show results
-            <div>
-              <div style={{...s.card,border:`1px solid rgba(52,211,153,.3)`}}>
-                <div style={{display:"flex",justifyContent:"space-between",
-                  alignItems:"center",marginBottom:16}}>
-                  <h3 style={{margin:0,color:"#34d399"}}>✅ Weekly Report Submitted</h3>
-                  <button style={{...s.btn,background:"rgba(207,10,44,.1)",color:HW.red,fontSize:12}}
-                    onClick={()=>setWeeklySubmitted(false)}>
-                    ✏️ Edit Report
-                  </button>
-                </div>
-                <div style={{background:HW.surface2,borderRadius:10,padding:14,
-                  marginBottom:16,borderLeft:`3px solid ${HW.red}`}}>
-                  <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                    textTransform:"uppercase",marginBottom:6}}>Your Weekly Tasks</div>
-                  <div style={{fontSize:14,lineHeight:1.7}}>{weeklyText}</div>
-                </div>
-              </div>
-
-              <div style={{...s.card,border:`1px solid rgba(207,10,44,.4)`}}>
-                <h3 style={{marginBottom:20,color:HW.red}}>🤖 AI Analysis Result</h3>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
-                  <div style={{background:HW.surface2,borderRadius:12,padding:16,textAlign:"center"}}>
-                    <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                      textTransform:"uppercase",marginBottom:8}}>Weekly KPI Score</div>
-                    <div style={{fontSize:52,fontWeight:800,color:kpiColor(aiResult.kpi_score)}}>
-                      {aiResult.kpi_score}
-                    </div>
-                    <div style={{fontSize:11,color:HW.muted}}>out of 100</div>
-                  </div>
-                  <div style={{background:HW.surface2,borderRadius:12,padding:16}}>
-                    <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                      textTransform:"uppercase",marginBottom:12}}>Task Breakdown</div>
-                    {aiResult.pie_chart&&<PieChart data={aiResult.pie_chart}/>}
-                  </div>
-                </div>
-                {aiResult.summary&&(
-                  <div style={{background:HW.surface2,borderRadius:10,padding:14,
-                    marginBottom:12,borderLeft:`3px solid ${HW.red}`}}>
-                    <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                      marginBottom:6,textTransform:"uppercase"}}>Week Summary</div>
-                    <div style={{fontSize:14}}>{aiResult.summary}</div>
-                  </div>
-                )}
-                {aiResult.talent_notes&&(
-                  <div style={{background:HW.surface2,borderRadius:10,padding:14,
-                    borderLeft:"3px solid #FFA500"}}>
-                    <div style={{fontSize:11,color:"#FFA500",fontWeight:700,
-                      marginBottom:6,textTransform:"uppercase"}}>🌟 Talent Notes</div>
-                    <div style={{fontSize:14,lineHeight:1.6}}>{aiResult.talent_notes}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ):(
-            // Not submitted — show form
-            <div style={s.card}>
-              <h3 style={{marginBottom:8,color:HW.red}}>📅 Weekly Tasks Report</h3>
-              <p style={{color:HW.muted,fontSize:13,marginBottom:20,lineHeight:1.6}}>
-                Summarize everything you worked on this week (Sunday to Thursday).
-                Be detailed — the AI will analyze your report and generate a KPI score.
-              </p>
-
-              {/* Days checklist hint */}
-              <div style={{background:HW.surface2,borderRadius:10,padding:14,
-                marginBottom:16,border:`1px solid ${HW.border}`}}>
-                <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                  textTransform:"uppercase",marginBottom:10}}>💡 Cover each day</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  {["Sunday","Monday","Tuesday","Wednesday","Thursday"].map(day=>(
-                    <div key={day} style={{background:HW.surface,borderRadius:6,
-                      padding:"4px 12px",fontSize:12,color:HW.muted,
-                      border:`1px solid ${HW.border}`}}>
-                      {day}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{marginBottom:14}}>
-                <label style={s.label}>What did you work on this week? *</label>
-                <textarea style={{...s.input,height:220,resize:"vertical"}}
-                  placeholder={`Example:\n\nSunday: Attended orientation session with mentor. Reviewed project documentation.\n\nMonday: Completed circuit analysis task. Submitted report to supervisor.\n\nTuesday: Attended team meeting. Worked on safety protocol review.\n\nWednesday: Lab session with Dr. Fatima. Completed 3 practical exercises.\n\nThursday: Finalized weekly report. Participated in department review meeting.`}
-                  value={weeklyText}
-                  onChange={e=>setWeeklyText(e.target.value)}/>
-              </div>
-
-              <div style={{marginBottom:16}}>
+              <div style={{gridColumn:"1/-1"}}>
                 <label style={s.label}>📸 Proof Photo (optional)</label>
-                <p style={{fontSize:12,color:HW.muted,marginBottom:10}}>
-                  Upload a photo as evidence of your work this week.
-                </p>
                 <div style={{display:"flex",gap:12,alignItems:"center"}}>
                   <button style={{...s.btn,background:HW.surface2,color:HW.text,
                     border:`1px dashed ${HW.border}`}}
-                    onClick={()=>weeklyPhotoRef.current.click()}>
-                    {weeklyPhotoFile?"📷 Change Photo":"📷 Upload Proof Photo"}
+                    onClick={()=>photoRef.current.click()}>
+                    {photoFile?"📷 Change Photo":"📷 Upload Photo"}
                   </button>
-                  <input ref={weeklyPhotoRef} type="file" accept="image/*"
-                    style={{display:"none"}} onChange={handleWeeklyPhoto}/>
-                  {weeklyPhotoPreview&&(
-                    <img src={weeklyPhotoPreview} alt="proof"
-                      style={{width:80,height:80,objectFit:"cover",
-                        borderRadius:8,border:`2px solid ${HW.border}`}}/>
+                  <input ref={photoRef} type="file" accept="image/*"
+                    style={{display:"none"}} onChange={handleProofPhoto}/>
+                  {photoPreview&&(
+                    <img src={photoPreview} alt="preview"
+                      style={{width:60,height:60,objectFit:"cover",borderRadius:8}}/>
                   )}
                 </div>
               </div>
-
-              <button style={{...s.btn,background:HW.red,color:HW.white,
-                width:"100%",padding:14,fontSize:15,
-                opacity:(loading||aiLoading)?0.6:1}}
-                onClick={submitWeeklyReport} disabled={loading||aiLoading}>
-                {aiLoading?"🤖 AI Analyzing…":loading?"Saving…":"📅 Submit Weekly Report ✓"}
-              </button>
-              {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":
-                msg.startsWith("🤖")?"#FFA500":HW.red,
-                fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
+            </div>
+            <button style={{...s.btn,background:HW.red,color:HW.white,
+              marginTop:16,width:"100%",padding:14,fontSize:15,
+              opacity:(loading||aiLoading)?0.6:1}}
+              onClick={submitTasks} disabled={loading||aiLoading}>
+              {aiLoading?"🤖 AI Analyzing…":loading?"Saving…":"📋 Submit Daily Tasks ✓"}
+            </button>
+            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":
+              msg.startsWith("🤖")?"#FFA500":HW.red,
+              fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
+          </div>
+          {aiResult&&(
+            <div style={{...s.card,border:`1px solid rgba(207,10,44,.4)`}}>
+              <h3 style={{marginBottom:20,color:HW.red}}>🤖 AI Analysis Result</h3>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+                <div style={{background:HW.surface2,borderRadius:12,padding:16,textAlign:"center"}}>
+                  <div style={{fontSize:11,color:HW.muted,fontWeight:700,
+                    textTransform:"uppercase",marginBottom:8}}>KPI Score</div>
+                  <div style={{fontSize:52,fontWeight:800,color:kpiColor(aiResult.kpi_score)}}>
+                    {aiResult.kpi_score}
+                  </div>
+                  <div style={{fontSize:11,color:HW.muted}}>out of 100</div>
+                </div>
+                <div style={{background:HW.surface2,borderRadius:12,padding:16}}>
+                  <div style={{fontSize:11,color:HW.muted,fontWeight:700,
+                    textTransform:"uppercase",marginBottom:12}}>Task Breakdown</div>
+                  {aiResult.pie_chart&&<PieChart data={aiResult.pie_chart}/>}
+                </div>
+              </div>
+              {aiResult.summary&&(
+                <div style={{background:HW.surface2,borderRadius:10,padding:14,
+                  marginBottom:12,borderLeft:`3px solid ${HW.red}`}}>
+                  <div style={{fontSize:11,color:HW.muted,fontWeight:700,
+                    marginBottom:6,textTransform:"uppercase"}}>Day Summary</div>
+                  <div style={{fontSize:14}}>{aiResult.summary}</div>
+                </div>
+              )}
+              {aiResult.talent_notes&&(
+                <div style={{background:HW.surface2,borderRadius:10,padding:14,
+                  borderLeft:"3px solid #FFA500"}}>
+                  <div style={{fontSize:11,color:"#FFA500",fontWeight:700,
+                    marginBottom:6,textTransform:"uppercase"}}>🌟 Talent Notes</div>
+                  <div style={{fontSize:14,lineHeight:1.6}}>{aiResult.talent_notes}</div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1888,7 +1906,9 @@ export default function App() {
                         {signin.attended?"● Present":"○ Absent"}
                       </span>
                       {signin.penalty_applied&&(
-                        <div style={{fontSize:11,color:HW.red,marginTop:4,fontWeight:700}}>⚠️ Penalty</div>
+                        <div style={{fontSize:11,color:HW.red,marginTop:4,fontWeight:700}}>
+                          ⚠️ Penalty
+                        </div>
                       )}
                       <div style={{fontSize:10,color:HW.muted,marginTop:4}}>
                         {signin.timestamp instanceof Date
@@ -1953,7 +1973,6 @@ export default function App() {
             <button style={{...s.btn,background:HW.surface2,color:HW.text,
               marginBottom:20,border:`1px solid ${HW.border}`}}
               onClick={()=>{setSelected(null);setMsg("");}}>← Back to table</button>
-
             <div style={{...s.card,display:"flex",alignItems:"center",
               justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
               <div style={{display:"flex",alignItems:"center",gap:16}}>
@@ -1975,6 +1994,14 @@ export default function App() {
                     {selected.quitting_date&&(
                       <span style={{fontSize:12,color:HW.muted}}>
                         🚪 Quit: <b style={{color:HW.red}}>{selected.quitting_date}</b>
+                      </span>
+                    )}
+                    {selected.joining_date&&(
+                      <span style={{fontSize:12,color:HW.muted}}>
+                        ⏱ <b style={{color:HW.text}}>
+                          {Math.floor((new Date(selected.quitting_date||new Date())-
+                            new Date(selected.joining_date))/(1000*60*60*24))} days
+                        </b>
                       </span>
                     )}
                   </div>
@@ -2027,7 +2054,8 @@ export default function App() {
                 <h3 style={{marginBottom:20}}>Activity Timeline</h3>
                 {logs.length===0?<p style={{color:HW.muted}}>No activity yet.</p>
                   :logs.map((log,i)=>(
-                    <div key={log.id} style={{display:"flex",gap:16,marginBottom:20,position:"relative"}}>
+                    <div key={log.id} style={{display:"flex",gap:16,
+                      marginBottom:20,position:"relative"}}>
                       {i<logs.length-1&&(
                         <div style={{position:"absolute",left:19,top:40,width:2,
                           height:"calc(100% + 4px)",background:HW.border}}/>
@@ -2089,31 +2117,17 @@ export default function App() {
 
             {profileTab==="reports"&&(
               <div style={s.card}>
-                <h3 style={{marginBottom:16}}>Reports</h3>
+                <h3 style={{marginBottom:16}}>Daily Reports + AI Analysis</h3>
                 {reports.length===0?<p style={{color:HW.muted}}>No reports yet.</p>
                   :reports.map(r=>{
                     let pie=null;
                     try{pie=r.pie_chart_json?JSON.parse(r.pie_chart_json):null;}catch(e){}
-                    const isWeekly=!!r.weekly_tasks;
                     return (
                       <div key={r.id} style={{background:HW.surface2,borderRadius:12,
-                        padding:16,marginBottom:14,
-                        borderLeft:`4px solid ${isWeekly?"#7c5cfc":HW.red}`}}>
+                        padding:16,marginBottom:14}}>
                         <div style={{display:"flex",justifyContent:"space-between",
                           alignItems:"center",marginBottom:10}}>
-                          <div>
-                            <span style={{padding:"2px 8px",borderRadius:10,fontSize:11,
-                              fontWeight:700,marginRight:8,
-                              background:isWeekly?"rgba(124,92,252,.15)":"rgba(207,10,44,.15)",
-                              color:isWeekly?"#7c5cfc":HW.red}}>
-                              {isWeekly?"📅 Weekly":"📋 Daily"}
-                            </span>
-                            <span style={{fontWeight:600,fontSize:14}}>
-                              {isWeekly
-                                ?`${r.week_start} → ${r.week_end||"—"}`
-                                :r.report_date}
-                            </span>
-                          </div>
+                          <div style={{fontWeight:600}}>📅 {r.report_date}</div>
                           <div style={{display:"flex",alignItems:"center",gap:12}}>
                             {r.penalty_applied&&(
                               <span style={{fontSize:11,color:HW.red,
@@ -2130,44 +2144,36 @@ export default function App() {
                             )}
                           </div>
                         </div>
-
-                        {/* Time in/out for daily */}
-                        {!isWeekly&&(
-                          <div style={{display:"flex",gap:16,marginBottom:8,
-                            background:HW.surface,borderRadius:8,padding:"8px 12px"}}>
-                            <div style={{textAlign:"center"}}>
-                              <div style={{fontSize:10,color:HW.muted,fontWeight:700,
-                                textTransform:"uppercase",marginBottom:2}}>Time In</div>
-                              <div style={{fontSize:15,fontWeight:800,color:"#34d399",
-                                fontFamily:"monospace"}}>{r.signin_time||"—"}</div>
-                            </div>
-                            <div style={{width:1,background:HW.border}}/>
-                            <div style={{textAlign:"center"}}>
-                              <div style={{fontSize:10,color:HW.muted,fontWeight:700,
-                                textTransform:"uppercase",marginBottom:2}}>Time Out</div>
-                              <div style={{fontSize:15,fontWeight:800,color:"#4f8ef7",
-                                fontFamily:"monospace"}}>{r.signout_time||"—"}</div>
-                            </div>
-                            <div style={{width:1,background:HW.border}}/>
-                            <div style={{textAlign:"center"}}>
-                              <div style={{fontSize:10,color:HW.muted,fontWeight:700,
-                                textTransform:"uppercase",marginBottom:2}}>Status</div>
-                              <div style={{fontSize:13,fontWeight:700,
-                                color:r.attended?"#34d399":HW.red}}>
-                                {r.attended?"● Present":"○ Absent"}
-                              </div>
+                        {/* Time In / Time Out */}
+                        <div style={{display:"flex",gap:16,marginBottom:8,
+                          background:HW.surface,borderRadius:8,padding:"8px 12px"}}>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:10,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:2}}>Time In</div>
+                            <div style={{fontSize:16,fontWeight:800,color:"#34d399",
+                              fontFamily:"monospace"}}>
+                              {r.signin_time||"—"}
                             </div>
                           </div>
-                        )}
-
-                        {/* Weekly tasks */}
-                        {isWeekly&&r.weekly_tasks&&(
-                          <div style={{fontSize:13,marginBottom:12,
-                            borderLeft:`3px solid #7c5cfc`,paddingLeft:10,lineHeight:1.6}}>
-                            {r.weekly_tasks}
+                          <div style={{width:1,background:HW.border}}/>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:10,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:2}}>Time Out</div>
+                            <div style={{fontSize:16,fontWeight:800,color:"#4f8ef7",
+                              fontFamily:"monospace"}}>
+                              {r.signout_time||"—"}
+                            </div>
                           </div>
-                        )}
-
+                          <div style={{width:1,background:HW.border}}/>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:10,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:2}}>Status</div>
+                            <div style={{fontSize:13,fontWeight:700,
+                              color:r.attended?"#34d399":HW.red}}>
+                              {r.attended?"● Present":"○ Absent"}
+                            </div>
+                          </div>
+                        </div>
                         {r.excuse_type&&(
                           <div style={{background:"rgba(255,165,0,.08)",borderRadius:8,
                             padding:10,marginBottom:10,borderLeft:"3px solid #FFA500"}}>
@@ -2175,6 +2181,19 @@ export default function App() {
                               Excuse: {r.excuse_type}
                             </div>
                             <div style={{fontSize:12}}>{r.excuse_text}</div>
+                          </div>
+                        )}
+                        <div style={{fontSize:13,marginBottom:12,
+                          borderLeft:`3px solid ${HW.red}`,paddingLeft:10}}>
+                          {r.report_text}
+                        </div>
+                        {r.face_capture_url&&(
+                          <div style={{marginBottom:10}}>
+                            <div style={{fontSize:11,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:6}}>🤳 Face ID</div>
+                            <img src={r.face_capture_url} alt="face"
+                              style={{width:80,height:80,objectFit:"cover",
+                                borderRadius:"50%",border:`2px solid ${HW.red}`}}/>
                           </div>
                         )}
                         {pie&&(
@@ -2323,15 +2342,17 @@ export default function App() {
                 <div style={{marginTop:16}}>
                   {analytics.deptData.map((d,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",
-                      alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${HW.border}`}}>
+                      alignItems:"center",padding:"8px 0",
+                      borderBottom:`1px solid ${HW.border}`}}>
                       <span style={{fontSize:13,color:HW.muted}}>{d.label}</span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <div style={{width:80,height:6,background:HW.border,borderRadius:10,overflow:"hidden"}}>
-                          <div style={{height:"100%",background:HW.red,borderRadius:10,width:`${d.value}%`}}/>
+                        <div style={{width:80,height:6,background:HW.border,
+                          borderRadius:10,overflow:"hidden"}}>
+                          <div style={{height:"100%",background:HW.red,
+                            borderRadius:10,width:`${d.value}%`}}/>
                         </div>
-                        <span style={{fontSize:13,fontWeight:700,color:kpiColor(d.value),minWidth:30}}>
-                          {d.value}
-                        </span>
+                        <span style={{fontSize:13,fontWeight:700,
+                          color:kpiColor(d.value),minWidth:30}}>{d.value}</span>
                       </div>
                     </div>
                   ))}
@@ -2435,7 +2456,8 @@ export default function App() {
                 {label:"Behind",value:okrs.filter(o=>(o.current/o.target)<.5).length,color:"#f87171"},
               ].map((s2,i)=>(
                 <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
-                  borderRadius:14,padding:16,textAlign:"center",borderTop:`3px solid ${s2.color}`}}>
+                  borderRadius:14,padding:16,textAlign:"center",
+                  borderTop:`3px solid ${s2.color}`}}>
                   <div style={{fontSize:28,fontWeight:800,color:s2.color}}>{s2.value}</div>
                   <div style={{fontSize:12,color:HW.muted,marginTop:4}}>{s2.label}</div>
                 </div>
