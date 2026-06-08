@@ -89,20 +89,16 @@ function PieChart({data}) {
     <div style={{display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
       <svg viewBox="-1.1 -1.1 2.2 2.2" width="160" height="160">
         {slices.map((s,i)=>(
-          <path key={i} d={s.d} fill={s.color} stroke={HW.surface}
-            strokeWidth="0.03"/>
+          <path key={i} d={s.d} fill={s.color} stroke={HW.surface} strokeWidth="0.03"/>
         ))}
         <circle cx="0" cy="0" r="0.55" fill={HW.surface}/>
       </svg>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {slices.map((s,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",
-            gap:8,fontSize:13}}>
-            <div style={{width:10,height:10,borderRadius:"50%",
-              background:s.color,flexShrink:0}}/>
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}>
+            <div style={{width:10,height:10,borderRadius:"50%",background:s.color,flexShrink:0}}/>
             <span style={{color:HW.muted}}>{s.label}</span>
-            <span style={{fontWeight:700,color:s.color,
-              marginLeft:"auto",paddingLeft:8}}>{s.pct}%</span>
+            <span style={{fontWeight:700,color:s.color,marginLeft:"auto",paddingLeft:8}}>{s.pct}%</span>
           </div>
         ))}
       </div>
@@ -113,21 +109,14 @@ function PieChart({data}) {
 function BarChart({data}) {
   const max=Math.max(...data.map(d=>d.value),1);
   return (
-    <div style={{display:"flex",alignItems:"flex-end",gap:8,
-      height:120,padding:"0 4px"}}>
+    <div style={{display:"flex",alignItems:"flex-end",gap:8,height:120,padding:"0 4px"}}>
       {data.map((d,i)=>(
-        <div key={i} style={{flex:1,display:"flex",flexDirection:"column",
-          alignItems:"center",gap:4}}>
-          <div style={{fontSize:10,color:HW.muted,fontWeight:700}}>
-            {d.value}
-          </div>
-          <div style={{width:"100%",background:HW.red,
-            borderRadius:"4px 4px 0 0",
+        <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+          <div style={{fontSize:10,color:HW.muted,fontWeight:700}}>{d.value}</div>
+          <div style={{width:"100%",background:HW.red,borderRadius:"4px 4px 0 0",
             height:`${(d.value/max)*80}px`,minHeight:4}}/>
           <div style={{fontSize:9,color:HW.muted,textAlign:"center",
-            whiteSpace:"nowrap",overflow:"hidden",maxWidth:40}}>
-            {d.label}
-          </div>
+            whiteSpace:"nowrap",overflow:"hidden",maxWidth:40}}>{d.label}</div>
         </div>
       ))}
     </div>
@@ -138,28 +127,19 @@ function OKRBar({okr,onUpdate}) {
   const pct=Math.min((okr.current/okr.target)*100,100).toFixed(0);
   const color=pct>=80?HW.red:pct>=50?"#FFA500":"#666";
   return (
-    <div style={{background:HW.surface2,borderRadius:12,padding:16,
-      marginBottom:12}}>
-      <div style={{display:"flex",justifyContent:"space-between",
-        alignItems:"flex-start",marginBottom:8}}>
+    <div style={{background:HW.surface2,borderRadius:12,padding:16,marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
         <div style={{flex:1}}>
-          <div style={{fontSize:12,color:HW.muted,marginBottom:2}}>
-            {okr.department}
-          </div>
-          <div style={{fontWeight:600,fontSize:14,marginBottom:2}}>
-            {okr.objective}
-          </div>
+          <div style={{fontSize:12,color:HW.muted,marginBottom:2}}>{okr.department}</div>
+          <div style={{fontWeight:600,fontSize:14,marginBottom:2}}>{okr.objective}</div>
           <div style={{fontSize:13,color:HW.muted}}>{okr.key_result}</div>
         </div>
         <div style={{textAlign:"right",marginLeft:12}}>
           <div style={{fontSize:22,fontWeight:800,color}}>{pct}%</div>
-          <div style={{fontSize:11,color:HW.muted}}>
-            {okr.current}/{okr.target} {okr.unit}
-          </div>
+          <div style={{fontSize:11,color:HW.muted}}>{okr.current}/{okr.target} {okr.unit}</div>
         </div>
       </div>
-      <div style={{height:8,background:HW.border,borderRadius:10,
-        overflow:"hidden"}}>
+      <div style={{height:8,background:HW.border,borderRadius:10,overflow:"hidden"}}>
         <div style={{height:"100%",borderRadius:10,background:color,
           width:`${pct}%`,transition:"width .6s ease"}}/>
       </div>
@@ -173,8 +153,7 @@ function OKRBar({okr,onUpdate}) {
         <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center"}}>
           <input type="number" defaultValue={okr.current}
             style={{background:HW.surface,border:`1px solid ${HW.border}`,
-              color:HW.text,borderRadius:6,padding:"4px 8px",
-              width:80,fontSize:13}}
+              color:HW.text,borderRadius:6,padding:"4px 8px",width:80,fontSize:13}}
             onBlur={e=>onUpdate(okr.id,parseFloat(e.target.value))}/>
           <span style={{fontSize:12,color:HW.muted}}>Update progress</span>
         </div>
@@ -186,8 +165,7 @@ function OKRBar({okr,onUpdate}) {
 function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
   const kra=KRA_CATEGORIES.find(k=>k.id===goal.kra)||KRA_CATEGORIES[0];
   const pct=Math.min((goal.current_value/goal.target_value)*100,100).toFixed(0);
-  const isOverdue=goal.due_date&&new Date(goal.due_date)<new Date()&&
-    goal.status!=="completed";
+  const isOverdue=goal.due_date&&new Date(goal.due_date)<new Date()&&goal.status!=="completed";
   const statusColors={
     not_started:{bg:"rgba(136,136,136,.15)",color:"#888"},
     in_progress:{bg:"rgba(79,142,247,.15)",color:"#4f8ef7"},
@@ -201,28 +179,18 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
       <div style={{display:"flex",justifyContent:"space-between",
         alignItems:"flex-start",marginBottom:12}}>
         <div style={{flex:1}}>
-          <div style={{display:"flex",alignItems:"center",
-            gap:8,marginBottom:4}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
             <span style={{fontSize:18}}>{kra.icon}</span>
             <span style={{fontSize:11,color:kra.color,fontWeight:700,
               textTransform:"uppercase"}}>{kra.label}</span>
           </div>
-          <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>
-            {goal.goal_title}
-          </div>
-          {goal.description&&(
-            <div style={{fontSize:13,color:HW.muted}}>
-              {goal.description}
-            </div>
-          )}
+          <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>{goal.goal_title}</div>
+          {goal.description&&<div style={{fontSize:13,color:HW.muted}}>{goal.description}</div>}
         </div>
-        <div style={{display:"flex",flexDirection:"column",
-          alignItems:"flex-end",gap:6}}>
-          <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,
-            fontWeight:700,background:statusColors[status]?.bg,
-            color:statusColors[status]?.color}}>
-            {status==="not_started"?"⬜ Not Started":
-             status==="in_progress"?"🔵 In Progress":
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+          <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
+            background:statusColors[status]?.bg,color:statusColors[status]?.color}}>
+            {status==="not_started"?"⬜ Not Started":status==="in_progress"?"🔵 In Progress":
              status==="completed"?"✅ Completed":"🔴 Overdue"}
           </span>
           {goal.due_date&&(
@@ -234,50 +202,41 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
         </div>
       </div>
       <div style={{marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",
-          fontSize:12,marginBottom:6}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
           <span style={{color:HW.muted}}>Progress</span>
           <span style={{fontWeight:700,color:kra.color}}>
             {goal.current_value}/{goal.target_value} {goal.unit} ({pct}%)
           </span>
         </div>
-        <div style={{height:8,background:HW.border,borderRadius:10,
-          overflow:"hidden"}}>
+        <div style={{height:8,background:HW.border,borderRadius:10,overflow:"hidden"}}>
           <div style={{height:"100%",borderRadius:10,background:kra.color,
             width:`${pct}%`,transition:"width .6s ease"}}/>
         </div>
       </div>
       {isTrainee&&goal.status!=="completed"&&(
-        <div style={{display:"flex",gap:8,alignItems:"center",
-          flexWrap:"wrap"}}>
-          <input type="number" placeholder="Update value"
-            id={`prog_${goal.id}`}
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <input type="number" placeholder="Update value" id={`prog_${goal.id}`}
             style={{background:HW.surface,border:`1px solid ${HW.border}`,
-              color:HW.text,borderRadius:6,padding:"6px 10px",
-              width:130,fontSize:13}}/>
+              color:HW.text,borderRadius:6,padding:"6px 10px",width:130,fontSize:13}}/>
           <button style={{padding:"6px 14px",borderRadius:6,border:"none",
-            background:kra.color,color:HW.white,fontWeight:700,
-            fontSize:12,cursor:"pointer"}}
+            background:kra.color,color:HW.white,fontWeight:700,fontSize:12,cursor:"pointer"}}
             onClick={()=>{
               const input=document.getElementById(`prog_${goal.id}`);
-              if(input&&input.value)
-                onUpdate(goal.id,parseFloat(input.value));
+              if(input&&input.value) onUpdate(goal.id,parseFloat(input.value));
             }}>Update</button>
           {parseFloat(pct)>=100&&(
-            <button style={{padding:"6px 14px",borderRadius:6,
-              border:"none",background:"rgba(52,211,153,.15)",
-              color:"#34d399",fontWeight:700,fontSize:12,cursor:"pointer"}}
+            <button style={{padding:"6px 14px",borderRadius:6,border:"none",
+              background:"rgba(52,211,153,.15)",color:"#34d399",
+              fontWeight:700,fontSize:12,cursor:"pointer"}}
               onClick={()=>onUpdate(goal.id,goal.target_value,"completed")}>
               ✅ Mark Complete
             </button>
           )}
           {onDelete&&(
-            <button style={{padding:"6px 14px",borderRadius:6,
-              border:"none",background:"rgba(248,113,113,.1)",
-              color:"#f87171",fontWeight:700,fontSize:12,cursor:"pointer"}}
-              onClick={()=>onDelete(goal.id)}>
-              🗑 Delete
-            </button>
+            <button style={{padding:"6px 14px",borderRadius:6,border:"none",
+              background:"rgba(248,113,113,.1)",color:"#f87171",
+              fontWeight:700,fontSize:12,cursor:"pointer"}}
+              onClick={()=>onDelete(goal.id)}>🗑 Delete</button>
           )}
         </div>
       )}
@@ -294,16 +253,13 @@ function ReminderPopup({onDismiss}) {
         borderRadius:20,padding:40,maxWidth:380,textAlign:"center",
         boxShadow:`0 0 60px rgba(207,10,44,.3)`}}>
         <div style={{fontSize:52,marginBottom:12}}>⏰</div>
-        <h3 style={{color:HW.red,fontSize:22,marginBottom:8}}>
-          Task Submission Reminder
-        </h3>
+        <h3 style={{color:HW.red,fontSize:22,marginBottom:8}}>Task Submission Reminder</h3>
         <p style={{color:HW.muted,fontSize:14,lineHeight:1.6,marginBottom:20}}>
-          It is <strong style={{color:HW.text}}>4:30 PM</strong> — please
-          submit your daily report!
+          It is <strong style={{color:HW.text}}>4:30 PM</strong> — please submit your daily report!
         </p>
-        <button onClick={onDismiss} style={{background:HW.red,color:HW.white,
-          border:"none",borderRadius:8,padding:"12px 32px",fontWeight:700,
-          fontSize:14,cursor:"pointer",width:"100%"}}>
+        <button onClick={onDismiss} style={{background:HW.red,color:HW.white,border:"none",
+          borderRadius:8,padding:"12px 32px",fontWeight:700,fontSize:14,
+          cursor:"pointer",width:"100%"}}>
           Got it — I'll submit now!
         </button>
       </div>
@@ -311,49 +267,37 @@ function ReminderPopup({onDismiss}) {
   );
 }
 
-// ── Greeting Popup ───────────────────────────────────
 function GreetingPopup({name,onDismiss}) {
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting = hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
-  const greetingAr = hour<12?"صباح الخير":hour<17?"مساء الخير":"مساء النور";
-  const quote = CHINESE_QUOTES[Math.floor(Math.random()*CHINESE_QUOTES.length)];
-
+  const now=new Date();
+  const hour=now.getHours();
+  const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
+  const greetingAr=hour<12?"صباح الخير":hour<17?"مساء الخير":"مساء النور";
+  const quote=CHINESE_QUOTES[Math.floor(Math.random()*CHINESE_QUOTES.length)];
   useEffect(()=>{
     if("speechSynthesis" in window){
       window.speechSynthesis.cancel();
-      const msg = new SpeechSynthesisUtterance(
+      const msg=new SpeechSynthesisUtterance(
         `${greeting}, ${name}! Welcome to TraineeOS. ${quote.english}. Have a nice day!`
       );
-      msg.rate = 0.9;
-      msg.pitch = 1;
-      msg.volume = 1;
-      const setVoice = () => {
-        const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find(v=>
-          v.lang.startsWith("en")&&v.name.includes("Female")
-        )||voices.find(v=>v.lang.startsWith("en"))||voices[0];
-        if(preferred) msg.voice = preferred;
+      msg.rate=0.9;msg.pitch=1;msg.volume=1;
+      const setVoice=()=>{
+        const voices=window.speechSynthesis.getVoices();
+        const preferred=voices.find(v=>v.lang.startsWith("en")&&v.name.includes("Female"))
+          ||voices.find(v=>v.lang.startsWith("en"))||voices[0];
+        if(preferred) msg.voice=preferred;
         setTimeout(()=>window.speechSynthesis.speak(msg),500);
       };
-      if(window.speechSynthesis.getVoices().length>0){
-        setVoice();
-      } else {
-        window.speechSynthesis.onvoiceschanged = setVoice;
-      }
+      if(window.speechSynthesis.getVoices().length>0) setVoice();
+      else window.speechSynthesis.onvoiceschanged=setVoice;
     }
     return ()=>window.speechSynthesis?.cancel();
   },[]);
-
   return (
-    <div style={{position:"fixed",inset:0,
-      background:"rgba(0,0,0,.85)",
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",
       display:"flex",alignItems:"center",justifyContent:"center",
       zIndex:1000,backdropFilter:"blur(8px)"}}>
-      <div style={{background:HW.surface,
-        border:`2px solid ${HW.red}`,
-        borderRadius:24,padding:44,maxWidth:480,width:"90%",
-        textAlign:"center",
+      <div style={{background:HW.surface,border:`2px solid ${HW.red}`,
+        borderRadius:24,padding:44,maxWidth:480,width:"90%",textAlign:"center",
         boxShadow:`0 0 80px rgba(207,10,44,.25)`,
         animation:"popIn .4s cubic-bezier(.34,1.56,.64,1)"}}>
         <style>{`
@@ -364,9 +308,7 @@ function GreetingPopup({name,onDismiss}) {
           <HuaweiLogo size={64}/>
         </div>
         <div style={{fontSize:13,color:HW.muted,marginBottom:4,
-          letterSpacing:".1em",textTransform:"uppercase"}}>
-          {greetingAr}
-        </div>
+          letterSpacing:".1em",textTransform:"uppercase"}}>{greetingAr}</div>
         <h2 style={{fontSize:32,fontWeight:800,color:HW.white,margin:"0 0 4px"}}>
           {greeting},
         </h2>
@@ -380,20 +322,13 @@ function GreetingPopup({name,onDismiss}) {
             textTransform:"uppercase",letterSpacing:".1em",marginBottom:12}}>
             🈲 Today's Motivation
           </div>
-          <div style={{fontSize:26,fontWeight:800,color:HW.white,
-            marginBottom:10,lineHeight:1.4,fontFamily:"serif",letterSpacing:4}}>
-            {quote.chinese}
-          </div>
+          <div style={{fontSize:26,fontWeight:800,color:HW.white,marginBottom:10,
+            lineHeight:1.4,fontFamily:"serif",letterSpacing:4}}>{quote.chinese}</div>
           <div style={{fontSize:14,color:HW.muted,lineHeight:1.7,
-            fontStyle:"italic",marginBottom:8}}>
-            "{quote.english}"
-          </div>
-          <div style={{fontSize:12,color:HW.red,fontWeight:600}}>
-            — {quote.author}
-          </div>
+            fontStyle:"italic",marginBottom:8}}>"{quote.english}"</div>
+          <div style={{fontSize:12,color:HW.red,fontWeight:600}}>— {quote.author}</div>
         </div>
-        <div style={{fontSize:15,color:"#34d399",fontWeight:700,
-          marginBottom:20}}>
+        <div style={{fontSize:16,color:"#34d399",fontWeight:700,marginBottom:20}}>
           🌟 Have a nice day!
         </div>
         <div style={{fontSize:13,color:HW.muted,marginBottom:24}}>
@@ -468,6 +403,8 @@ export default function App() {
   });
   const [goalFilter,setGoalFilter]   = useState("all");
   const [currentTime,setCurrentTime] = useState(new Date());
+  const [signedOut,setSignedOut]     = useState(false);
+  const [signoutTime,setSignoutTime] = useState("");
 
   const [setupProfile,setSetupProfile] = useState({
     full_name:"",civil_id:"",phone_number:"",
@@ -484,11 +421,10 @@ export default function App() {
   });
   const [attendance,setAttendance] = useState({
     report_date:new Date().toISOString().split("T")[0],
-    attended:false,signin_time:"",
+    attended:false,
   });
   const [taskReport,setTaskReport] = useState({
-    report_text:"",
-    report_date:new Date().toISOString().split("T")[0],
+    report_text:"",report_date:new Date().toISOString().split("T")[0],
   });
 
   const s = {
@@ -499,16 +435,13 @@ export default function App() {
     input:{background:HW.surface2,border:`1px solid ${HW.border}`,
       color:HW.text,borderRadius:8,padding:"9px 13px",width:"100%",
       fontFamily:"inherit",fontSize:14,boxSizing:"border-box"},
-    label:{fontSize:11,fontWeight:700,color:HW.muted,
-      textTransform:"uppercase",letterSpacing:".06em",
-      display:"block",marginBottom:5},
+    label:{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",
+      letterSpacing:".06em",display:"block",marginBottom:5},
     btn:{padding:"10px 20px",borderRadius:8,border:"none",
       fontWeight:700,cursor:"pointer",fontSize:13},
-    th:{textAlign:"left",padding:"10px 14px",fontSize:11,
-      fontWeight:700,color:HW.muted,textTransform:"uppercase",
-      borderBottom:`1px solid ${HW.border}`},
-    td:{padding:"12px 14px",fontSize:14,
-      borderBottom:`1px solid rgba(51,51,51,.6)`},
+    th:{textAlign:"left",padding:"10px 14px",fontSize:11,fontWeight:700,
+      color:HW.muted,textTransform:"uppercase",borderBottom:`1px solid ${HW.border}`},
+    td:{padding:"12px 14px",fontSize:14,borderBottom:`1px solid rgba(51,51,51,.6)`},
   };
 
   const statusColors={
@@ -524,9 +457,7 @@ export default function App() {
     reactivated:"✅",note:"📝",inactive:"⏸"
   };
 
-  function kpiColor(score){
-    return score>=80?HW.red:score>=60?"#FFA500":"#666";
-  }
+  function kpiColor(score){return score>=80?HW.red:score>=60?"#FFA500":"#666";}
 
   useEffect(()=>{
     const interval=setInterval(()=>{
@@ -567,20 +498,18 @@ export default function App() {
     if(view!=="mgmt") return;
     fetchTodaySignins();
     const channel=supabase.channel("live-signins")
-      .on("postgres_changes",{
-        event:"INSERT",schema:"public",table:"daily_reports",
-      },async(payload)=>{
-        const r=payload.new;
-        const{data:t}=await supabase.from("trainees")
-          .select("full_name,department").eq("id",r.trainee_id).single();
-        setLiveSignins(prev=>[{
-          id:r.id,full_name:t?.full_name||"Unknown",
-          department:t?.department||"—",
-          signin_time:r.signin_time,attended:r.attended,
-          report_date:r.report_date,
-          penalty_applied:r.penalty_applied,timestamp:new Date(),
-        },...prev].slice(0,50));
-      }).subscribe();
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"daily_reports"},
+        async(payload)=>{
+          const r=payload.new;
+          const{data:t}=await supabase.from("trainees")
+            .select("full_name,department").eq("id",r.trainee_id).single();
+          setLiveSignins(prev=>[{
+            id:r.id,full_name:t?.full_name||"Unknown",
+            department:t?.department||"—",signin_time:r.signin_time,
+            attended:r.attended,report_date:r.report_date,
+            penalty_applied:r.penalty_applied,timestamp:new Date(),
+          },...prev].slice(0,50));
+        }).subscribe();
     return ()=>supabase.removeChannel(channel);
   },[view]);
 
@@ -588,15 +517,13 @@ export default function App() {
     const today=new Date().toISOString().split("T")[0];
     const{data}=await supabase.from("daily_reports")
       .select("*,trainees(full_name,department)")
-      .eq("report_date",today)
-      .order("created_at",{ascending:false});
+      .eq("report_date",today).order("created_at",{ascending:false});
     if(data){
       setLiveSignins(data.map(r=>({
         id:r.id,full_name:r.trainees?.full_name||"Unknown",
         department:r.trainees?.department||"—",
         signin_time:r.signin_time,attended:r.attended,
-        report_date:r.report_date,
-        penalty_applied:r.penalty_applied,
+        report_date:r.report_date,penalty_applied:r.penalty_applied,
         timestamp:new Date(r.created_at),
       })));
     }
@@ -605,8 +532,7 @@ export default function App() {
   async function handleSession(authUser){
     setUser(authUser);
     const{data}=await supabase.from("profiles")
-      .select("role,trainee_id,profile_completed")
-      .eq("id",authUser.id).single();
+      .select("role,trainee_id,profile_completed").eq("id",authUser.id).single();
     if(data){
       if(data.role==="management"){
         setView("mgmt");fetchTrainees();fetchOkrs();fetchAllData();
@@ -627,6 +553,14 @@ export default function App() {
               setTimeout(()=>setShowGreeting(true),500);
             }
             fetchGoals(data.trainee_id);
+            // Check if already signed out today
+            const today=new Date().toISOString().split("T")[0];
+            const{data:todayReport}=await supabase.from("daily_reports")
+              .select("signout_time").eq("trainee_id",data.trainee_id)
+              .eq("report_date",today).single();
+            if(todayReport?.signout_time){
+              setSignedOut(true);setSignoutTime(todayReport.signout_time);
+            }
             const start=new Date();start.setDate(1);
             const{data:tc}=await supabase.from("traffic_excuses")
               .select("id").eq("trainee_id",data.trainee_id)
@@ -644,15 +578,12 @@ export default function App() {
     }
     setLoading(true);setMsg("");
     const{data:traineeData,error:tErr}=await supabase.from("trainees").upsert({
-      full_name:setupProfile.full_name,
-      civil_id:setupProfile.civil_id,
-      phone_number:setupProfile.phone_number,
-      department:setupProfile.department,
+      full_name:setupProfile.full_name,civil_id:setupProfile.civil_id,
+      phone_number:setupProfile.phone_number,department:setupProfile.department,
       assigned_mentor:setupProfile.assigned_mentor,
       gpa:setupProfile.gpa?parseFloat(setupProfile.gpa):null,
       date_of_birth:setupProfile.date_of_birth||null,
-      gender:setupProfile.gender||null,
-      nationality:setupProfile.nationality||null,
+      gender:setupProfile.gender||null,nationality:setupProfile.nationality||null,
       joining_date:new Date().toISOString().split("T")[0],
     },{onConflict:"civil_id"}).select().single();
     if(tErr){setMsg("Error: "+tErr.message);setLoading(false);return;}
@@ -660,15 +591,12 @@ export default function App() {
       trainee_id:traineeData.id,profile_completed:true,
     }).eq("id",user.id);
     setTraineeId(traineeData.id);
-    setProfile({
-      full_name:setupProfile.full_name,civil_id:setupProfile.civil_id,
+    setProfile({full_name:setupProfile.full_name,civil_id:setupProfile.civil_id,
       phone_number:setupProfile.phone_number,department:setupProfile.department,
-      assigned_mentor:setupProfile.assigned_mentor,gpa:setupProfile.gpa,
-    });
+      assigned_mentor:setupProfile.assigned_mentor,gpa:setupProfile.gpa});
     setTraineeName(setupProfile.full_name.split(" ")[0]);
     fetchGoals(traineeData.id);
-    setLoading(false);
-    setView("trainee");
+    setLoading(false);setView("trainee");
     setTimeout(()=>setShowGreeting(true),500);
   }
 
@@ -698,10 +626,10 @@ export default function App() {
     setView("login");setUser(null);setSelected(null);setMsg("");
     setAiResult(null);setPhotoFile(null);setPhotoPreview(null);
     setLocationOk(false);setGeoStatus("idle");setGeoMsg("");
-    setFaceCapture(null);setFaceCaptured(false);
-    setFacePreviewUrl(null);stopCamera();
-    setTraineeId(null);setGoals([]);setLiveSignins([]);
+    setFaceCapture(null);setFaceCaptured(false);setFacePreviewUrl(null);
+    stopCamera();setTraineeId(null);setGoals([]);setLiveSignins([]);
     setShowGreeting(false);setTraineeName("");
+    setSignedOut(false);setSignoutTime("");
   }
 
   function checkLocation(){
@@ -711,8 +639,7 @@ export default function App() {
     }
     navigator.geolocation.getCurrentPosition(
       (pos)=>{
-        const dist=getDistance(pos.coords.latitude,pos.coords.longitude,
-          WORK_LAT,WORK_LNG);
+        const dist=getDistance(pos.coords.latitude,pos.coords.longitude,WORK_LAT,WORK_LNG);
         if(dist<=WORK_RADIUS){
           setLocationOk(true);setGeoStatus("ok");
           setGeoMsg(`✅ Verified — ${Math.round(dist)}m from workplace.`);
@@ -728,8 +655,7 @@ export default function App() {
 
   async function startCamera(){
     try{
-      const stream=await navigator.mediaDevices.getUserMedia(
-        {video:{facingMode:"user"},audio:false});
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
       streamRef.current=stream;
       if(videoRef.current) videoRef.current.srcObject=stream;
       setCameraActive(true);
@@ -737,10 +663,7 @@ export default function App() {
   }
 
   function stopCamera(){
-    if(streamRef.current){
-      streamRef.current.getTracks().forEach(t=>t.stop());
-      streamRef.current=null;
-    }
+    if(streamRef.current){streamRef.current.getTracks().forEach(t=>t.stop());streamRef.current=null;}
     setCameraActive(false);
   }
 
@@ -749,7 +672,6 @@ export default function App() {
     const canvas=canvasRef.current,video=videoRef.current;
     canvas.width=video.videoWidth;canvas.height=video.videoHeight;
     canvas.getContext("2d").drawImage(video,0,0);
-    // Generate preview URL from canvas
     const previewUrl=canvas.toDataURL("image/jpeg",0.8);
     setFacePreviewUrl(previewUrl);
     canvas.toBlob(blob=>{
@@ -758,14 +680,8 @@ export default function App() {
     },"image/jpeg",0.8);
   }
 
-  function handleProofPhoto(e){
-    const f=e.target.files[0];if(!f)return;
-    setPhotoFile(f);setPhotoPreview(URL.createObjectURL(f));
-  }
-  function handleExcusePhoto(e){
-    const f=e.target.files[0];if(!f)return;
-    setExcusePhoto(f);setExcusePreview(URL.createObjectURL(f));
-  }
+  function handleProofPhoto(e){const f=e.target.files[0];if(!f)return;setPhotoFile(f);setPhotoPreview(URL.createObjectURL(f));}
+  function handleExcusePhoto(e){const f=e.target.files[0];if(!f)return;setExcusePhoto(f);setExcusePreview(URL.createObjectURL(f));}
 
   async function uploadFile(bucket,path,file){
     const{error}=await supabase.storage.from(bucket).upload(path,file);
@@ -789,24 +705,19 @@ export default function App() {
     setLoading(true);setMsg("");
     const tid=traineeId;const ts=Date.now();
     const faceUrl=faceCapture
-      ?await uploadFile("report-photos",`${tid}/face_${ts}.jpg`,faceCapture)
-      :null;
+      ?await uploadFile("report-photos",`${tid}/face_${ts}.jpg`,faceCapture):null;
     let excusePhotoUrl=null;
     if(excusePhoto)
-      excusePhotoUrl=await uploadFile(
-        "report-photos",`${tid}/excuse_${ts}.jpg`,excusePhoto);
+      excusePhotoUrl=await uploadFile("report-photos",`${tid}/excuse_${ts}.jpg`,excusePhoto);
     if(excuseType==="traffic"&&excusePhotoUrl){
       await supabase.from("traffic_excuses").insert({
-        trainee_id:tid,report_date:attendance.report_date,
-        photo_url:excusePhotoUrl});
+        trainee_id:tid,report_date:attendance.report_date,photo_url:excusePhotoUrl});
       setTrafficCount(c=>c+1);
     }
     if(penaltyApplied){
       await supabase.from("penalties").insert({
         trainee_id:tid,report_date:attendance.report_date,
-        reason:!attendance.attended
-          ?"Absent — no attendance recorded"
-          :"Late sign-in after 9:00 AM without excuse",
+        reason:!attendance.attended?"Absent — no attendance recorded":"Late sign-in after 9:00 AM without excuse",
         amount:PENALTY_PCT,
       });
     }
@@ -815,14 +726,31 @@ export default function App() {
       attended:attendance.attended,signin_time:timeStr,
       face_capture_url:faceUrl,
       excuse_type:excuseType||null,excuse_text:excuseText||null,
-      excuse_photo_url:excusePhotoUrl,
-      traffic_excuse:excuseType==="traffic",
-      penalty_applied:penaltyApplied,
-      penalty_amount:penaltyApplied?PENALTY_PCT:0,
+      excuse_photo_url:excusePhotoUrl,traffic_excuse:excuseType==="traffic",
+      penalty_applied:penaltyApplied,penalty_amount:penaltyApplied?PENALTY_PCT:0,
     },{onConflict:"trainee_id,report_date"});
     setMsg(penaltyApplied
       ?`✅ Attendance recorded — ⚠️ Penalty of ${PENALTY_PCT}% applied.`
       :"✅ Attendance recorded successfully!");
+    setLoading(false);
+  }
+
+  // ── Sign Out ─────────────────────────────────────────
+  async function submitSignOut(){
+    if(!traineeId){setMsg("Please submit attendance first.");return;}
+    setLoading(true);setMsg("");
+    const now=new Date();
+    const timeStr=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    const today=new Date().toISOString().split("T")[0];
+    const{error}=await supabase.from("daily_reports")
+      .update({signout_time:timeStr})
+      .eq("trainee_id",traineeId)
+      .eq("report_date",today);
+    if(error){setMsg("Error: "+error.message);}
+    else{
+      setSignedOut(true);setSignoutTime(timeStr);
+      setMsg(`✅ Sign out recorded at ${timeStr}`);
+    }
     setLoading(false);
   }
 
@@ -833,8 +761,7 @@ export default function App() {
     if(!tid){setMsg("Please submit attendance first.");setLoading(false);setAiLoading(false);return;}
     const ts=Date.now();
     const photoUrl=photoFile
-      ?await uploadFile("report-photos",`${tid}/proof_${ts}.jpg`,photoFile)
-      :null;
+      ?await uploadFile("report-photos",`${tid}/proof_${ts}.jpg`,photoFile):null;
     setMsg("🤖 AI is analyzing your report…");
     let ai=null;
     try{ai=await analyzeReport(taskReport.report_text);setAiResult(ai);}
@@ -860,8 +787,7 @@ export default function App() {
     if(!newGoal.goal_title){setMsg("Please enter a goal title.");return;}
     if(!traineeId){setMsg("Please complete your profile first.");return;}
     setLoading(true);setMsg("");
-    const{error}=await supabase.from("goals")
-      .insert({...newGoal,trainee_id:traineeId});
+    const{error}=await supabase.from("goals").insert({...newGoal,trainee_id:traineeId});
     if(error){setMsg(error.message);}
     else{
       setMsg("✅ Goal added!");setShowAddGoal(false);
@@ -877,8 +803,7 @@ export default function App() {
   async function updateGoal(id,newValue,newStatus){
     const updates={current_value:newValue};
     if(newStatus) updates.status=newStatus;
-    else if(newValue>=goals.find(g=>g.id===id)?.target_value)
-      updates.status="completed";
+    else if(newValue>=goals.find(g=>g.id===id)?.target_value) updates.status="completed";
     await supabase.from("goals").update(updates).eq("id",id);
     fetchGoals(traineeId);setMsg("✅ Goal updated!");
   }
@@ -897,8 +822,7 @@ export default function App() {
   async function fetchTrainees(){
     setLoading(true);
     const{data}=await supabase.from("trainees").select("*").order("full_name");
-    if(data) setTrainees(data);
-    setLoading(false);
+    if(data) setTrainees(data);setLoading(false);
   }
 
   async function fetchOkrs(){
@@ -909,8 +833,7 @@ export default function App() {
   async function fetchAllData(){
     const{data:reps}=await supabase.from("daily_reports").select("*");
     const{data:pens}=await supabase.from("penalties").select("*");
-    if(reps) setAllReports(reps);
-    if(pens) setAllPenalties(pens);
+    if(reps) setAllReports(reps);if(pens) setAllPenalties(pens);
   }
 
   async function fetchReports(tid){
@@ -955,9 +878,7 @@ export default function App() {
         `Mentor changed from ${selected._original?.assigned_mentor} to ${selected.assigned_mentor}`,
         selected._original?.assigned_mentor,selected.assigned_mentor));
     const{error}=await supabase.from("trainees").update({
-      department:selected.department,
-      assigned_mentor:selected.assigned_mentor,
-      gpa:selected.gpa
+      department:selected.department,assigned_mentor:selected.assigned_mentor,gpa:selected.gpa
     }).eq("id",selected.id);
     if(error){setMsg(error.message);return;}
     await Promise.all(changes);
@@ -972,14 +893,11 @@ export default function App() {
       active:"Trainee reactivated in the program",
     };
     const updateData={status:newStatus};
-    if(newStatus==="dropped")
-      updateData.quitting_date=new Date().toISOString().split("T")[0];
+    if(newStatus==="dropped") updateData.quitting_date=new Date().toISOString().split("T")[0];
     if(newStatus==="active") updateData.quitting_date=null;
-    const{error}=await supabase.from("trainees")
-      .update(updateData).eq("id",selected.id);
+    const{error}=await supabase.from("trainees").update(updateData).eq("id",selected.id);
     if(error){setMsg(error.message);return;}
-    await logEvent(selected.id,
-      newStatus==="active"?"reactivated":newStatus,
+    await logEvent(selected.id,newStatus==="active"?"reactivated":newStatus,
       messages[newStatus],selected.status,newStatus);
     setSelected({...selected,status:newStatus,...updateData});
     fetchTrainees();fetchLogs(selected.id);
@@ -987,8 +905,7 @@ export default function App() {
   }
 
   async function updateOkr(id,newValue){
-    await supabase.from("okrs").update({current:newValue}).eq("id",id);
-    fetchOkrs();
+    await supabase.from("okrs").update({current:newValue}).eq("id",id);fetchOkrs();
   }
 
   async function addOkr(){
@@ -997,14 +914,12 @@ export default function App() {
     }
     await supabase.from("okrs").insert({...newOkr,created_by:user?.email});
     setShowAddOkr(false);
-    setNewOkr({department:"",objective:"",key_result:"",
-      target:100,current:0,unit:"%",due_date:""});
+    setNewOkr({department:"",objective:"",key_result:"",target:100,current:0,unit:"%",due_date:""});
     fetchOkrs();setMsg("✅ OKR added!");
   }
 
   async function exportPDF(trainee){
-    const doc=new jsPDF();
-    const t=trainee||selected;
+    const doc=new jsPDF();const t=trainee||selected;
     doc.setFillColor(207,10,44);doc.rect(0,0,210,40,"F");
     doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont("helvetica","bold");
     doc.text("TraineeOS — Weekly Performance Report",14,18);
@@ -1031,19 +946,17 @@ export default function App() {
       .eq("trainee_id",t.id).order("report_date",{ascending:false}).limit(7);
     if(reps?.length>0){
       autoTable(doc,{startY:reportsY+4,
-        head:[["Date","Attended","Sign-in","KPI","Penalty","Report"]],
-        body:reps.map(r=>[r.report_date,r.attended?"✓":"✗",r.signin_time||"—",
-          r.kpi_score||"—",r.penalty_applied?`-${r.penalty_amount}%`:"None",
-          (r.report_text||"").substring(0,50)+"..."]),
+        head:[["Date","Attended","Time In","Time Out","KPI","Penalty"]],
+        body:reps.map(r=>[r.report_date,r.attended?"✓":"✗",
+          r.signin_time||"—",r.signout_time||"—",
+          r.kpi_score||"—",r.penalty_applied?`-${r.penalty_amount}%`:"None"]),
         headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
         alternateRowStyles:{fillColor:[245,245,245]},
       });
     }
     const penY=doc.lastAutoTable?.finalY+10||reportsY+60;
-    doc.setFontSize(14);doc.setFont("helvetica","bold");
-    doc.text("Penalties",14,penY);
-    const{data:pens}=await supabase.from("penalties").select("*")
-      .eq("trainee_id",t.id);
+    doc.setFontSize(14);doc.setFont("helvetica","bold");doc.text("Penalties",14,penY);
+    const{data:pens}=await supabase.from("penalties").select("*").eq("trainee_id",t.id);
     autoTable(doc,{startY:penY+4,
       head:[["Date","Reason","Deduction"]],
       body:pens?.length>0?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`])
@@ -1067,6 +980,8 @@ export default function App() {
     const{data:allL}=await supabase.from("trainee_logs").select("*").order("created_at");
     const{data:allG}=await supabase.from("goals").select("*").order("created_at");
     const wb=XLSX.utils.book_new();
+
+    // ── Trainees Sheet ───────────────────────────────
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>({
         "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
@@ -1074,42 +989,76 @@ export default function App() {
         "Gender":t.gender||"—","Nationality":t.nationality||"—",
         "DOB":t.date_of_birth||"—","Status":t.status,
         "Joining Date":t.joining_date,"Quitting Date":t.quitting_date||"Still Active",
-        "Days":t.joining_date?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24)):"—",
+        "Days":t.joining_date
+          ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24)):"—",
       }))),"Trainees");
+
+    // ── Daily Attendance Sheet (with Time In + Time Out) ──
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
-      (allR||[]).map(r=>({
-        "Trainee ID":r.trainee_id,"Date":r.report_date,
-        "Attended":r.attended?"Yes":"No","Sign-in":r.signin_time||"—",
-        "KPI":r.kpi_score||"—","Report":r.report_text,
-        "Talent Notes":r.talent_notes||"—",
-        "Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
-      }))),"Daily Reports");
+      (allR||[]).map(r=>{
+        const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
+        const dateObj=new Date(r.report_date+"T00:00:00");
+        const dayName=dateObj.toLocaleDateString("en-GB",{weekday:"long"});
+        const dateFormatted=dateObj.toLocaleDateString("en-GB",{
+          day:"numeric",month:"long",year:"numeric"});
+        return{
+          "Full Name":trainee?.full_name||"—",
+          "Department":trainee?.department||"—",
+          "Day":dayName,
+          "Date":dateFormatted,
+          "Attended":r.attended?"Yes":"No",
+          "Time In":r.signin_time||"—",
+          "Time Out":r.signout_time||"—",
+          "Duration":r.signin_time&&r.signout_time?(()=>{
+            const [ih,im]=r.signin_time.split(":").map(Number);
+            const [oh,om]=r.signout_time.split(":").map(Number);
+            const mins=(oh*60+om)-(ih*60+im);
+            return mins>0?`${Math.floor(mins/60)}h ${mins%60}m`:"—";
+          })():"—",
+          "KPI Score":r.kpi_score||"—",
+          "Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
+          "Excuse":r.excuse_type||"—",
+          "Report":r.report_text||"—",
+        };
+      })),"Daily Attendance");
+
+    // ── Penalties Sheet ──────────────────────────────
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allP||[]).map(p=>({
-        "Trainee ID":p.trainee_id,"Date":p.report_date,
-        "Reason":p.reason,"Deduction":`-${p.amount}%`,
+        "Full Name":(allT||[]).find(t=>t.id===p.trainee_id)?.full_name||"—",
+        "Date":p.report_date,"Reason":p.reason,"Deduction":`-${p.amount}%`,
       }))),"Penalties");
+
+    // ── Goals Sheet ──────────────────────────────────
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allG||[]).map(g=>({
-        "Trainee ID":g.trainee_id,"KRA":g.kra,"Goal":g.goal_title,
-        "Target":g.target_value,"Current":g.current_value,
-        "Unit":g.unit,"Status":g.status,"Due Date":g.due_date||"—",
+        "Full Name":(allT||[]).find(t=>t.id===g.trainee_id)?.full_name||"—",
+        "KRA":g.kra,"Goal":g.goal_title,"Target":g.target_value,
+        "Current":g.current_value,"Unit":g.unit,"Status":g.status,
+        "Due Date":g.due_date||"—",
         "Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%",
       }))),"Goals");
+
+    // ── Summary Sheet ────────────────────────────────
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>{
         const tr=(allR||[]).filter(r=>r.trainee_id===t.id);
         const tp=(allP||[]).filter(p=>p.trainee_id===t.id);
         const tg=(allG||[]).filter(g=>g.trainee_id===t.id);
         const avg=tr.filter(r=>r.kpi_score).reduce((a,r,_,arr)=>a+r.kpi_score/arr.length,0);
-        return{"Full Name":t.full_name,"Department":t.department,"Status":t.status,
-          "Reports":tr.length,"Attended":tr.filter(r=>r.attended).length,
+        return{
+          "Full Name":t.full_name,"Department":t.department,"Status":t.status,
+          "Days Present":tr.filter(r=>r.attended).length,
+          "Days Absent":tr.filter(r=>!r.attended).length,
           "Avg KPI":avg?avg.toFixed(1):"—","Penalties":tp.length,
-          "Goals Set":tg.length,"Goals Completed":tg.filter(g=>g.status==="completed").length,
-          "Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`};
+          "Goals Set":tg.length,
+          "Goals Completed":tg.filter(g=>g.status==="completed").length,
+          "Total Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`,
+        };
       })),"Summary");
-    XLSX.writeFile(wb,`TraineeOS_Export_${new Date().toISOString().split("T")[0]}.xlsx`);
-    setMsg("✅ Excel exported!");
+
+    XLSX.writeFile(wb,`TraineeOS_Attendance_${new Date().toISOString().split("T")[0]}.xlsx`);
+    setMsg("✅ Excel exported successfully!");
   }
 
   function getAnalytics(){
@@ -1158,9 +1107,7 @@ export default function App() {
           <HuaweiLogo size={56}/>
           <h2 style={{margin:"12px 0 4px",fontSize:24}}>TraineeOS</h2>
           <p style={{color:HW.red,fontSize:12,fontWeight:700,
-            letterSpacing:".1em",textTransform:"uppercase"}}>
-            Powered by Huawei
-          </p>
+            letterSpacing:".1em",textTransform:"uppercase"}}>Powered by Huawei</p>
         </div>
         <label style={s.label}>Email</label>
         <input style={{...s.input,marginBottom:14}} value={email}
@@ -1220,9 +1167,7 @@ export default function App() {
         </button>
         <button style={{...s.btn,background:"none",color:HW.muted,
           width:"100%",padding:13,marginTop:8}}
-          onClick={()=>{setView("login");setMsg("");}}>
-          ← Back to Login
-        </button>
+          onClick={()=>{setView("login");setMsg("");}}>← Back to Login</button>
         {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
           fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
       </div>
@@ -1238,9 +1183,7 @@ export default function App() {
       <div style={{width:"100%",maxWidth:600}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <HuaweiLogo size={56}/>
-          <h2 style={{margin:"16px 0 8px",fontSize:26}}>
-            Welcome to TraineeOS! 🎉
-          </h2>
+          <h2 style={{margin:"16px 0 8px",fontSize:26}}>Welcome to TraineeOS! 🎉</h2>
           <p style={{color:HW.muted,fontSize:14}}>
             Please complete your profile. You only need to do this once.
           </p>
@@ -1249,10 +1192,9 @@ export default function App() {
           justifyContent:"center",gap:8,marginBottom:32}}>
           {["Personal Info","Academic","Contact"].map((step,i)=>(
             <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{width:28,height:28,borderRadius:"50%",
-                background:HW.red,display:"flex",alignItems:"center",
-                justifyContent:"center",fontSize:12,fontWeight:800,
-                color:HW.white}}>{i+1}</div>
+              <div style={{width:28,height:28,borderRadius:"50%",background:HW.red,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:12,fontWeight:800,color:HW.white}}>{i+1}</div>
               <span style={{fontSize:12,color:HW.muted}}>{step}</span>
               {i<2&&<div style={{width:30,height:1,background:HW.border}}/>}
             </div>
@@ -1285,10 +1227,8 @@ export default function App() {
                 value={setupProfile.nationality}
                 onChange={e=>setSetupProfile({...setupProfile,nationality:e.target.value})}/></div>
           </div>
-          <h3 style={{marginBottom:16,color:HW.red,
-            paddingTop:16,borderTop:`1px solid ${HW.border}`}}>
-            📚 Academic Information
-          </h3>
+          <h3 style={{marginBottom:16,color:HW.red,paddingTop:16,
+            borderTop:`1px solid ${HW.border}`}}>📚 Academic Information</h3>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
             <div><label style={s.label}>Department</label>
               <input style={s.input} placeholder="e.g. Engineering"
@@ -1303,10 +1243,8 @@ export default function App() {
                 value={setupProfile.assigned_mentor}
                 onChange={e=>setSetupProfile({...setupProfile,assigned_mentor:e.target.value})}/></div>
           </div>
-          <h3 style={{marginBottom:16,color:HW.red,
-            paddingTop:16,borderTop:`1px solid ${HW.border}`}}>
-            📞 Contact Information
-          </h3>
+          <h3 style={{marginBottom:16,color:HW.red,paddingTop:16,
+            borderTop:`1px solid ${HW.border}`}}>📞 Contact Information</h3>
           <div><label style={s.label}>Phone Number</label>
             <input style={s.input} placeholder="e.g. +968-9100-0001"
               value={setupProfile.phone_number}
@@ -1329,14 +1267,11 @@ export default function App() {
   if(view==="trainee") return (
     <div style={s.page}>
       {showReminder&&<ReminderPopup onDismiss={()=>setShowReminder(false)}/>}
-      {showGreeting&&(
-        <GreetingPopup name={traineeName} onDismiss={()=>setShowGreeting(false)}/>
-      )}
+      {showGreeting&&<GreetingPopup name={traineeName} onDismiss={()=>setShowGreeting(false)}/>}
 
       {/* Topbar */}
-      <div style={{display:"flex",justifyContent:"space-between",
-        alignItems:"center",marginBottom:24,paddingBottom:20,
-        borderBottom:`1px solid ${HW.border}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+        marginBottom:24,paddingBottom:20,borderBottom:`1px solid ${HW.border}`}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <HuaweiLogo size={36}/>
           <div>
@@ -1348,9 +1283,7 @@ export default function App() {
         </div>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:28,fontWeight:800,color:clockColor,
-            fontFamily:"monospace",letterSpacing:3}}>
-            {hh}:{mm}:{ss}
-          </div>
+            fontFamily:"monospace",letterSpacing:3}}>{hh}:{mm}:{ss}</div>
           <div style={{fontSize:11,color:clockColor,fontWeight:700}}>
             {isLate?"⚠️ Past 9:00 AM":"✅ On Time"}
           </div>
@@ -1509,12 +1442,9 @@ export default function App() {
             )}
 
             {/* Face ID */}
-            <div style={{marginTop:16,padding:16,background:HW.surface2,
-              borderRadius:12,
+            <div style={{marginTop:16,padding:16,background:HW.surface2,borderRadius:12,
               border:faceCaptured?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
-              <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>
-                🤳 Face ID Verification
-              </div>
+              <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>🤳 Face ID Verification</div>
               {!cameraActive&&!faceCaptured&&(
                 <button style={{...s.btn,background:HW.red,color:HW.white}}
                   onClick={startCamera}>📷 Open Camera</button>
@@ -1528,23 +1458,19 @@ export default function App() {
                   <div style={{display:"flex",gap:8}}>
                     <button style={{...s.btn,background:HW.red,color:HW.white}}
                       onClick={captureface}>📸 Capture</button>
-                    <button style={{...s.btn,background:HW.surface,
-                      color:HW.muted,border:`1px solid ${HW.border}`}}
-                      onClick={stopCamera}>Cancel</button>
+                    <button style={{...s.btn,background:HW.surface,color:HW.muted,
+                      border:`1px solid ${HW.border}`}} onClick={stopCamera}>Cancel</button>
                   </div>
                 </div>
               )}
-              {/* ── Show captured face photo ── */}
               {faceCaptured&&facePreviewUrl&&(
                 <div style={{display:"flex",alignItems:"center",gap:16}}>
                   <img src={facePreviewUrl} alt="Face ID"
-                    style={{width:90,height:90,borderRadius:"50%",
-                      objectFit:"cover",
+                    style={{width:90,height:90,borderRadius:"50%",objectFit:"cover",
                       border:`3px solid ${HW.red}`,
                       boxShadow:`0 0 20px rgba(207,10,44,.3)`}}/>
                   <div>
-                    <div style={{fontWeight:700,color:HW.red,fontSize:15,
-                      marginBottom:4}}>
+                    <div style={{fontWeight:700,color:HW.red,fontSize:15,marginBottom:4}}>
                       ✅ Face Captured Successfully
                     </div>
                     <div style={{fontSize:12,color:HW.muted,marginBottom:8}}>
@@ -1553,9 +1479,7 @@ export default function App() {
                     <button style={{...s.btn,background:"rgba(207,10,44,.1)",
                       color:HW.red,padding:"5px 12px",fontSize:12}}
                       onClick={()=>{
-                        setFaceCaptured(false);
-                        setFaceCapture(null);
-                        setFacePreviewUrl(null);
+                        setFaceCaptured(false);setFaceCapture(null);setFacePreviewUrl(null);
                       }}>🔄 Retake</button>
                   </div>
                 </div>
@@ -1563,27 +1487,23 @@ export default function App() {
             </div>
 
             {/* Location */}
-            <div style={{marginTop:12,padding:16,background:HW.surface2,
-              borderRadius:12,
+            <div style={{marginTop:12,padding:16,background:HW.surface2,borderRadius:12,
               border:locationOk?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
-              <div style={{fontWeight:700,color:HW.red,marginBottom:10}}>
-                📍 Location Verification
-              </div>
+              <div style={{fontWeight:700,color:HW.red,marginBottom:10}}>📍 Location Verification</div>
               <p style={{fontSize:12,color:HW.muted,marginBottom:10}}>
                 Must be within <b style={{color:HW.text}}>{WORK_RADIUS}m</b> of workplace.
               </p>
               <button style={{...s.btn,
                 background:locationOk?"rgba(207,10,44,.15)":HW.red,
-                color:locationOk?HW.red:HW.white,
-                opacity:geoStatus==="checking"?0.6:1}}
+                color:locationOk?HW.red:HW.white,opacity:geoStatus==="checking"?0.6:1}}
                 onClick={checkLocation} disabled={geoStatus==="checking"}>
-                {geoStatus==="checking"?"Checking…":
-                 locationOk?"✅ Verified":"📍 Verify Location"}
+                {geoStatus==="checking"?"Checking…":locationOk?"✅ Verified":"📍 Verify Location"}
               </button>
               {geoMsg&&<p style={{fontSize:12,marginTop:8,
                 color:geoStatus==="ok"?"#34d399":HW.red}}>{geoMsg}</p>}
             </div>
 
+            {/* Submit Attendance Button */}
             <button style={{...s.btn,
               background:(locationOk&&faceCaptured)?HW.red:HW.surface2,
               color:(locationOk&&faceCaptured)?HW.white:HW.muted,
@@ -1594,6 +1514,39 @@ export default function App() {
               disabled={loading||!locationOk||!faceCaptured}>
               {loading?"Saving…":"✅ Submit Attendance"}
             </button>
+
+            {/* Sign Out Button */}
+            <div style={{marginTop:10,padding:16,background:HW.surface2,
+              borderRadius:12,border:`1px solid ${HW.border}`}}>
+              <div style={{fontWeight:700,color:"#4f8ef7",marginBottom:8}}>
+                🚪 Sign Out
+              </div>
+              {signedOut?(
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:40,height:40,borderRadius:"50%",
+                    background:"rgba(79,142,247,.15)",display:"flex",
+                    alignItems:"center",justifyContent:"center",fontSize:20}}>✅</div>
+                  <div>
+                    <div style={{fontWeight:700,color:"#4f8ef7"}}>
+                      Signed out at {signoutTime}
+                    </div>
+                    <div style={{fontSize:12,color:HW.muted}}>
+                      Your time out has been recorded
+                    </div>
+                  </div>
+                </div>
+              ):(
+                <button style={{...s.btn,
+                  background:"rgba(79,142,247,.15)",color:"#4f8ef7",
+                  width:"100%",padding:12,fontSize:14,
+                  border:`1px solid rgba(79,142,247,.3)`,
+                  opacity:loading?0.6:1}}
+                  onClick={submitSignOut} disabled={loading}>
+                  {loading?"Recording…":"🚪 Record Time Out"}
+                </button>
+              )}
+            </div>
+
             {(!locationOk||!faceCaptured)&&(
               <p style={{fontSize:12,color:HW.muted,textAlign:"center",marginTop:8}}>
                 {!locationOk&&!faceCaptured?"Verify location and face ID above"
@@ -1842,9 +1795,8 @@ export default function App() {
     const analytics=getAnalytics();
     return (
       <div style={s.page}>
-        <div style={{display:"flex",justifyContent:"space-between",
-          alignItems:"center",marginBottom:28,paddingBottom:20,
-          borderBottom:`1px solid ${HW.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+          marginBottom:28,paddingBottom:20,borderBottom:`1px solid ${HW.border}`}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <HuaweiLogo size={36}/>
             <div>
@@ -1854,9 +1806,7 @@ export default function App() {
           </div>
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:28,fontWeight:800,color:clockColor,
-              fontFamily:"monospace",letterSpacing:3}}>
-              {hh}:{mm}:{ss}
-            </div>
+              fontFamily:"monospace",letterSpacing:3}}>{hh}:{mm}:{ss}</div>
             <div style={{fontSize:11,color:clockColor,fontWeight:700}}>
               {isLate?"⚠️ Past Sign-in Deadline":"✅ Sign-in Window Open"}
             </div>
@@ -1876,11 +1826,9 @@ export default function App() {
               onClick={()=>{setMgmtTab(tab);setSelected(null);setMsg("");}}
               style={{...s.btn,flex:1,padding:"10px",
                 background:mgmtTab===tab?HW.surface:"none",
-                color:mgmtTab===tab?HW.text:HW.muted,
-                fontSize:13,borderRadius:7,
+                color:mgmtTab===tab?HW.text:HW.muted,fontSize:13,borderRadius:7,
                 borderBottom:mgmtTab===tab?`2px solid ${HW.red}`:"none"}}>
-              {tab==="trainees"?"👥 Trainees":
-               tab==="live"?"📡 Live Sign-ins":
+              {tab==="trainees"?"👥 Trainees":tab==="live"?"📡 Live Sign-ins":
                tab==="analytics"?"📊 KPI Analytics":"🎯 OKR"}
             </button>
           ))}
@@ -1913,8 +1861,8 @@ export default function App() {
                 <div style={{display:"flex",alignItems:"center",gap:6,
                   background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.3)",
                   borderRadius:20,padding:"4px 12px"}}>
-                  <div style={{width:8,height:8,borderRadius:"50%",background:"#34d399",
-                    animation:"pulse 1.5s infinite"}}/>
+                  <div style={{width:8,height:8,borderRadius:"50%",
+                    background:"#34d399",animation:"pulse 1.5s infinite"}}/>
                   <span style={{fontSize:12,color:"#34d399",fontWeight:700}}>LIVE</span>
                 </div>
               </div>
@@ -1952,8 +1900,7 @@ export default function App() {
                       <div style={{fontSize:10,color:HW.muted}}>Sign-in</div>
                     </div>
                     <div style={{textAlign:"right"}}>
-                      <span style={{padding:"4px 12px",borderRadius:20,fontSize:12,
-                        fontWeight:700,
+                      <span style={{padding:"4px 12px",borderRadius:20,fontSize:12,fontWeight:700,
                         background:signin.attended?"rgba(52,211,153,.15)":"rgba(207,10,44,.15)",
                         color:signin.attended?"#34d399":HW.red}}>
                         {signin.attended?"● Present":"○ Absent"}
@@ -2025,9 +1972,7 @@ export default function App() {
           <div>
             <button style={{...s.btn,background:HW.surface2,color:HW.text,
               marginBottom:20,border:`1px solid ${HW.border}`}}
-              onClick={()=>{setSelected(null);setMsg("");}}>
-              ← Back to table
-            </button>
+              onClick={()=>{setSelected(null);setMsg("");}}>← Back to table</button>
             <div style={{...s.card,display:"flex",alignItems:"center",
               justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
               <div style={{display:"flex",alignItems:"center",gap:16}}>
@@ -2060,8 +2005,8 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,
-                    fontWeight:700,marginTop:6,display:"inline-block",
+                  <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
+                    marginTop:6,display:"inline-block",
                     background:statusColors[selected.status]?.bg,
                     color:statusColors[selected.status]?.color}}>
                     {selected.status}
@@ -2096,8 +2041,7 @@ export default function App() {
                 <button key={tab} onClick={()=>setProfileTab(tab)}
                   style={{...s.btn,flex:1,padding:"8px",
                     background:profileTab===tab?HW.surface:"none",
-                    color:profileTab===tab?HW.text:HW.muted,
-                    fontSize:11,borderRadius:7,
+                    color:profileTab===tab?HW.text:HW.muted,fontSize:11,borderRadius:7,
                     borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
                   {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":
                    tab==="reports"?"📋 Reports":tab==="penalties"?"⚠️ Penalties":"🎯 Goals"}
@@ -2113,8 +2057,8 @@ export default function App() {
                     <div key={log.id} style={{display:"flex",gap:16,
                       marginBottom:20,position:"relative"}}>
                       {i<logs.length-1&&(
-                        <div style={{position:"absolute",left:19,top:40,
-                          width:2,height:"calc(100% + 4px)",background:HW.border}}/>
+                        <div style={{position:"absolute",left:19,top:40,width:2,
+                          height:"calc(100% + 4px)",background:HW.border}}/>
                       )}
                       <div style={{width:40,height:40,borderRadius:"50%",
                         background:HW.surface2,border:`2px solid ${HW.border}`,
@@ -2200,11 +2144,35 @@ export default function App() {
                             )}
                           </div>
                         </div>
-                        <div style={{fontSize:11,color:HW.muted,marginBottom:8}}>
-                          {r.signin_time||"no sign-in"} ·{" "}
-                          <span style={{color:r.attended?"#34d399":HW.red}}>
-                            {r.attended?"● Attended":"○ Absent"}
-                          </span>
+                        {/* Time In / Time Out */}
+                        <div style={{display:"flex",gap:16,marginBottom:8,
+                          background:HW.surface,borderRadius:8,padding:"8px 12px"}}>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:10,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:2}}>Time In</div>
+                            <div style={{fontSize:16,fontWeight:800,color:"#34d399",
+                              fontFamily:"monospace"}}>
+                              {r.signin_time||"—"}
+                            </div>
+                          </div>
+                          <div style={{width:1,background:HW.border}}/>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:10,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:2}}>Time Out</div>
+                            <div style={{fontSize:16,fontWeight:800,color:"#4f8ef7",
+                              fontFamily:"monospace"}}>
+                              {r.signout_time||"—"}
+                            </div>
+                          </div>
+                          <div style={{width:1,background:HW.border}}/>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:10,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:2}}>Status</div>
+                            <div style={{fontSize:13,fontWeight:700,
+                              color:r.attended?"#34d399":HW.red}}>
+                              {r.attended?"● Present":"○ Absent"}
+                            </div>
+                          </div>
                         </div>
                         {r.excuse_type&&(
                           <div style={{background:"rgba(255,165,0,.08)",borderRadius:8,
@@ -2374,7 +2342,8 @@ export default function App() {
                 <div style={{marginTop:16}}>
                   {analytics.deptData.map((d,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",
-                      alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${HW.border}`}}>
+                      alignItems:"center",padding:"8px 0",
+                      borderBottom:`1px solid ${HW.border}`}}>
                       <span style={{fontSize:13,color:HW.muted}}>{d.label}</span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{width:80,height:6,background:HW.border,
@@ -2487,7 +2456,8 @@ export default function App() {
                 {label:"Behind",value:okrs.filter(o=>(o.current/o.target)<.5).length,color:"#f87171"},
               ].map((s2,i)=>(
                 <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
-                  borderRadius:14,padding:16,textAlign:"center",borderTop:`3px solid ${s2.color}`}}>
+                  borderRadius:14,padding:16,textAlign:"center",
+                  borderTop:`3px solid ${s2.color}`}}>
                   <div style={{fontSize:28,fontWeight:800,color:s2.color}}>{s2.value}</div>
                   <div style={{fontSize:12,color:HW.muted,marginTop:4}}>{s2.label}</div>
                 </div>
