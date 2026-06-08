@@ -1006,10 +1006,7 @@ export default function App() {
   const clockColor=isLate?HW.red:"#34d399";
 
   const TraineeNav = () => (
-    <div style={{position:"fixed",bottom:0,left:0,right:0,
-      background:HW.surface,
-      borderTop:`1px solid ${HW.border}`,
-      display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
+    <div style={{}}>
       {[
         {id:"attendance",icon:"✅",label:"Attend"},
         {id:"weekly",icon:"📅",label:"Weekly"},
@@ -1054,7 +1051,11 @@ export default function App() {
   // ══ LOGIN ══
   if(view==="login") return (
     <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",padding:20,maxWidth:"100%",maxWidth:"100%"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      minHeight:"100vh",padding:20,
+      background:`linear-gradient(135deg,${HW.dark} 0%,${HW.surface} 50%,${HW.dark} 100%)`,
+      fontFamily:"sans-serif",color:HW.text}}>
+      <div style={{width:"100%",maxWidth:420}}></div>
       <div style={{width:"100%",maxWidth:400}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <HuaweiLogo size={64}/>
@@ -1094,7 +1095,11 @@ export default function App() {
       </div>
     </div>
   );
-
+<div style={{display:"flex",alignItems:"center",justifyContent:"center",
+      minHeight:"100vh",padding:20,
+      background:`linear-gradient(135deg,${HW.dark} 0%,${HW.surface} 50%,${HW.dark} 100%)`,
+      fontFamily:"sans-serif",color:HW.text}}>
+      <div style={{width:"100%",maxWidth:420}}></div>
   // ══ SIGNUP ══
   if(view==="signup") return (
     <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center",
