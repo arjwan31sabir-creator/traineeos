@@ -362,6 +362,7 @@ export default function App() {
   const [sickLeaves,setSickLeaves]   = useState([]);
   const [selectedSickLeaves,setSelectedSickLeaves] = useState([]);
   const [allSickLeaves,setAllSickLeaves] = useState([]);
+  const [myTraineeData,setMyTraineeData] = useState(null);
   const [loading,setLoading]         = useState(false);
   const [aiLoading,setAiLoading]     = useState(false);
   const [msg,setMsg]                 = useState("");
@@ -420,10 +421,6 @@ export default function App() {
   const weeklyPhotoRef=useRef();
   const sickProofRef=useRef();
 
-  const [profile,setProfile] = useState({
-    full_name:"",civil_id:"",phone_number:"",
-    department:"",assigned_mentor:"",gpa:"",
-  });
   const [attendance,setAttendance] = useState({
     report_date:new Date().toISOString().split("T")[0],attended:false,
   });
@@ -546,9 +543,7 @@ export default function App() {
             const{data:t}=await supabase.from("trainees")
               .select("*").eq("id",data.trainee_id).single();
             if(t){
-              setProfile({full_name:t.full_name||"",civil_id:t.civil_id||"",
-                phone_number:t.phone_number||"",department:t.department||"",
-                assigned_mentor:t.assigned_mentor||"",gpa:t.gpa||""});
+              setMyTraineeData(t);
               setTraineeName(t.full_name.split(" ")[0]);
               setTimeout(()=>setShowGreeting(true),500);
             }
@@ -569,6 +564,12 @@ export default function App() {
         }
       }
     }
+  }
+
+  async function refreshMyTraineeData(){
+    if(!traineeId) return;
+    const{data}=await supabase.from("trainees").select("*").eq("id",traineeId).single();
+    if(data) setMyTraineeData(data);
   }
 
   async function fetchWeeklyReport(tid){
@@ -598,6 +599,25 @@ export default function App() {
     if(data) setSelectedSickLeaves(data);
   }
 
+  async function traineeLaptopAction(action){
+    if(!traineeId) return;
+    setLoading(true);
+    const updates={};
+    if(action==="received"){
+      updates.laptop_received=true;
+      updates.laptop_received_date=new Date().toISOString().split("T")[0];
+      updates.laptop_returned=false;
+    }
+    if(action==="returned"){
+      updates.laptop_returned=true;
+      updates.laptop_returned_date=new Date().toISOString().split("T")[0];
+    }
+    await supabase.from("trainees").update(updates).eq("id",traineeId);
+    await refreshMyTraineeData();
+    setMsg("✅ Laptop status updated!");
+    setLoading(false);
+  }
+
   async function submitSickLeave(){
     if(!newSick.reason){setMsg("Please enter a reason.");return;}
     setLoading(true);setMsg("");
@@ -608,34 +628,24 @@ export default function App() {
     const totalDays=Math.ceil((end-start)/(1000*60*60*24))+1;
     const penaltyDays=Math.max(0,totalDays-2);
     const penaltyApplied=penaltyDays>0;
-
     let proofUrl=null;
     if(sickProofFile)
       proofUrl=await uploadFile("report-photos",`${tid}/sick_${ts}.jpg`,sickProofFile);
-
     const{error}=await supabase.from("sick_leaves").insert({
-      trainee_id:tid,
-      start_date:newSick.start_date,
-      end_date:newSick.end_date,
-      reason:newSick.reason,
-      proof_url:proofUrl,
-      total_days:totalDays,
-      penalty_days:penaltyDays,
-      penalty_applied:penaltyApplied,
+      trainee_id:tid,start_date:newSick.start_date,end_date:newSick.end_date,
+      reason:newSick.reason,proof_url:proofUrl,total_days:totalDays,
+      penalty_days:penaltyDays,penalty_applied:penaltyApplied,
     });
-
     if(penaltyApplied){
       for(let i=2;i<totalDays;i++){
         const d=new Date(start);d.setDate(start.getDate()+i);
         const dateStr=d.toISOString().split("T")[0];
         await supabase.from("penalties").insert({
           trainee_id:tid,report_date:dateStr,
-          reason:`Sick leave exceeded 48 hours (day ${i+1})`,
-          amount:PENALTY_PCT,
+          reason:`Sick leave exceeded 48 hours (day ${i+1})`,amount:PENALTY_PCT,
         });
       }
     }
-
     if(error){setMsg("Error: "+error.message);}
     else{
       setMsg(penaltyApplied
@@ -669,9 +679,7 @@ export default function App() {
       trainee_id:traineeData.id,profile_completed:true,
     }).eq("id",user.id);
     setTraineeId(traineeData.id);
-    setProfile({full_name:setupProfile.full_name,civil_id:setupProfile.civil_id,
-      phone_number:setupProfile.phone_number,department:setupProfile.department,
-      assigned_mentor:setupProfile.assigned_mentor,gpa:setupProfile.gpa});
+    setMyTraineeData(traineeData);
     setTraineeName(setupProfile.full_name.split(" ")[0]);
     fetchGoals(traineeData.id);
     setLoading(false);setView("trainee");
@@ -708,7 +716,7 @@ export default function App() {
     setShowGreeting(false);setTraineeName("");
     setSignedOut(false);setSignoutTime("");
     setWeeklySubmitted(false);setWeeklyText("");
-    setSickLeaves([]);
+    setSickLeaves([]);setMyTraineeData(null);
   }
 
   function checkLocation(){
@@ -831,7 +839,6 @@ export default function App() {
 
   async function addGoal(){
     if(!newGoal.goal_title){setMsg("Please enter a goal title.");return;}
-    if(!traineeId){setMsg("Please complete your profile first.");return;}
     setLoading(true);setMsg("");
     const{error}=await supabase.from("goals").insert({...newGoal,trainee_id:traineeId});
     if(error){setMsg(error.message);}
@@ -866,9 +873,8 @@ export default function App() {
   }
 
   async function fetchTrainees(){
-    setLoading(true);
     const{data}=await supabase.from("trainees").select("*").order("full_name");
-    if(data) setTrainees(data);setLoading(false);
+    if(data) setTrainees(data);
   }
 
   async function fetchOkrs(){
@@ -918,14 +924,16 @@ export default function App() {
     fetchTrainees();setMsg("✅ Payment status updated!");
   }
 
-  async function updateLaptopStatus(received,serial,date){
+  async function updateLaptopStatus(received,serial,date,returned,returnedDate){
     await supabase.from("trainees").update({
-      laptop_received:received,
+      laptop_received:received||false,
       laptop_serial:serial||null,
       laptop_received_date:date||null,
+      laptop_returned:returned||false,
+      laptop_returned_date:returnedDate||null,
     }).eq("id",selected.id);
-    setSelected({...selected,laptop_received:received,
-      laptop_serial:serial,laptop_received_date:date});
+    setSelected({...selected,laptop_received:received,laptop_serial:serial,
+      laptop_received_date:date,laptop_returned:returned,laptop_returned_date:returnedDate});
     fetchTrainees();setMsg("✅ Laptop status updated!");
   }
 
@@ -995,22 +1003,19 @@ export default function App() {
     const{data:allG}=await supabase.from("goals").select("*").order("created_at");
     const{data:allSL}=await supabase.from("sick_leaves").select("*").order("start_date");
     const wb=XLSX.utils.book_new();
-
-    // Trainees sheet
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>({
         "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
         "Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,
-        "Gender":t.gender||"—","Nationality":t.nationality||"—",
         "Status":t.status,"Joining Date":t.joining_date,
         "Payment Status":t.payment_status||"unpaid",
         "Payment Notes":t.payment_notes||"—",
         "Laptop Received":t.laptop_received?"Yes":"No",
         "Laptop Serial":t.laptop_serial||"—",
-        "Laptop Date":t.laptop_received_date||"—",
+        "Laptop Received Date":t.laptop_received_date||"—",
+        "Laptop Returned":t.laptop_returned?"Yes":"No",
+        "Laptop Returned Date":t.laptop_returned_date||"—",
       }))),"Trainees");
-
-    // Daily Attendance
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allR||[]).filter(r=>!r.week_start).map(r=>{
         const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
@@ -1023,8 +1028,6 @@ export default function App() {
           "Time Out":r.signout_time||"—","Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
         };
       })),"Daily Attendance");
-
-    // Weekly Reports
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allR||[]).filter(r=>r.weekly_tasks).map(r=>{
         const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
@@ -1032,11 +1035,8 @@ export default function App() {
           "Full Name":trainee?.full_name||"—","Department":trainee?.department||"—",
           "Week":r.week_start+" to "+r.week_end,"Weekly Tasks":r.weekly_tasks||"—",
           "KPI Score":r.kpi_score||"—","AI Summary":r.report_text||"—",
-          "Talent Notes":r.talent_notes||"—",
         };
       })),"Weekly Reports");
-
-    // Sick Leaves
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allSL||[]).map(sl=>{
         const trainee=(allT||[]).find(t=>t.id===sl.trainee_id);
@@ -1046,18 +1046,13 @@ export default function App() {
           "Total Days":sl.total_days,"Reason":sl.reason||"—",
           "Penalty Days":sl.penalty_days||0,
           "Penalty Applied":sl.penalty_applied?"Yes":"No",
-          "Has Proof":sl.proof_url?"Yes":"No",
         };
       })),"Sick Leaves");
-
-    // Penalties
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allP||[]).map(p=>({
         "Full Name":(allT||[]).find(t=>t.id===p.trainee_id)?.full_name||"—",
         "Date":p.report_date,"Reason":p.reason,"Deduction":`-${p.amount}%`,
       }))),"Penalties");
-
-    // Goals
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allG||[]).map(g=>({
         "Full Name":(allT||[]).find(t=>t.id===g.trainee_id)?.full_name||"—",
@@ -1065,8 +1060,6 @@ export default function App() {
         "Current":g.current_value,"Unit":g.unit,"Status":g.status,
         "Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%",
       }))),"Goals");
-
-    // Payment & Laptop
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>({
         "Full Name":t.full_name,"Department":t.department,
@@ -1075,8 +1068,9 @@ export default function App() {
         "Laptop Received":t.laptop_received?"Yes":"No",
         "Laptop Serial":t.laptop_serial||"—",
         "Laptop Received Date":t.laptop_received_date||"—",
+        "Laptop Returned to HR":t.laptop_returned?"Yes":"No",
+        "Laptop Returned Date":t.laptop_returned_date||"—",
       }))),"Payment & Laptop");
-
     XLSX.writeFile(wb,`HuaweiTechTrack_${new Date().toISOString().split("T")[0]}.xlsx`);
     setMsg("✅ Excel exported!");
   }
@@ -1096,7 +1090,7 @@ export default function App() {
         ["Department",t.department||"—"],["Mentor",t.assigned_mentor||"—"],
         ["Status",t.status||"—"],["Joining Date",t.joining_date||"—"],
         ["Payment Status",t.payment_status||"unpaid"],
-        ["Laptop Received",t.laptop_received?"Yes — "+( t.laptop_serial||""):"No"]],
+        ["Laptop",t.laptop_returned?"Returned to HR":t.laptop_received?`Received — SN: ${t.laptop_serial||"—"}`:"Not Received"]],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
@@ -1130,16 +1124,9 @@ export default function App() {
       return{...t,avgKpi:avg.toFixed(1),penalties:tp,
         reports:allReports.filter(r=>r.trainee_id===t.id).length};
     }).sort((a,b)=>b.avgKpi-a.avgKpi);
-    const depts=[...new Set(trainees.map(t=>t.department).filter(Boolean))];
-    const deptData=depts.map(dept=>{
-      const dT=trainees.filter(t=>t.department===dept);
-      const dR=allReports.filter(r=>dT.some(t=>t.id===r.trainee_id)&&r.kpi_score);
-      const avg=dR.length>0?dR.reduce((a,r)=>a+r.kpi_score,0)/dR.length:0;
-      return{label:dept.substring(0,8),value:Math.round(avg)};
-    });
     const atRisk=traineeKpi.filter(t=>parseFloat(t.avgKpi)<60||t.penalties>2);
     return{active,attendanceRate,avgKpi,totalPenalties:allPenalties.length,
-      traineeKpi,deptData,atRisk};
+      traineeKpi,atRisk};
   }
 
   const filteredGoals=goalFilter==="all"?goals
@@ -1157,7 +1144,7 @@ export default function App() {
       {[
         {id:"attendance",icon:"✅",label:"Attend"},
         {id:"weekly",icon:"📅",label:"Weekly"},
-        {id:"sick",icon:"🏥",label:"Sick Leave"},
+        {id:"sick",icon:"🏥",label:"Sick"},
         {id:"goals",icon:"🎯",label:"Goals"},
       ].map(tab=>(
         <button key={tab.id} onClick={()=>setTraineeTab(tab.id)}
@@ -1186,8 +1173,7 @@ export default function App() {
           <span style={{fontSize:20}}>
             {tab==="trainees"?"👥":tab==="live"?"📡":tab==="analytics"?"📊":"🎯"}
           </span>
-          <span style={{fontSize:9,fontWeight:700,
-            color:mgmtTab===tab?HW.red:HW.muted}}>
+          <span style={{fontSize:9,fontWeight:700,color:mgmtTab===tab?HW.red:HW.muted}}>
             {tab==="trainees"?"Trainees":tab==="live"?"Live":tab==="analytics"?"Analytics":"OKR"}
           </span>
         </button>
@@ -1207,28 +1193,19 @@ export default function App() {
           <h1 style={{margin:"16px 0 4px",fontSize:28,color:HW.text}}>Huawei TechTrack</h1>
           <p style={{color:HW.red,fontSize:12,fontWeight:700,
             letterSpacing:".1em",textTransform:"uppercase"}}>Powered by Arjwan Sabir</p>
-          <div style={{fontSize:11,color:HW.muted,marginTop:6}}>
-            🎨 {randomTheme.name} Theme
-          </div>
+          <div style={{fontSize:11,color:HW.muted,marginTop:6}}>🎨 {randomTheme.name} Theme</div>
         </div>
-        <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",
-          letterSpacing:".06em",display:"block",marginBottom:6}}>Email</label>
-        <input style={{background:HW.surface2,border:`1px solid ${HW.border}`,
-          color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",
-          fontFamily:"sans-serif",fontSize:16,boxSizing:"border-box",marginBottom:16}}
-          value={email} onChange={e=>setEmail(e.target.value)}
-          placeholder="you@example.com" type="email" autoComplete="email"/>
-        <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",
-          letterSpacing:".06em",display:"block",marginBottom:6}}>Password</label>
-        <input style={{background:HW.surface2,border:`1px solid ${HW.border}`,
-          color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",
-          fontFamily:"sans-serif",fontSize:16,boxSizing:"border-box",marginBottom:24}}
-          type="password" value={password} onChange={e=>setPassword(e.target.value)}
+        <label style={s.label}>Email</label>
+        <input style={{...s.input,marginBottom:16}} value={email}
+          onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"
+          type="email" autoComplete="email"/>
+        <label style={s.label}>Password</label>
+        <input style={{...s.input,marginBottom:24}} type="password"
+          value={password} onChange={e=>setPassword(e.target.value)}
           placeholder="Password" autoComplete="current-password"
           onKeyDown={e=>e.key==="Enter"&&login()}/>
-        <button style={{padding:"16px 20px",borderRadius:10,border:"none",
-          fontWeight:700,cursor:"pointer",fontSize:17,
-          background:HW.red,color:HW.white,width:"100%",opacity:loading?0.6:1}}
+        <button style={{...s.btn,background:HW.red,color:HW.white,
+          width:"100%",padding:16,fontSize:17,opacity:loading?0.6:1}}
           onClick={login} disabled={loading}>
           {loading?"Signing in…":"Sign In →"}
         </button>
@@ -1237,9 +1214,8 @@ export default function App() {
           <span style={{color:HW.muted,fontSize:12}}>OR</span>
           <div style={{flex:1,height:1,background:HW.border}}/>
         </div>
-        <button style={{padding:"16px 20px",borderRadius:10,
-          border:`1px solid ${HW.border}`,fontWeight:700,cursor:"pointer",fontSize:15,
-          background:HW.surface2,color:HW.text,width:"100%"}}
+        <button style={{...s.btn,background:HW.surface2,color:HW.text,
+          width:"100%",padding:16,border:`1px solid ${HW.border}`,fontSize:15}}
           onClick={()=>{setView("signup");setMsg("");}}>
           Create Trainee Account
         </button>
@@ -1264,7 +1240,7 @@ export default function App() {
         <label style={s.label}>Email Address</label>
         <input style={{...s.input,marginBottom:14}} value={email}
           onChange={e=>setEmail(e.target.value)} placeholder="yourname@example.com"
-          type="email" autoComplete="email"/>
+          type="email"/>
         <label style={s.label}>Password</label>
         <input style={{...s.input,marginBottom:14}} type="password"
           value={password} onChange={e=>setPassword(e.target.value)}
@@ -1318,8 +1294,7 @@ export default function App() {
           <option value="Female">Female / أنثى</option>
         </select>
         <label style={s.label}>Nationality</label>
-        <input style={s.input} placeholder="e.g. Omani"
-          value={setupProfile.nationality}
+        <input style={s.input} placeholder="e.g. Omani" value={setupProfile.nationality}
           onChange={e=>setSetupProfile({...setupProfile,nationality:e.target.value})}/>
       </div>
       <div style={s.card}>
@@ -1330,8 +1305,7 @@ export default function App() {
           onChange={e=>setSetupProfile({...setupProfile,department:e.target.value})}/>
         <label style={s.label}>GPA</label>
         <input style={{...s.input,marginBottom:12}} type="number"
-          placeholder="e.g. 3.85" min="0" max="4" step="0.01"
-          value={setupProfile.gpa}
+          placeholder="e.g. 3.85" min="0" max="4" step="0.01" value={setupProfile.gpa}
           onChange={e=>setSetupProfile({...setupProfile,gpa:e.target.value})}/>
         <label style={s.label}>Assigned Mentor</label>
         <input style={s.input} placeholder="e.g. Dr. Fatima"
@@ -1362,7 +1336,6 @@ export default function App() {
       {showGreeting&&<GreetingPopup name={traineeName} onDismiss={()=>setShowGreeting(false)}/>}
       <TraineeNav/>
 
-      {/* Topbar */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
         marginBottom:12,paddingTop:4}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -1371,7 +1344,7 @@ export default function App() {
             <div style={{fontWeight:700,fontSize:15,color:HW.text}}>
               {traineeName?`Hi, ${traineeName}!`:"Huawei TechTrack"}
             </div>
-            <div style={{fontSize:10,color:HW.muted}}>{user?.email}</div>
+            <div style={{fontSize:10,color:HW.muted}}>user?.email</div>
           </div>
         </div>
         <div style={{textAlign:"right"}}>
@@ -1396,7 +1369,7 @@ export default function App() {
       </div>
       <div style={{height:1,background:HW.border,margin:"12px 0 16px"}}/>
 
-      {/* ══ ATTENDANCE TAB ══ */}
+      {/* ══ ATTENDANCE ══ */}
       {traineeTab==="attendance"&&(
         <div>
           <div style={{...s.card,textAlign:"center",border:`1px solid ${clockColor}40`,
@@ -1407,13 +1380,11 @@ export default function App() {
               {hh}:{mm}:{ss}
             </div>
             <div style={{fontSize:12,color:HW.muted,marginTop:4}}>
-              {currentTime.toLocaleDateString("en-GB",{
-                weekday:"long",day:"numeric",month:"long"})}
+              {currentTime.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}
             </div>
-            <div style={{marginTop:10,display:"inline-block",
-              padding:"5px 16px",borderRadius:20,fontWeight:700,fontSize:12,
-              background:`${clockColor}15`,color:clockColor,
-              border:`1px solid ${clockColor}40`}}>
+            <div style={{marginTop:10,display:"inline-block",padding:"5px 16px",
+              borderRadius:20,fontWeight:700,fontSize:12,
+              background:`${clockColor}15`,color:clockColor,border:`1px solid ${clockColor}40`}}>
               {isLate?"⚠️ Past 9:00 AM — Excuse Required":"✅ On Time — Ready to Sign In"}
             </div>
           </div>
@@ -1449,9 +1420,7 @@ export default function App() {
                 style={{width:22,height:22}}
                 onChange={e=>setAttendance({...attendance,attended:e.target.checked})}/>
               <label htmlFor="att" style={{fontSize:15,fontWeight:600,
-                cursor:"pointer",color:HW.text}}>
-                I confirm attendance today
-              </label>
+                cursor:"pointer",color:HW.text}}>I confirm attendance today</label>
             </div>
             {!attendance.attended&&(
               <div style={{background:`${HW.red}15`,border:`1px solid ${HW.red}40`,
@@ -1478,9 +1447,7 @@ export default function App() {
                 <textarea style={{...s.input,height:90,resize:"vertical",marginBottom:12}}
                   placeholder="Please describe your reason…"
                   value={excuseText} onChange={e=>setExcuseText(e.target.value)}/>
-                <label style={s.label}>
-                  Proof Photo {excuseType==="traffic"?"(Required)":"(Optional)"}
-                </label>
+                <label style={s.label}>Proof Photo {excuseType==="traffic"?"(Required)":"(Optional)"}</label>
                 <div style={{display:"flex",gap:10,alignItems:"center"}}>
                   <button style={{...s.btn,background:HW.surface,color:HW.text,
                     border:`1px dashed ${HW.border}`,flex:1}}
@@ -1497,8 +1464,7 @@ export default function App() {
               </div>
             )}
 
-            <div style={{background:HW.surface2,borderRadius:12,padding:14,
-              marginBottom:14,
+            <div style={{background:HW.surface2,borderRadius:12,padding:14,marginBottom:14,
               border:locationOk?`1px solid ${HW.red}50`:`1px solid ${HW.border}`}}>
               <div style={{fontWeight:700,color:HW.red,marginBottom:10,fontSize:15}}>
                 📍 Location Verification
@@ -1527,6 +1493,7 @@ export default function App() {
               {loading?"Saving…":"✅ Submit Attendance"}
             </button>
 
+            {/* Sign Out */}
             <div style={{marginTop:12,background:HW.surface2,borderRadius:12,padding:14,
               border:`1px solid ${HW.border}`}}>
               <div style={{fontWeight:700,color:"#4f8ef7",marginBottom:10,fontSize:15}}>
@@ -1553,13 +1520,68 @@ export default function App() {
                 </button>
               )}
             </div>
+
+            {/* Payment & Laptop Status for Trainee */}
+            <div style={{marginTop:12,background:HW.surface2,borderRadius:12,padding:14,
+              border:`1px solid ${HW.border}`}}>
+              <div style={{fontWeight:700,color:HW.text,marginBottom:12,fontSize:15}}>
+                📋 My Status
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                <div style={{background:HW.surface,borderRadius:10,padding:12,textAlign:"center"}}>
+                  <div style={{fontSize:20,marginBottom:4}}>💰</div>
+                  <div style={{fontSize:11,color:HW.muted,marginBottom:4}}>Payment</div>
+                  <div style={{fontSize:13,fontWeight:800,
+                    color:myTraineeData?.payment_status==="paid"?"#34d399":HW.red}}>
+                    {myTraineeData?.payment_status==="paid"?"✅ Paid":"❌ Unpaid"}
+                  </div>
+                  {myTraineeData?.payment_notes&&(
+                    <div style={{fontSize:11,color:HW.muted,marginTop:4}}>
+                      {myTraineeData.payment_notes}
+                    </div>
+                  )}
+                </div>
+                <div style={{background:HW.surface,borderRadius:10,padding:12,textAlign:"center"}}>
+                  <div style={{fontSize:20,marginBottom:4}}>💻</div>
+                  <div style={{fontSize:11,color:HW.muted,marginBottom:4}}>Laptop</div>
+                  <div style={{fontSize:13,fontWeight:800,
+                    color:myTraineeData?.laptop_returned?"#FFA500":
+                    myTraineeData?.laptop_received?"#34d399":HW.muted}}>
+                    {myTraineeData?.laptop_returned?"🔄 Returned":
+                     myTraineeData?.laptop_received?"✅ Received":"❌ Not Yet"}
+                  </div>
+                  {myTraineeData?.laptop_serial&&(
+                    <div style={{fontSize:11,color:HW.muted,marginTop:4}}>
+                      SN: {myTraineeData.laptop_serial}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {myTraineeData?.laptop_received&&!myTraineeData?.laptop_returned&&(
+                <button style={{...s.btn,background:"rgba(255,165,0,.15)",color:"#FFA500",
+                  width:"100%",padding:12,fontSize:14,marginBottom:8,
+                  border:"1px solid rgba(255,165,0,.3)",opacity:loading?0.6:1}}
+                  onClick={()=>traineeLaptopAction("returned")} disabled={loading}>
+                  🔄 I Returned My Laptop to HR
+                </button>
+              )}
+              {!myTraineeData?.laptop_received&&(
+                <button style={{...s.btn,background:"rgba(52,211,153,.15)",color:"#34d399",
+                  width:"100%",padding:12,fontSize:14,
+                  border:"1px solid rgba(52,211,153,.3)",opacity:loading?0.6:1}}
+                  onClick={()=>traineeLaptopAction("received")} disabled={loading}>
+                  ✅ I Received My Laptop
+                </button>
+              )}
+            </div>
+
             {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
               fontSize:14,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
         </div>
       )}
 
-      {/* ══ WEEKLY REPORT TAB ══ */}
+      {/* ══ WEEKLY ══ */}
       {traineeTab==="weekly"&&(
         <div>
           <div style={{...s.card,
@@ -1583,7 +1605,6 @@ export default function App() {
               </div>
             </div>
           </div>
-
           {weeklySubmitted&&aiResult?(
             <div>
               <div style={{...s.card,border:"1px solid rgba(52,211,153,.3)"}}>
@@ -1645,9 +1666,8 @@ export default function App() {
               <label style={s.label}>Weekly Tasks *</label>
               <textarea style={{...s.input,height:200,resize:"vertical",marginBottom:14,
                 fontSize:14,lineHeight:1.6}}
-                placeholder="Sunday: Attended orientation with mentor...\nMonday: Completed circuit analysis...\nTuesday: Team meeting...\nWednesday: Lab session...\nThursday: Final review..."
-                value={weeklyText}
-                onChange={e=>setWeeklyText(e.target.value)}/>
+                placeholder="Sunday: ...\nMonday: ...\nTuesday: ...\nWednesday: ...\nThursday: ..."
+                value={weeklyText} onChange={e=>setWeeklyText(e.target.value)}/>
               <label style={s.label}>📸 Proof Photo (optional)</label>
               <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16}}>
                 <button style={{...s.btn,background:HW.surface2,color:HW.text,
@@ -1664,8 +1684,7 @@ export default function App() {
                 )}
               </div>
               <button style={{...s.btn,background:HW.red,color:HW.white,
-                width:"100%",padding:16,fontSize:16,
-                opacity:(loading||aiLoading)?0.6:1}}
+                width:"100%",padding:16,fontSize:16,opacity:(loading||aiLoading)?0.6:1}}
                 onClick={submitWeeklyReport} disabled={loading||aiLoading}>
                 {aiLoading?"🤖 AI Analyzing…":loading?"Saving…":"📅 Submit Weekly Report"}
               </button>
@@ -1677,26 +1696,22 @@ export default function App() {
         </div>
       )}
 
-      {/* ══ SICK LEAVE TAB ══ */}
+      {/* ══ SICK LEAVE ══ */}
       {traineeTab==="sick"&&(
         <div>
-          {/* Stats */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
             {[
               {label:"Total",value:sickLeaves.length,color:"#4f8ef7"},
-              {label:"Free Days",value:sickLeaves.reduce((a,s)=>a+Math.min(s.total_days,2),0),color:"#34d399"},
-              {label:"Penalty Days",value:sickLeaves.reduce((a,s)=>a+(s.penalty_days||0),0),color:HW.red},
+              {label:"Free Days",value:sickLeaves.reduce((a,sl)=>a+Math.min(sl.total_days,2),0),color:"#34d399"},
+              {label:"Penalty Days",value:sickLeaves.reduce((a,sl)=>a+(sl.penalty_days||0),0),color:HW.red},
             ].map((stat,i)=>(
               <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
-                borderRadius:12,padding:14,textAlign:"center",
-                borderTop:`3px solid ${stat.color}`}}>
+                borderRadius:12,padding:14,textAlign:"center",borderTop:`3px solid ${stat.color}`}}>
                 <div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div>
                 <div style={{fontSize:11,color:HW.muted,marginTop:3}}>{stat.label}</div>
               </div>
             ))}
           </div>
-
-          {/* 48hr rule info */}
           <div style={{...s.card,background:"rgba(79,142,247,.08)",
             border:"1px solid rgba(79,142,247,.3)"}}>
             <div style={{fontSize:14,fontWeight:700,color:"#4f8ef7",marginBottom:6}}>
@@ -1704,11 +1719,9 @@ export default function App() {
             </div>
             <div style={{fontSize:13,color:HW.muted,lineHeight:1.6}}>
               First <b style={{color:HW.text}}>2 days (48 hours)</b> — No penalty ✅<br/>
-              After 48 hours — <b style={{color:HW.red}}>8.33% penalty per day</b> ⚠️<br/>
-              Medical proof photo is recommended.
+              After 48 hours — <b style={{color:HW.red}}>8.33% penalty per day</b> ⚠️
             </div>
           </div>
-
           <div style={{display:"flex",justifyContent:"space-between",
             alignItems:"center",marginBottom:12}}>
             <h3 style={{margin:0,fontSize:16,color:HW.text}}>
@@ -1716,10 +1729,9 @@ export default function App() {
             </h3>
             <button style={{...s.btn,background:HW.red,color:HW.white,padding:"10px 16px"}}
               onClick={()=>setShowAddSick(!showAddSick)}>
-              {showAddSick?"✕ Cancel":"+ Submit Sick Leave"}
+              {showAddSick?"✕ Cancel":"+ Submit"}
             </button>
           </div>
-
           {showAddSick&&(
             <div style={{...s.card,border:`1px solid ${HW.red}40`,marginBottom:12}}>
               <h4 style={{marginBottom:14,color:HW.red,fontSize:15}}>🏥 Submit Sick Leave</h4>
@@ -1738,11 +1750,10 @@ export default function App() {
                   <div style={{background:penDays>0?`${HW.red}15`:"rgba(52,211,153,.1)",
                     border:penDays>0?`1px solid ${HW.red}40`:"1px solid rgba(52,211,153,.3)",
                     borderRadius:10,padding:12,marginBottom:12}}>
-                    <div style={{fontSize:13,fontWeight:700,
-                      color:penDays>0?HW.red:"#34d399"}}>
-                      {days} day{days!==1?"s":""} total —{" "}
+                    <div style={{fontSize:13,fontWeight:700,color:penDays>0?HW.red:"#34d399"}}>
+                      {days} day{days!==1?"s":""} —{" "}
                       {penDays>0
-                        ?`⚠️ ${penDays} penalty day(s) × 8.33% = ${(penDays*8.33).toFixed(2)}% deduction`
+                        ?`⚠️ ${penDays} penalty day(s) = ${(penDays*8.33).toFixed(2)}% deduction`
                         :"✅ No penalty (within 48 hours)"}
                     </div>
                   </div>
@@ -1750,7 +1761,7 @@ export default function App() {
               })()}
               <label style={s.label}>Reason *</label>
               <textarea style={{...s.input,height:80,resize:"vertical",marginBottom:12}}
-                placeholder="Describe your illness or medical condition…"
+                placeholder="Describe your illness…"
                 value={newSick.reason}
                 onChange={e=>setNewSick({...newSick,reason:e.target.value})}/>
               <label style={s.label}>📸 Medical Proof (Recommended)</label>
@@ -1758,7 +1769,7 @@ export default function App() {
                 <button style={{...s.btn,background:HW.surface2,color:HW.text,
                   border:`1px dashed ${HW.border}`,flex:1}}
                   onClick={()=>sickProofRef.current.click()}>
-                  {sickProofFile?"📷 Change Photo":"📷 Upload Medical Proof"}
+                  {sickProofFile?"📷 Change":"📷 Upload Proof"}
                 </button>
                 <input ref={sickProofRef} type="file" accept="image/*"
                   style={{display:"none"}} onChange={handleSickProof}/>
@@ -1777,11 +1788,10 @@ export default function App() {
                 fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
             </div>
           )}
-
           {sickLeaves.length===0?(
             <div style={{...s.card,textAlign:"center",padding:32}}>
               <div style={{fontSize:36,marginBottom:10}}>🏥</div>
-              <p style={{color:HW.muted,fontSize:14}}>No sick leaves recorded.</p>
+              <p style={{color:HW.muted}}>No sick leaves recorded.</p>
             </div>
           ):(
             sickLeaves.map(sl=>(
@@ -1813,14 +1823,10 @@ export default function App() {
               </div>
             ))
           )}
-          {msg&&!showAddSick&&(
-            <p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
-              fontSize:14,marginTop:8,textAlign:"center"}}>{msg}</p>
-          )}
         </div>
       )}
 
-      {/* ══ GOALS TAB ══ */}
+      {/* ══ GOALS ══ */}
       {traineeTab==="goals"&&(
         <div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
@@ -1828,20 +1834,17 @@ export default function App() {
               {label:"Total",value:goals.length,color:HW.red},
               {label:"In Progress",value:goals.filter(g=>g.status==="in_progress").length,color:"#4f8ef7"},
               {label:"Completed",value:goals.filter(g=>g.status==="completed").length,color:"#34d399"},
-              {label:"Overdue",value:goals.filter(g=>g.due_date&&
-                new Date(g.due_date)<new Date()&&g.status!=="completed").length,color:"#f87171"},
+              {label:"Overdue",value:goals.filter(g=>g.due_date&&new Date(g.due_date)<new Date()&&g.status!=="completed").length,color:"#f87171"},
             ].map((stat,i)=>(
               <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
-                borderRadius:12,padding:14,textAlign:"center",
-                borderTop:`3px solid ${stat.color}`}}>
+                borderRadius:12,padding:14,textAlign:"center",borderTop:`3px solid ${stat.color}`}}>
                 <div style={{fontSize:26,fontWeight:800,color:stat.color}}>{stat.value}</div>
                 <div style={{fontSize:11,color:HW.muted,marginTop:3}}>{stat.label}</div>
               </div>
             ))}
           </div>
           <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:12}}>
-            <button style={{...s.btn,
-              background:goalFilter==="all"?HW.red:HW.surface2,
+            <button style={{...s.btn,background:goalFilter==="all"?HW.red:HW.surface2,
               color:goalFilter==="all"?HW.white:HW.muted,
               padding:"8px 14px",fontSize:12,whiteSpace:"nowrap"}}
               onClick={()=>setGoalFilter("all")}>All</button>
@@ -1919,7 +1922,7 @@ export default function App() {
           {filteredGoals.length===0?(
             <div style={{...s.card,textAlign:"center",padding:32}}>
               <div style={{fontSize:36,marginBottom:10}}>🎯</div>
-              <p style={{color:HW.muted,fontSize:14}}>No goals yet. Tap "+ Add Goal"!</p>
+              <p style={{color:HW.muted}}>No goals yet. Tap "+ Add Goal"!</p>
             </div>
           ):(
             filteredGoals.map(goal=>(
@@ -1968,13 +1971,12 @@ export default function App() {
         </div>
         <div style={{height:1,background:HW.border,marginBottom:16}}/>
 
-        {/* TRAINEES */}
+        {/* TRAINEES LIST */}
         {mgmtTab==="trainees"&&!selected&&(
           <div>
             <h3 style={{marginBottom:12,fontSize:16,color:HW.text}}>👥 All Trainees</h3>
             {trainees.length===0?(
               <div style={{...s.card,textAlign:"center",padding:32}}>
-                <div style={{fontSize:36,marginBottom:10}}>👥</div>
                 <p style={{color:HW.muted}}>No trainees yet.</p>
               </div>
             ):(
@@ -1997,18 +1999,17 @@ export default function App() {
                     <div style={{fontSize:12,color:HW.muted,marginTop:2}}>
                       {t.department} · GPA {t.gpa||"—"}
                     </div>
-                    <div style={{display:"flex",gap:6,marginTop:4}}>
-                      <span style={{fontSize:10,fontWeight:700,
+                    <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
+                      <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,
                         color:t.payment_status==="paid"?"#34d399":HW.red,
-                        background:t.payment_status==="paid"?"rgba(52,211,153,.1)":`${HW.red}15`,
-                        padding:"2px 6px",borderRadius:6}}>
+                        background:t.payment_status==="paid"?"rgba(52,211,153,.1)":`${HW.red}15`}}>
                         💰 {t.payment_status||"unpaid"}
                       </span>
-                      <span style={{fontSize:10,fontWeight:700,
-                        color:t.laptop_received?"#34d399":HW.muted,
-                        background:t.laptop_received?"rgba(52,211,153,.1)":"rgba(136,136,136,.1)",
-                        padding:"2px 6px",borderRadius:6}}>
-                        💻 {t.laptop_received?"received":"not received"}
+                      <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,
+                        color:t.laptop_returned?"#FFA500":t.laptop_received?"#34d399":HW.muted,
+                        background:t.laptop_returned?"rgba(255,165,0,.1)":
+                          t.laptop_received?"rgba(52,211,153,.1)":"rgba(136,136,136,.1)"}}>
+                        💻 {t.laptop_returned?"returned":t.laptop_received?"received":"not received"}
                       </span>
                     </div>
                   </div>
@@ -2034,6 +2035,7 @@ export default function App() {
             <button style={{...s.btn,background:HW.surface2,color:HW.text,
               marginBottom:12,border:`1px solid ${HW.border}`,fontSize:13}}
               onClick={()=>{setSelected(null);setMsg("");}}>← Back</button>
+
             <div style={s.card}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
                 <div style={{width:52,height:52,borderRadius:14,
@@ -2082,19 +2084,24 @@ export default function App() {
               </div>
             </div>
 
+            {/* Profile sub-tabs */}
             <div style={{display:"flex",gap:0,background:HW.surface2,
               borderRadius:12,padding:4,marginBottom:14,overflowX:"auto"}}>
               {["timeline","edit","reports","penalties","sick","payment","laptop","goals"].map(tab=>(
                 <button key={tab} onClick={()=>setProfileTab(tab)}
-                  style={{...s.btn,flex:1,padding:"10px 6px",
+                  style={{...s.btn,flex:1,padding:"10px 4px",
                     background:profileTab===tab?HW.surface:"none",
                     color:profileTab===tab?HW.text:HW.muted,
                     fontSize:9,borderRadius:8,whiteSpace:"nowrap",
                     borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
-                  {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":
-                   tab==="reports"?"📋 Reports":tab==="penalties"?"⚠️ Penalties":
-                   tab==="sick"?"🏥 Sick":tab==="payment"?"💰 Payment":
-                   tab==="laptop"?"💻 Laptop":"🎯 Goals"}
+                  {tab==="timeline"?"📅":tab==="edit"?"✏️":
+                   tab==="reports"?"📋":tab==="penalties"?"⚠️":
+                   tab==="sick"?"🏥":tab==="payment"?"💰":
+                   tab==="laptop"?"💻":"🎯"}
+                  {" "}{tab==="timeline"?"Timeline":tab==="edit"?"Edit":
+                   tab==="reports"?"Reports":tab==="penalties"?"Penalties":
+                   tab==="sick"?"Sick":tab==="payment"?"Payment":
+                   tab==="laptop"?"Laptop":"Goals"}
                 </button>
               ))}
             </div>
@@ -2181,7 +2188,8 @@ export default function App() {
                           </div>
                           {r.kpi_score&&(
                             <div style={{fontSize:20,fontWeight:800,color:kpiColor(r.kpi_score)}}>
-                              {r.kpi_score}<span style={{fontSize:10,color:HW.muted,fontWeight:400}}> KPI</span>
+                              {r.kpi_score}
+                              <span style={{fontSize:10,color:HW.muted,fontWeight:400}}> KPI</span>
                             </div>
                           )}
                         </div>
@@ -2262,16 +2270,15 @@ export default function App() {
               </div>
             )}
 
-            {/* SICK LEAVE TAB - MANAGER VIEW */}
             {profileTab==="sick"&&(
               <div style={s.card}>
                 <h3 style={{marginBottom:12,fontSize:16,color:HW.text}}>🏥 Sick Leave History</h3>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",
                   gap:10,marginBottom:14}}>
                   {[
-                    {label:"Total Requests",value:selectedSickLeaves.length,color:"#4f8ef7"},
-                    {label:"Free Days",value:selectedSickLeaves.reduce((a,s)=>a+Math.min(s.total_days,2),0),color:"#34d399"},
-                    {label:"Penalty Days",value:selectedSickLeaves.reduce((a,s)=>a+(s.penalty_days||0),0),color:HW.red},
+                    {label:"Requests",value:selectedSickLeaves.length,color:"#4f8ef7"},
+                    {label:"Free Days",value:selectedSickLeaves.reduce((a,sl)=>a+Math.min(sl.total_days,2),0),color:"#34d399"},
+                    {label:"Penalty Days",value:selectedSickLeaves.reduce((a,sl)=>a+(sl.penalty_days||0),0),color:HW.red},
                   ].map((stat,i)=>(
                     <div key={i} style={{background:HW.surface2,borderRadius:10,
                       padding:12,textAlign:"center",borderTop:`3px solid ${stat.color}`}}>
@@ -2280,13 +2287,12 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                {selectedSickLeaves.length===0?<p style={{color:HW.muted}}>No sick leaves recorded.</p>
+                {selectedSickLeaves.length===0?<p style={{color:HW.muted}}>No sick leaves.</p>
                   :selectedSickLeaves.map(sl=>(
                     <div key={sl.id} style={{background:HW.surface2,borderRadius:10,
                       padding:12,marginBottom:8,
                       borderLeft:`3px solid ${sl.penalty_applied?HW.red:"#34d399"}`}}>
-                      <div style={{display:"flex",justifyContent:"space-between",
-                        alignItems:"flex-start"}}>
+                      <div style={{display:"flex",justifyContent:"space-between"}}>
                         <div>
                           <div style={{fontSize:13,fontWeight:700,color:HW.text}}>
                             📅 {sl.start_date} → {sl.end_date}
@@ -2304,9 +2310,7 @@ export default function App() {
                             {sl.total_days} day{sl.total_days!==1?"s":""}
                           </div>
                           <div style={{fontSize:11,color:HW.muted}}>
-                            {sl.penalty_applied
-                              ?`⚠️ -${(sl.penalty_days*PENALTY_PCT).toFixed(2)}%`
-                              :"✅ No penalty"}
+                            {sl.penalty_applied?`⚠️ -${(sl.penalty_days*PENALTY_PCT).toFixed(2)}%`:"✅ No penalty"}
                           </div>
                         </div>
                       </div>
@@ -2316,14 +2320,13 @@ export default function App() {
               </div>
             )}
 
-            {/* PAYMENT TAB */}
             {profileTab==="payment"&&(
               <div style={s.card}>
                 <h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>💰 Payment Status</h3>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
                   {["paid","unpaid"].map(status=>(
                     <button key={status}
-                      style={{...s.btn,padding:14,
+                      style={{...s.btn,padding:14,fontSize:15,fontWeight:800,
                         background:selected.payment_status===status
                           ?status==="paid"?"rgba(52,211,153,.2)":`${HW.red}20`
                           :HW.surface2,
@@ -2332,9 +2335,8 @@ export default function App() {
                           :HW.muted,
                         border:selected.payment_status===status
                           ?`2px solid ${status==="paid"?"#34d399":HW.red}`
-                          :`1px solid ${HW.border}`,
-                        fontSize:15,fontWeight:800}}
-                      onClick={()=>updatePaymentStatus(status,selected.payment_notes)}>
+                          :`1px solid ${HW.border}`}}
+                      onClick={()=>setSelected({...selected,payment_status:status})}>
                       {status==="paid"?"✅ Paid":"❌ Unpaid"}
                     </button>
                   ))}
@@ -2347,36 +2349,64 @@ export default function App() {
                 <button style={{...s.btn,background:HW.red,color:HW.white,
                   width:"100%",padding:14}}
                   onClick={()=>updatePaymentStatus(selected.payment_status,selected.payment_notes)}>
-                  Save Payment Notes
+                  💾 Save Payment Status
                 </button>
                 {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
                   fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
               </div>
             )}
 
-            {/* LAPTOP TAB */}
             {profileTab==="laptop"&&(
               <div style={s.card}>
                 <h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>💻 Laptop Status</h3>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-                  {[true,false].map(received=>(
-                    <button key={received.toString()}
-                      style={{...s.btn,padding:14,
-                        background:selected.laptop_received===received
-                          ?received?"rgba(52,211,153,.2)":`${HW.red}20`
-                          :HW.surface2,
-                        color:selected.laptop_received===received
-                          ?received?"#34d399":HW.red
-                          :HW.muted,
-                        border:selected.laptop_received===received
-                          ?`2px solid ${received?"#34d399":HW.red}`
-                          :`1px solid ${HW.border}`,
-                        fontSize:15,fontWeight:800}}
-                      onClick={()=>updateLaptopStatus(received,
-                        selected.laptop_serial,selected.laptop_received_date)}>
-                      {received?"✅ Received":"❌ Not Received"}
+                <div style={{background:
+                  selected.laptop_returned?"rgba(255,165,0,.1)":
+                  selected.laptop_received?"rgba(52,211,153,.1)":`${HW.red}10`,
+                  border:`1px solid ${
+                  selected.laptop_returned?"rgba(255,165,0,.3)":
+                  selected.laptop_received?"rgba(52,211,153,.3)":`${HW.red}30`}`,
+                  borderRadius:10,padding:14,marginBottom:14,textAlign:"center"}}>
+                  <div style={{fontSize:28,marginBottom:4}}>
+                    {selected.laptop_returned?"🔄":selected.laptop_received?"✅":"❌"}
+                  </div>
+                  <div style={{fontSize:15,fontWeight:800,
+                    color:selected.laptop_returned?"#FFA500":
+                    selected.laptop_received?"#34d399":HW.red}}>
+                    {selected.laptop_returned?"Returned to HR":
+                     selected.laptop_received?"Laptop Received":"Not Received"}
+                  </div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+                  {!selected.laptop_received&&(
+                    <button style={{...s.btn,padding:14,fontSize:14,fontWeight:800,
+                      background:"rgba(52,211,153,.15)",color:"#34d399",
+                      border:"2px solid rgba(52,211,153,.4)"}}
+                      onClick={()=>setSelected({...selected,laptop_received:true,
+                        laptop_returned:false,
+                        laptop_received_date:selected.laptop_received_date||
+                          new Date().toISOString().split("T")[0]})}>
+                      ✅ Mark as Received
                     </button>
-                  ))}
+                  )}
+                  {selected.laptop_received&&!selected.laptop_returned&&(
+                    <button style={{...s.btn,padding:14,fontSize:14,fontWeight:800,
+                      background:"rgba(255,165,0,.15)",color:"#FFA500",
+                      border:"2px solid rgba(255,165,0,.4)"}}
+                      onClick={()=>setSelected({...selected,laptop_returned:true,
+                        laptop_returned_date:new Date().toISOString().split("T")[0]})}>
+                      🔄 Mark as Returned to HR
+                    </button>
+                  )}
+                  {(selected.laptop_received||selected.laptop_returned)&&(
+                    <button style={{...s.btn,padding:12,fontSize:13,
+                      background:`${HW.red}15`,color:HW.red,
+                      border:`1px solid ${HW.red}40`}}
+                      onClick={()=>setSelected({...selected,laptop_received:false,
+                        laptop_returned:false,laptop_serial:"",
+                        laptop_received_date:null,laptop_returned_date:null})}>
+                      ❌ Reset to Not Received
+                    </button>
+                  )}
                 </div>
                 {selected.laptop_received&&(
                   <>
@@ -2391,11 +2421,21 @@ export default function App() {
                       onChange={e=>setSelected({...selected,laptop_received_date:e.target.value})}/>
                   </>
                 )}
+                {selected.laptop_returned&&(
+                  <>
+                    <label style={s.label}>Date Returned to HR</label>
+                    <input style={{...s.input,marginBottom:12}} type="date"
+                      value={selected.laptop_returned_date||""}
+                      onChange={e=>setSelected({...selected,laptop_returned_date:e.target.value})}/>
+                  </>
+                )}
                 <button style={{...s.btn,background:HW.red,color:HW.white,
                   width:"100%",padding:14}}
-                  onClick={()=>updateLaptopStatus(selected.laptop_received,
-                    selected.laptop_serial,selected.laptop_received_date)}>
-                  Save Laptop Status
+                  onClick={()=>updateLaptopStatus(
+                    selected.laptop_received,selected.laptop_serial,
+                    selected.laptop_received_date,selected.laptop_returned,
+                    selected.laptop_returned_date)}>
+                  💾 Save Laptop Status
                 </button>
                 {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
                   fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
@@ -2474,7 +2514,7 @@ export default function App() {
               {liveSignins.length===0?(
                 <div style={{textAlign:"center",padding:32}}>
                   <div style={{fontSize:36,marginBottom:10}}>📡</div>
-                  <p style={{color:HW.muted,fontSize:14}}>Waiting for sign-ins…</p>
+                  <p style={{color:HW.muted}}>Waiting for sign-ins…</p>
                 </div>
               ):(
                 liveSignins.map((signin,i)=>(
@@ -2492,7 +2532,7 @@ export default function App() {
                         overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                         {signin.full_name}
                       </div>
-                      <div style={{fontSize:11,color:HW.muted,marginTop:1}}>{signin.department}</div>
+                      <div style={{fontSize:11,color:HW.muted}}>{signin.department}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontSize:16,fontWeight:800,fontFamily:"monospace",
@@ -2521,8 +2561,9 @@ export default function App() {
                 {label:"Attendance Rate",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},
                 {label:"Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},
                 {label:"Sick Leaves",value:allSickLeaves.length,icon:"🏥",color:"#4f8ef7"},
-                {label:"Paid Trainees",value:trainees.filter(t=>t.payment_status==="paid").length,icon:"💰",color:"#34d399"},
+                {label:"Paid",value:trainees.filter(t=>t.payment_status==="paid").length,icon:"💰",color:"#34d399"},
                 {label:"Laptops Given",value:trainees.filter(t=>t.laptop_received).length,icon:"💻",color:"#7c5cfc"},
+                {label:"Laptops Returned",value:trainees.filter(t=>t.laptop_returned).length,icon:"🔄",color:"#FFA500"},
               ].map((stat,i)=>(
                 <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
                   borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}>
@@ -2552,9 +2593,8 @@ export default function App() {
                       <div style={{fontSize:11,color:HW.muted}}>{t.department}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:18,fontWeight:800,color:kpiColor(parseFloat(t.avgKpi))}}>
-                        {t.avgKpi}
-                      </div>
+                      <div style={{fontSize:18,fontWeight:800,
+                        color:kpiColor(parseFloat(t.avgKpi))}}>{t.avgKpi}</div>
                       <div style={{fontSize:10,color:HW.muted}}>KPI</div>
                     </div>
                   </div>
