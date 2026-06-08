@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 const CLAUDE_KEY  = import.meta.env.VITE_CLAUDE_API_KEY;
 const WORK_LAT    = 23.5896598;
 const WORK_LNG    = 58.4125277;
-const WORK_RADIUS = 50;
+const WORK_RADIUS = 1000;
 const MAX_SIGNIN  = "09:00";
 const PENALTY_PCT = 8.33;
 
@@ -185,8 +185,7 @@ function OKRBar({okr,onUpdate}) {
 
 function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
   const kra=KRA_CATEGORIES.find(k=>k.id===goal.kra)||KRA_CATEGORIES[0];
-  const pct=Math.min((goal.current_value/goal.target_value)*100,100)
-    .toFixed(0);
+  const pct=Math.min((goal.current_value/goal.target_value)*100,100).toFixed(0);
   const isOverdue=goal.due_date&&new Date(goal.due_date)<new Date()&&
     goal.status!=="completed";
   const statusColors={
@@ -227,8 +226,7 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
              status==="completed"?"✅ Completed":"🔴 Overdue"}
           </span>
           {goal.due_date&&(
-            <div style={{fontSize:11,
-              color:isOverdue?HW.red:HW.muted}}>
+            <div style={{fontSize:11,color:isOverdue?HW.red:HW.muted}}>
               Due: {new Date(goal.due_date).toLocaleDateString("en-GB",
                 {day:"numeric",month:"short",year:"numeric"})}
             </div>
@@ -322,21 +320,27 @@ function GreetingPopup({name,onDismiss}) {
   const quote = CHINESE_QUOTES[Math.floor(Math.random()*CHINESE_QUOTES.length)];
 
   useEffect(()=>{
-    // Voice greeting
     if("speechSynthesis" in window){
+      window.speechSynthesis.cancel();
       const msg = new SpeechSynthesisUtterance(
-        `${greeting}, ${name}! Welcome to TraineeOS. ${quote.english}`
+        `${greeting}, ${name}! Welcome to TraineeOS. ${quote.english}. Have a nice day!`
       );
-      msg.rate = 1.1;
-      msg.pitch = 1.6;
+      msg.rate = 0.9;
+      msg.pitch = 1;
       msg.volume = 1;
-      // Try to find a good voice
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(v=>
-        v.lang.startsWith("en")&&v.name.includes("Female")
-      )||voices.find(v=>v.lang.startsWith("en"))||voices[0];
-      if(preferred) msg.voice = preferred;
-      setTimeout(()=>window.speechSynthesis.speak(msg),500);
+      const setVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v=>
+          v.lang.startsWith("en")&&v.name.includes("Female")
+        )||voices.find(v=>v.lang.startsWith("en"))||voices[0];
+        if(preferred) msg.voice = preferred;
+        setTimeout(()=>window.speechSynthesis.speak(msg),500);
+      };
+      if(window.speechSynthesis.getVoices().length>0){
+        setVoice();
+      } else {
+        window.speechSynthesis.onvoiceschanged = setVoice;
+      }
     }
     return ()=>window.speechSynthesis?.cancel();
   },[]);
@@ -352,52 +356,32 @@ function GreetingPopup({name,onDismiss}) {
         textAlign:"center",
         boxShadow:`0 0 80px rgba(207,10,44,.25)`,
         animation:"popIn .4s cubic-bezier(.34,1.56,.64,1)"}}>
-
         <style>{`
-          @keyframes popIn {
-            from{transform:scale(.8);opacity:0}
-            to{transform:scale(1);opacity:1}
-          }
-          @keyframes float {
-            0%,100%{transform:translateY(0)}
-            50%{transform:translateY(-8px)}
-          }
+          @keyframes popIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+          @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
         `}</style>
-
-        {/* Huawei logo animated */}
-        <div style={{animation:"float 3s ease-in-out infinite",
-          marginBottom:16}}>
+        <div style={{animation:"float 3s ease-in-out infinite",marginBottom:16}}>
           <HuaweiLogo size={64}/>
         </div>
-
-        {/* Greeting */}
         <div style={{fontSize:13,color:HW.muted,marginBottom:4,
           letterSpacing:".1em",textTransform:"uppercase"}}>
           {greetingAr}
         </div>
-        <h2 style={{fontSize:32,fontWeight:800,color:HW.white,
-          margin:"0 0 4px"}}>
+        <h2 style={{fontSize:32,fontWeight:800,color:HW.white,margin:"0 0 4px"}}>
           {greeting},
         </h2>
-        <h2 style={{fontSize:36,fontWeight:800,color:HW.red,
-          margin:"0 0 24px"}}>
+        <h2 style={{fontSize:36,fontWeight:800,color:HW.red,margin:"0 0 24px"}}>
           {name}! 👋
         </h2>
-
-        {/* Quote divider */}
         <div style={{height:1,background:HW.border,marginBottom:24}}/>
-
-        {/* Chinese quote */}
-        <div style={{background:HW.surface2,borderRadius:16,
-          padding:20,marginBottom:24,
-          border:`1px solid ${HW.border}`}}>
+        <div style={{background:HW.surface2,borderRadius:16,padding:20,
+          marginBottom:20,border:`1px solid ${HW.border}`}}>
           <div style={{fontSize:11,color:HW.red,fontWeight:700,
             textTransform:"uppercase",letterSpacing:".1em",marginBottom:12}}>
             🈲 Today's Motivation
           </div>
           <div style={{fontSize:26,fontWeight:800,color:HW.white,
-            marginBottom:10,lineHeight:1.4,
-            fontFamily:"serif",letterSpacing:4}}>
+            marginBottom:10,lineHeight:1.4,fontFamily:"serif",letterSpacing:4}}>
             {quote.chinese}
           </div>
           <div style={{fontSize:14,color:HW.muted,lineHeight:1.7,
@@ -408,18 +392,18 @@ function GreetingPopup({name,onDismiss}) {
             — {quote.author}
           </div>
         </div>
-
-        {/* Date */}
+        <div style={{fontSize:15,color:"#34d399",fontWeight:700,
+          marginBottom:20}}>
+          🌟 Have a nice day!
+        </div>
         <div style={{fontSize:13,color:HW.muted,marginBottom:24}}>
           {now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",
             month:"long",year:"numeric"})}
         </div>
-
         <button onClick={onDismiss}
           style={{background:HW.red,color:HW.white,border:"none",
             borderRadius:12,padding:"14px 40px",fontWeight:800,
-            fontSize:16,cursor:"pointer",width:"100%",
-            transition:"all .2s"}}
+            fontSize:16,cursor:"pointer",width:"100%"}}
           onMouseOver={e=>e.target.style.background=HW.darkRed}
           onMouseOut={e=>e.target.style.background=HW.red}>
           Let's Go! 🚀
@@ -465,6 +449,7 @@ export default function App() {
   const [trafficCount,setTrafficCount] = useState(0);
   const [faceCapture,setFaceCapture] = useState(null);
   const [faceCaptured,setFaceCaptured] = useState(false);
+  const [facePreviewUrl,setFacePreviewUrl] = useState(null);
   const [cameraActive,setCameraActive] = useState(false);
   const [isLate,setIsLate]           = useState(false);
   const [excuseType,setExcuseType]   = useState("");
@@ -483,9 +468,7 @@ export default function App() {
   });
   const [goalFilter,setGoalFilter]   = useState("all");
   const [currentTime,setCurrentTime] = useState(new Date());
-  const [profileCompleted,setProfileCompleted] = useState(false);
 
-  // One-time profile setup form
   const [setupProfile,setSetupProfile] = useState({
     full_name:"",civil_id:"",phone_number:"",
     department:"",assigned_mentor:"",gpa:"",
@@ -545,7 +528,6 @@ export default function App() {
     return score>=80?HW.red:score>=60?"#FFA500":"#666";
   }
 
-  // ── Live clock ───────────────────────────────────────
   useEffect(()=>{
     const interval=setInterval(()=>{
       const now=new Date();
@@ -556,7 +538,6 @@ export default function App() {
     return ()=>clearInterval(interval);
   },[]);
 
-  // ── 4:30 PM reminder ────────────────────────────────
   useEffect(()=>{
     const check=()=>{
       const now=new Date();
@@ -571,7 +552,6 @@ export default function App() {
     return ()=>clearInterval(interval);
   },[]);
 
-  // ── Session ──────────────────────────────────────────
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
       if(session) handleSession(session.user);
@@ -583,7 +563,6 @@ export default function App() {
     return ()=>listener.subscription.unsubscribe();
   },[]);
 
-  // ── Realtime sign-ins ────────────────────────────────
   useEffect(()=>{
     if(view!=="mgmt") return;
     fetchTodaySignins();
@@ -633,10 +612,8 @@ export default function App() {
         setView("mgmt");fetchTrainees();fetchOkrs();fetchAllData();
       } else {
         if(!data.profile_completed){
-          // First time — show profile setup
           setView("setup");
         } else {
-          // Returning — show greeting then dashboard
           setView("trainee");
           if(data.trainee_id){
             setTraineeId(data.trainee_id);
@@ -647,7 +624,6 @@ export default function App() {
                 phone_number:t.phone_number||"",department:t.department||"",
                 assigned_mentor:t.assigned_mentor||"",gpa:t.gpa||""});
               setTraineeName(t.full_name.split(" ")[0]);
-              // Show greeting popup
               setTimeout(()=>setShowGreeting(true),500);
             }
             fetchGoals(data.trainee_id);
@@ -662,13 +638,11 @@ export default function App() {
     }
   }
 
-  // ── Save one-time profile ────────────────────────────
   async function saveSetupProfile(){
     if(!setupProfile.full_name||!setupProfile.civil_id){
       setMsg("Please fill Full Name and Civil ID.");return;
     }
     setLoading(true);setMsg("");
-    // Create trainee record
     const{data:traineeData,error:tErr}=await supabase.from("trainees").upsert({
       full_name:setupProfile.full_name,
       civil_id:setupProfile.civil_id,
@@ -682,19 +656,14 @@ export default function App() {
       joining_date:new Date().toISOString().split("T")[0],
     },{onConflict:"civil_id"}).select().single();
     if(tErr){setMsg("Error: "+tErr.message);setLoading(false);return;}
-    // Mark profile as completed
     await supabase.from("profiles").update({
-      trainee_id:traineeData.id,
-      profile_completed:true,
+      trainee_id:traineeData.id,profile_completed:true,
     }).eq("id",user.id);
     setTraineeId(traineeData.id);
     setProfile({
-      full_name:setupProfile.full_name,
-      civil_id:setupProfile.civil_id,
-      phone_number:setupProfile.phone_number,
-      department:setupProfile.department,
-      assigned_mentor:setupProfile.assigned_mentor,
-      gpa:setupProfile.gpa,
+      full_name:setupProfile.full_name,civil_id:setupProfile.civil_id,
+      phone_number:setupProfile.phone_number,department:setupProfile.department,
+      assigned_mentor:setupProfile.assigned_mentor,gpa:setupProfile.gpa,
     });
     setTraineeName(setupProfile.full_name.split(" ")[0]);
     fetchGoals(traineeData.id);
@@ -729,7 +698,8 @@ export default function App() {
     setView("login");setUser(null);setSelected(null);setMsg("");
     setAiResult(null);setPhotoFile(null);setPhotoPreview(null);
     setLocationOk(false);setGeoStatus("idle");setGeoMsg("");
-    setFaceCapture(null);setFaceCaptured(false);stopCamera();
+    setFaceCapture(null);setFaceCaptured(false);
+    setFacePreviewUrl(null);stopCamera();
     setTraineeId(null);setGoals([]);setLiveSignins([]);
     setShowGreeting(false);setTraineeName("");
   }
@@ -737,8 +707,7 @@ export default function App() {
   function checkLocation(){
     setGeoStatus("checking");setGeoMsg("📍 Checking your location…");
     if(!navigator.geolocation){
-      setGeoStatus("error");
-      setGeoMsg("❌ Browser does not support location.");return;
+      setGeoStatus("error");setGeoMsg("❌ Browser does not support location.");return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos)=>{
@@ -749,7 +718,7 @@ export default function App() {
           setGeoMsg(`✅ Verified — ${Math.round(dist)}m from workplace.`);
         } else {
           setLocationOk(false);setGeoStatus("error");
-          setGeoMsg(`❌ You are ${Math.round(dist)}m away. Must be within 500m.`);
+          setGeoMsg(`❌ You are ${Math.round(dist)}m away. Must be within ${WORK_RADIUS}m.`);
         }
       },
       ()=>{setGeoStatus("error");setGeoMsg("❌ Location denied.");},
@@ -780,9 +749,12 @@ export default function App() {
     const canvas=canvasRef.current,video=videoRef.current;
     canvas.width=video.videoWidth;canvas.height=video.videoHeight;
     canvas.getContext("2d").drawImage(video,0,0);
+    // Generate preview URL from canvas
+    const previewUrl=canvas.toDataURL("image/jpeg",0.8);
+    setFacePreviewUrl(previewUrl);
     canvas.toBlob(blob=>{
       setFaceCapture(blob);setFaceCaptured(true);stopCamera();
-      setMsg("✅ Face captured!");
+      setMsg("✅ Face captured successfully!");
     },"image/jpeg",0.8);
   }
 
@@ -815,8 +787,7 @@ export default function App() {
     }
     const penaltyApplied=!attendance.attended||(timeStr>MAX_SIGNIN&&!excuseText);
     setLoading(true);setMsg("");
-    const tid=traineeId;
-    const ts=Date.now();
+    const tid=traineeId;const ts=Date.now();
     const faceUrl=faceCapture
       ?await uploadFile("report-photos",`${tid}/face_${ts}.jpg`,faceCapture)
       :null;
@@ -859,10 +830,7 @@ export default function App() {
     if(!taskReport.report_text){setMsg("Please write your daily tasks.");return;}
     setLoading(true);setAiLoading(true);setMsg("");setAiResult(null);
     const tid=traineeId;
-    if(!tid){
-      setMsg("Please submit attendance first.");
-      setLoading(false);setAiLoading(false);return;
-    }
+    if(!tid){setMsg("Please submit attendance first.");setLoading(false);setAiLoading(false);return;}
     const ts=Date.now();
     const photoUrl=photoFile
       ?await uploadFile("report-photos",`${tid}/proof_${ts}.jpg`,photoFile)
@@ -928,15 +896,13 @@ export default function App() {
 
   async function fetchTrainees(){
     setLoading(true);
-    const{data}=await supabase.from("trainees")
-      .select("*").order("full_name");
+    const{data}=await supabase.from("trainees").select("*").order("full_name");
     if(data) setTrainees(data);
     setLoading(false);
   }
 
   async function fetchOkrs(){
-    const{data}=await supabase.from("okrs")
-      .select("*").order("department");
+    const{data}=await supabase.from("okrs").select("*").order("department");
     if(data) setOkrs(data);
   }
 
@@ -1029,8 +995,7 @@ export default function App() {
     if(!newOkr.department||!newOkr.objective||!newOkr.key_result){
       setMsg("Please fill all OKR fields.");return;
     }
-    await supabase.from("okrs")
-      .insert({...newOkr,created_by:user?.email});
+    await supabase.from("okrs").insert({...newOkr,created_by:user?.email});
     setShowAddOkr(false);
     setNewOkr({department:"",objective:"",key_result:"",
       target:100,current:0,unit:"%",due_date:""});
@@ -1041,29 +1006,21 @@ export default function App() {
     const doc=new jsPDF();
     const t=trainee||selected;
     doc.setFillColor(207,10,44);doc.rect(0,0,210,40,"F");
-    doc.setTextColor(255,255,255);doc.setFontSize(20);
-    doc.setFont("helvetica","bold");
+    doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont("helvetica","bold");
     doc.text("TraineeOS — Weekly Performance Report",14,18);
     doc.setFontSize(11);doc.setFont("helvetica","normal");
     doc.text(`Generated: ${new Date().toLocaleDateString("en-GB")}`,14,30);
-    doc.setTextColor(0,0,0);doc.setFontSize(14);
-    doc.setFont("helvetica","bold");
+    doc.setTextColor(0,0,0);doc.setFontSize(14);doc.setFont("helvetica","bold");
     doc.text("Trainee Information",14,52);
     autoTable(doc,{startY:56,
       head:[["Field","Details"]],
-      body:[
-        ["Full Name",t.full_name||"—"],
-        ["Civil ID",t.civil_id||"—"],
-        ["Department",t.department||"—"],
-        ["Mentor",t.assigned_mentor||"—"],
-        ["GPA",t.gpa?.toString()||"—"],
-        ["Status",t.status||"—"],
+      body:[["Full Name",t.full_name||"—"],["Civil ID",t.civil_id||"—"],
+        ["Department",t.department||"—"],["Mentor",t.assigned_mentor||"—"],
+        ["GPA",t.gpa?.toString()||"—"],["Status",t.status||"—"],
         ["Joining Date",t.joining_date||"—"],
         ["Quitting Date",t.quitting_date||"Still Active"],
         ["Days in Program",t.joining_date
-          ?Math.floor((new Date()-new Date(t.joining_date))/
-            (1000*60*60*24))+" days":"—"],
-      ],
+          ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24))+" days":"—"]],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
@@ -1071,17 +1028,13 @@ export default function App() {
     doc.setFontSize(14);doc.setFont("helvetica","bold");
     doc.text("Weekly Reports",14,reportsY);
     const{data:reps}=await supabase.from("daily_reports").select("*")
-      .eq("trainee_id",t.id)
-      .order("report_date",{ascending:false}).limit(7);
+      .eq("trainee_id",t.id).order("report_date",{ascending:false}).limit(7);
     if(reps?.length>0){
       autoTable(doc,{startY:reportsY+4,
         head:[["Date","Attended","Sign-in","KPI","Penalty","Report"]],
-        body:reps.map(r=>[
-          r.report_date,r.attended?"✓":"✗",r.signin_time||"—",
-          r.kpi_score||"—",
-          r.penalty_applied?`-${r.penalty_amount}%`:"None",
-          (r.report_text||"").substring(0,50)+"...",
-        ]),
+        body:reps.map(r=>[r.report_date,r.attended?"✓":"✗",r.signin_time||"—",
+          r.kpi_score||"—",r.penalty_applied?`-${r.penalty_amount}%`:"None",
+          (r.report_text||"").substring(0,50)+"..."]),
         headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
         alternateRowStyles:{fillColor:[245,245,245]},
       });
@@ -1093,54 +1046,40 @@ export default function App() {
       .eq("trainee_id",t.id);
     autoTable(doc,{startY:penY+4,
       head:[["Date","Reason","Deduction"]],
-      body:pens?.length>0
-        ?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`])
+      body:pens?.length>0?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`])
         :[["—","No penalties","—"]],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
-    doc.setTextColor(207,10,44);doc.setFontSize(11);
-    doc.setFont("helvetica","bold");
-    doc.text(`Total Deduction: ${pens
-      ?(pens.length*PENALTY_PCT).toFixed(2):0}%`,
+    doc.setTextColor(207,10,44);doc.setFontSize(11);doc.setFont("helvetica","bold");
+    doc.text(`Total Deduction: ${pens?(pens.length*PENALTY_PCT).toFixed(2):0}%`,
       14,doc.lastAutoTable.finalY+6);
-    doc.setTextColor(150,150,150);doc.setFontSize(9);
-    doc.setFont("helvetica","normal");
+    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");
     doc.text("TraineeOS • Powered by Huawei • Confidential",14,285);
     doc.save(`${t.full_name}_weekly_report.pdf`);
   }
 
   async function exportExcel(){
     setMsg("📊 Preparing Excel export…");
-    const{data:allT}=await supabase.from("trainees")
-      .select("*").order("full_name");
-    const{data:allR}=await supabase.from("daily_reports")
-      .select("*").order("report_date");
-    const{data:allP}=await supabase.from("penalties")
-      .select("*").order("created_at");
-    const{data:allL}=await supabase.from("trainee_logs")
-      .select("*").order("created_at");
-    const{data:allG}=await supabase.from("goals")
-      .select("*").order("created_at");
+    const{data:allT}=await supabase.from("trainees").select("*").order("full_name");
+    const{data:allR}=await supabase.from("daily_reports").select("*").order("report_date");
+    const{data:allP}=await supabase.from("penalties").select("*").order("created_at");
+    const{data:allL}=await supabase.from("trainee_logs").select("*").order("created_at");
+    const{data:allG}=await supabase.from("goals").select("*").order("created_at");
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>({
-        "Full Name":t.full_name,"Civil ID":t.civil_id,
-        "Phone":t.phone_number,"Department":t.department,
-        "Mentor":t.assigned_mentor,"GPA":t.gpa,
+        "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
+        "Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,
         "Gender":t.gender||"—","Nationality":t.nationality||"—",
         "DOB":t.date_of_birth||"—","Status":t.status,
-        "Joining Date":t.joining_date,
-        "Quitting Date":t.quitting_date||"Still Active",
-        "Days":t.joining_date
-          ?Math.floor((new Date()-new Date(t.joining_date))/
-            (1000*60*60*24)):"—",
+        "Joining Date":t.joining_date,"Quitting Date":t.quitting_date||"Still Active",
+        "Days":t.joining_date?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24)):"—",
       }))),"Trainees");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allR||[]).map(r=>({
         "Trainee ID":r.trainee_id,"Date":r.report_date,
-        "Attended":r.attended?"Yes":"No",
-        "Sign-in":r.signin_time||"—",
+        "Attended":r.attended?"Yes":"No","Sign-in":r.signin_time||"—",
         "KPI":r.kpi_score||"—","Report":r.report_text,
         "Talent Notes":r.talent_notes||"—",
         "Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
@@ -1152,33 +1091,24 @@ export default function App() {
       }))),"Penalties");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allG||[]).map(g=>({
-        "Trainee ID":g.trainee_id,"KRA":g.kra,
-        "Goal":g.goal_title,"Target":g.target_value,
-        "Current":g.current_value,"Unit":g.unit,
-        "Status":g.status,"Due Date":g.due_date||"—",
-        "Progress":Math.min((g.current_value/g.target_value)*100,100)
-          .toFixed(0)+"%",
+        "Trainee ID":g.trainee_id,"KRA":g.kra,"Goal":g.goal_title,
+        "Target":g.target_value,"Current":g.current_value,
+        "Unit":g.unit,"Status":g.status,"Due Date":g.due_date||"—",
+        "Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%",
       }))),"Goals");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>{
         const tr=(allR||[]).filter(r=>r.trainee_id===t.id);
         const tp=(allP||[]).filter(p=>p.trainee_id===t.id);
         const tg=(allG||[]).filter(g=>g.trainee_id===t.id);
-        const avg=tr.filter(r=>r.kpi_score)
-          .reduce((a,r,_,arr)=>a+r.kpi_score/arr.length,0);
-        return{
-          "Full Name":t.full_name,"Department":t.department,
-          "Status":t.status,"Reports":tr.length,
-          "Attended":tr.filter(r=>r.attended).length,
-          "Avg KPI":avg?avg.toFixed(1):"—",
-          "Penalties":tp.length,
-          "Goals Set":tg.length,
-          "Goals Completed":tg.filter(g=>g.status==="completed").length,
-          "Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`,
-        };
+        const avg=tr.filter(r=>r.kpi_score).reduce((a,r,_,arr)=>a+r.kpi_score/arr.length,0);
+        return{"Full Name":t.full_name,"Department":t.department,"Status":t.status,
+          "Reports":tr.length,"Attended":tr.filter(r=>r.attended).length,
+          "Avg KPI":avg?avg.toFixed(1):"—","Penalties":tp.length,
+          "Goals Set":tg.length,"Goals Completed":tg.filter(g=>g.status==="completed").length,
+          "Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`};
       })),"Summary");
-    XLSX.writeFile(wb,
-      `TraineeOS_Export_${new Date().toISOString().split("T")[0]}.xlsx`);
+    XLSX.writeFile(wb,`TraineeOS_Export_${new Date().toISOString().split("T")[0]}.xlsx`);
     setMsg("✅ Excel exported!");
   }
 
@@ -1186,16 +1116,13 @@ export default function App() {
     const active=trainees.filter(t=>t.status==="active");
     const totalReports=allReports.length;
     const attended=allReports.filter(r=>r.attended).length;
-    const attendanceRate=totalReports>0
-      ?((attended/totalReports)*100).toFixed(1):0;
+    const attendanceRate=totalReports>0?((attended/totalReports)*100).toFixed(1):0;
     const kpiReports=allReports.filter(r=>r.kpi_score);
     const avgKpi=kpiReports.length>0
-      ?(kpiReports.reduce((a,r)=>a+r.kpi_score,0)/
-        kpiReports.length).toFixed(1):0;
+      ?(kpiReports.reduce((a,r)=>a+r.kpi_score,0)/kpiReports.length).toFixed(1):0;
     const traineeKpi=trainees.map(t=>{
       const tr=allReports.filter(r=>r.trainee_id===t.id&&r.kpi_score);
-      const avg=tr.length>0
-        ?tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length:0;
+      const avg=tr.length>0?tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length:0;
       const tp=allPenalties.filter(p=>p.trainee_id===t.id).length;
       return{...t,avgKpi:avg.toFixed(1),penalties:tp,
         reports:allReports.filter(r=>r.trainee_id===t.id).length};
@@ -1203,16 +1130,13 @@ export default function App() {
     const depts=[...new Set(trainees.map(t=>t.department).filter(Boolean))];
     const deptData=depts.map(dept=>{
       const dT=trainees.filter(t=>t.department===dept);
-      const dR=allReports.filter(r=>
-        dT.some(t=>t.id===r.trainee_id)&&r.kpi_score);
-      const avg=dR.length>0
-        ?dR.reduce((a,r)=>a+r.kpi_score,0)/dR.length:0;
+      const dR=allReports.filter(r=>dT.some(t=>t.id===r.trainee_id)&&r.kpi_score);
+      const avg=dR.length>0?dR.reduce((a,r)=>a+r.kpi_score,0)/dR.length:0;
       return{label:dept.substring(0,8),value:Math.round(avg)};
     });
-    const atRisk=traineeKpi.filter(
-      t=>parseFloat(t.avgKpi)<60||t.penalties>2);
-    return{active,attendanceRate,avgKpi,
-      totalPenalties:allPenalties.length,traineeKpi,deptData,atRisk};
+    const atRisk=traineeKpi.filter(t=>parseFloat(t.avgKpi)<60||t.penalties>2);
+    return{active,attendanceRate,avgKpi,totalPenalties:allPenalties.length,
+      traineeKpi,deptData,atRisk};
   }
 
   const filteredGoals=goalFilter==="all"?goals
@@ -1227,8 +1151,7 @@ export default function App() {
   // LOGIN
   // ══════════════════════════════════════════════════
   if(view==="login") return (
-    <div style={{...s.page,display:"flex",alignItems:"center",
-      justifyContent:"center"}}>
+    <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{...s.card,width:420}}>
         <div style={{textAlign:"center",marginBottom:28,paddingBottom:24,
           borderBottom:`1px solid ${HW.border}`}}>
@@ -1241,8 +1164,7 @@ export default function App() {
         </div>
         <label style={s.label}>Email</label>
         <input style={{...s.input,marginBottom:14}} value={email}
-          onChange={e=>setEmail(e.target.value)}
-          placeholder="you@example.com"/>
+          onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/>
         <label style={s.label}>Password</label>
         <input style={{...s.input,marginBottom:20}} type="password"
           value={password} onChange={e=>setPassword(e.target.value)}
@@ -1252,8 +1174,7 @@ export default function App() {
           onClick={login} disabled={loading}>
           {loading?"Signing in…":"Sign In →"}
         </button>
-        <div style={{display:"flex",alignItems:"center",
-          gap:10,margin:"20px 0"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,margin:"20px 0"}}>
           <div style={{flex:1,height:1,background:HW.border}}/>
           <span style={{color:HW.muted,fontSize:12}}>OR</span>
           <div style={{flex:1,height:1,background:HW.border}}/>
@@ -1273,20 +1194,16 @@ export default function App() {
   // SIGNUP
   // ══════════════════════════════════════════════════
   if(view==="signup") return (
-    <div style={{...s.page,display:"flex",alignItems:"center",
-      justifyContent:"center"}}>
+    <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{...s.card,width:420}}>
         <div style={{textAlign:"center",marginBottom:24}}>
           <HuaweiLogo size={40}/>
           <h2 style={{margin:"10px 0 4px"}}>Create Account</h2>
-          <p style={{color:HW.muted,fontSize:13}}>
-            Register as a new trainee
-          </p>
+          <p style={{color:HW.muted,fontSize:13}}>Register as a new trainee</p>
         </div>
         <label style={s.label}>Email Address</label>
         <input style={{...s.input,marginBottom:14}} value={email}
-          onChange={e=>setEmail(e.target.value)}
-          placeholder="yourname@example.com"/>
+          onChange={e=>setEmail(e.target.value)} placeholder="yourname@example.com"/>
         <label style={s.label}>Password</label>
         <input style={{...s.input,marginBottom:14}} type="password"
           value={password} onChange={e=>setPassword(e.target.value)}
@@ -1313,7 +1230,7 @@ export default function App() {
   );
 
   // ══════════════════════════════════════════════════
-  // PROFILE SETUP (First time only)
+  // PROFILE SETUP
   // ══════════════════════════════════════════════════
   if(view==="setup") return (
     <div style={{...s.page,display:"flex",alignItems:"center",
@@ -1328,120 +1245,76 @@ export default function App() {
             Please complete your profile. You only need to do this once.
           </p>
         </div>
-
-        {/* Progress indicator */}
         <div style={{display:"flex",alignItems:"center",
           justifyContent:"center",gap:8,marginBottom:32}}>
           {["Personal Info","Academic","Contact"].map((step,i)=>(
             <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
               <div style={{width:28,height:28,borderRadius:"50%",
                 background:HW.red,display:"flex",alignItems:"center",
-                justifyContent:"center",fontSize:12,
-                fontWeight:800,color:HW.white}}>
-                {i+1}
-              </div>
+                justifyContent:"center",fontSize:12,fontWeight:800,
+                color:HW.white}}>{i+1}</div>
               <span style={{fontSize:12,color:HW.muted}}>{step}</span>
-              {i<2&&<div style={{width:30,height:1,
-                background:HW.border}}/>}
+              {i<2&&<div style={{width:30,height:1,background:HW.border}}/>}
             </div>
           ))}
         </div>
-
         <div style={s.card}>
-          <h3 style={{marginBottom:20,color:HW.red}}>
-            👤 Personal Information
-          </h3>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",
-            gap:14,marginBottom:20}}>
+          <h3 style={{marginBottom:20,color:HW.red}}>👤 Personal Information</h3>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
             <div style={{gridColumn:"1/-1"}}>
               <label style={s.label}>Full Name *</label>
-              <input style={s.input}
-                placeholder="e.g. Ahmed Mohammed Al-Rashidi"
+              <input style={s.input} placeholder="e.g. Ahmed Mohammed Al-Rashidi"
                 value={setupProfile.full_name}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,full_name:e.target.value})}/>
-            </div>
-            <div>
-              <label style={s.label}>Civil ID *</label>
+                onChange={e=>setSetupProfile({...setupProfile,full_name:e.target.value})}/></div>
+            <div><label style={s.label}>Civil ID *</label>
               <input style={s.input} placeholder="e.g. 10234567"
                 value={setupProfile.civil_id}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,civil_id:e.target.value})}/>
-            </div>
-            <div>
-              <label style={s.label}>Date of Birth</label>
-              <input style={s.input} type="date"
-                value={setupProfile.date_of_birth}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,date_of_birth:e.target.value})}/>
-            </div>
-            <div>
-              <label style={s.label}>Gender</label>
+                onChange={e=>setSetupProfile({...setupProfile,civil_id:e.target.value})}/></div>
+            <div><label style={s.label}>Date of Birth</label>
+              <input style={s.input} type="date" value={setupProfile.date_of_birth}
+                onChange={e=>setSetupProfile({...setupProfile,date_of_birth:e.target.value})}/></div>
+            <div><label style={s.label}>Gender</label>
               <select style={s.input} value={setupProfile.gender}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,gender:e.target.value})}>
+                onChange={e=>setSetupProfile({...setupProfile,gender:e.target.value})}>
                 <option value="">Select…</option>
                 <option value="Male">Male / ذكر</option>
                 <option value="Female">Female / أنثى</option>
-              </select>
-            </div>
-            <div>
-              <label style={s.label}>Nationality</label>
+              </select></div>
+            <div><label style={s.label}>Nationality</label>
               <input style={s.input} placeholder="e.g. Omani"
                 value={setupProfile.nationality}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,nationality:e.target.value})}/>
-            </div>
+                onChange={e=>setSetupProfile({...setupProfile,nationality:e.target.value})}/></div>
           </div>
-
           <h3 style={{marginBottom:16,color:HW.red,
             paddingTop:16,borderTop:`1px solid ${HW.border}`}}>
             📚 Academic Information
           </h3>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",
-            gap:14,marginBottom:20}}>
-            <div>
-              <label style={s.label}>Department</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+            <div><label style={s.label}>Department</label>
               <input style={s.input} placeholder="e.g. Engineering"
                 value={setupProfile.department}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,department:e.target.value})}/>
-            </div>
-            <div>
-              <label style={s.label}>GPA</label>
-              <input style={s.input} type="number"
-                placeholder="e.g. 3.85" min="0" max="4" step="0.01"
-                value={setupProfile.gpa}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,gpa:e.target.value})}/>
-            </div>
-            <div style={{gridColumn:"1/-1"}}>
-              <label style={s.label}>Assigned Mentor</label>
+                onChange={e=>setSetupProfile({...setupProfile,department:e.target.value})}/></div>
+            <div><label style={s.label}>GPA</label>
+              <input style={s.input} type="number" placeholder="e.g. 3.85"
+                min="0" max="4" step="0.01" value={setupProfile.gpa}
+                onChange={e=>setSetupProfile({...setupProfile,gpa:e.target.value})}/></div>
+            <div style={{gridColumn:"1/-1"}}><label style={s.label}>Assigned Mentor</label>
               <input style={s.input} placeholder="e.g. Dr. Fatima Al-Sayed"
                 value={setupProfile.assigned_mentor}
-                onChange={e=>setSetupProfile({
-                  ...setupProfile,assigned_mentor:e.target.value})}/>
-            </div>
+                onChange={e=>setSetupProfile({...setupProfile,assigned_mentor:e.target.value})}/></div>
           </div>
-
           <h3 style={{marginBottom:16,color:HW.red,
             paddingTop:16,borderTop:`1px solid ${HW.border}`}}>
             📞 Contact Information
           </h3>
-          <div>
-            <label style={s.label}>Phone Number</label>
+          <div><label style={s.label}>Phone Number</label>
             <input style={s.input} placeholder="e.g. +968-9100-0001"
               value={setupProfile.phone_number}
-              onChange={e=>setSetupProfile({
-                ...setupProfile,phone_number:e.target.value})}/>
-          </div>
-
+              onChange={e=>setSetupProfile({...setupProfile,phone_number:e.target.value})}/></div>
           <button style={{...s.btn,background:HW.red,color:HW.white,
-            width:"100%",padding:14,fontSize:15,marginTop:24,
-            opacity:loading?0.6:1}}
+            width:"100%",padding:14,fontSize:15,marginTop:24,opacity:loading?0.6:1}}
             onClick={saveSetupProfile} disabled={loading}>
-            {loading?"Saving your profile…":
-              "Complete Profile & Start →"}
+            {loading?"Saving your profile…":"Complete Profile & Start →"}
           </button>
           {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
             fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
@@ -1457,9 +1330,7 @@ export default function App() {
     <div style={s.page}>
       {showReminder&&<ReminderPopup onDismiss={()=>setShowReminder(false)}/>}
       {showGreeting&&(
-        <GreetingPopup
-          name={traineeName}
-          onDismiss={()=>setShowGreeting(false)}/>
+        <GreetingPopup name={traineeName} onDismiss={()=>setShowGreeting(false)}/>
       )}
 
       {/* Topbar */}
@@ -1472,9 +1343,7 @@ export default function App() {
             <h2 style={{margin:0,fontSize:20}}>
               {traineeName?`Welcome, ${traineeName}!`:"Trainee Dashboard"}
             </h2>
-            <p style={{color:HW.muted,fontSize:12,margin:0}}>
-              {user?.email}
-            </p>
+            <p style={{color:HW.muted,fontSize:12,margin:0}}>{user?.email}</p>
           </div>
         </div>
         <div style={{textAlign:"center"}}>
@@ -1487,11 +1356,9 @@ export default function App() {
           </div>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <button style={{...s.btn,background:HW.surface2,
-            color:HW.muted,fontSize:12}}
+          <button style={{...s.btn,background:HW.surface2,color:HW.muted,fontSize:12}}
             onClick={()=>setShowReminder(true)}>⏰</button>
-          <button style={{...s.btn,background:HW.surface2,
-            color:HW.muted,fontSize:12}}
+          <button style={{...s.btn,background:HW.surface2,color:HW.muted,fontSize:12}}
             onClick={()=>setShowGreeting(true)}>👋</button>
           <button style={{...s.btn,background:HW.red,color:HW.white}}
             onClick={logout}>Sign out</button>
@@ -1510,8 +1377,7 @@ export default function App() {
             style={{...s.btn,flex:1,padding:"13px",
               background:traineeTab===tab.id?HW.red:"none",
               color:traineeTab===tab.id?HW.white:HW.muted,
-              fontSize:14,borderRadius:8,fontWeight:700,
-              transition:"all .2s"}}>
+              fontSize:14,borderRadius:8,fontWeight:700,transition:"all .2s"}}>
             {tab.icon} {tab.label}
           </button>
         ))}
@@ -1521,11 +1387,11 @@ export default function App() {
       {traineeTab==="attendance"&&(
         <div>
           {/* Big clock */}
-          <div style={{...s.card,textAlign:"center",
-            border:`1px solid ${clockColor}40`}}>
+          <div style={{...s.card,textAlign:"center",border:`1px solid ${clockColor}40`}}>
             <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-              textTransform:"uppercase",letterSpacing:".1em",
-              marginBottom:8}}>Current Time</div>
+              textTransform:"uppercase",letterSpacing:".1em",marginBottom:8}}>
+              Current Time
+            </div>
             <div style={{fontSize:64,fontWeight:800,color:clockColor,
               fontFamily:"monospace",letterSpacing:8,
               textShadow:`0 0 40px ${clockColor}40`}}>
@@ -1533,16 +1399,13 @@ export default function App() {
             </div>
             <div style={{fontSize:13,color:HW.muted,marginTop:8}}>
               {currentTime.toLocaleDateString("en-GB",{
-                weekday:"long",day:"numeric",
-                month:"long",year:"numeric"})}
+                weekday:"long",day:"numeric",month:"long",year:"numeric"})}
             </div>
             <div style={{marginTop:12,display:"inline-block",
-              padding:"6px 20px",borderRadius:20,fontWeight:700,
-              fontSize:13,background:`${clockColor}15`,color:clockColor,
+              padding:"6px 20px",borderRadius:20,fontWeight:700,fontSize:13,
+              background:`${clockColor}15`,color:clockColor,
               border:`1px solid ${clockColor}40`}}>
-              {isLate
-                ?"⚠️ Past 9:00 AM — Excuse Required"
-                :"✅ On Time — You Can Sign In"}
+              {isLate?"⚠️ Past 9:00 AM — Excuse Required":"✅ On Time — You Can Sign In"}
             </div>
           </div>
 
@@ -1567,28 +1430,21 @@ export default function App() {
 
           <div style={s.card}>
             <h3 style={{marginBottom:18,color:HW.red}}>✅ Sign Attendance</h3>
-            <div style={{display:"grid",
-              gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div><label style={s.label}>Date</label>
-                <input style={s.input} type="date"
-                  value={attendance.report_date}
-                  onChange={e=>setAttendance({
-                    ...attendance,report_date:e.target.value})}/></div>
+                <input style={s.input} type="date" value={attendance.report_date}
+                  onChange={e=>setAttendance({...attendance,report_date:e.target.value})}/></div>
               <div>
                 <label style={s.label}>Your Sign-in Time (auto)</label>
-                <div style={{background:HW.surface2,
-                  border:`1px solid ${HW.border}`,borderRadius:8,
-                  padding:"9px 13px",fontSize:16,color:clockColor,
-                  fontWeight:800,fontFamily:"monospace"}}>
+                <div style={{background:HW.surface2,border:`1px solid ${HW.border}`,
+                  borderRadius:8,padding:"9px 13px",fontSize:16,
+                  color:clockColor,fontWeight:800,fontFamily:"monospace"}}>
                   {hh}:{mm}:{ss}
                 </div>
               </div>
-              <div style={{display:"flex",alignItems:"center",
-                gap:10,paddingTop:22}}>
-                <input type="checkbox" id="att"
-                  checked={attendance.attended}
-                  onChange={e=>setAttendance({
-                    ...attendance,attended:e.target.checked})}/>
+              <div style={{display:"flex",alignItems:"center",gap:10,paddingTop:22}}>
+                <input type="checkbox" id="att" checked={attendance.attended}
+                  onChange={e=>setAttendance({...attendance,attended:e.target.checked})}/>
                 <label htmlFor="att" style={{...s.label,margin:0}}>
                   I confirm attendance today
                 </label>
@@ -1597,16 +1453,14 @@ export default function App() {
                 <div style={{background:"rgba(207,10,44,.1)",
                   border:`1px solid rgba(207,10,44,.3)`,
                   borderRadius:8,padding:10,fontSize:12,color:HW.red}}>
-                  ⚠️ <b>Penalty Warning:</b> Not marked as attended —{" "}
-                  <b>8.33% deduction</b>
+                  ⚠️ <b>Penalty Warning:</b> Not marked as attended — <b>8.33% deduction</b>
                 </div>
               )}
             </div>
 
             {isLate&&(
-              <div style={{marginTop:16,background:HW.surface2,
-                borderRadius:12,padding:16,
-                border:`1px solid rgba(207,10,44,.3)`}}>
+              <div style={{marginTop:16,background:HW.surface2,borderRadius:12,
+                padding:16,border:`1px solid rgba(207,10,44,.3)`}}>
                 <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>
                   ⚠️ Late Arrival — Excuse Required
                 </div>
@@ -1615,10 +1469,7 @@ export default function App() {
                   <select style={s.input} value={excuseType}
                     onChange={e=>setExcuseType(e.target.value)}>
                     <option value="">Select reason…</option>
-                    <option value="traffic">
-                      🚗 Road Traffic{" "}
-                      {trafficCount>=2?"(LIMIT REACHED)":""}
-                    </option>
+                    <option value="traffic">🚗 Road Traffic {trafficCount>=2?"(LIMIT REACHED)":""}</option>
                     <option value="medical">🏥 Medical Emergency</option>
                     <option value="family">👨‍👩‍👧 Family Emergency</option>
                     <option value="other">📋 Other</option>
@@ -1628,35 +1479,29 @@ export default function App() {
                   <label style={s.label}>Excuse Description *</label>
                   <textarea style={{...s.input,height:80,resize:"vertical"}}
                     placeholder="Please describe your reason…"
-                    value={excuseText}
-                    onChange={e=>setExcuseText(e.target.value)}/>
+                    value={excuseText} onChange={e=>setExcuseText(e.target.value)}/>
                 </div>
                 <div>
                   <label style={s.label}>
-                    Proof Photo{" "}
-                    {excuseType==="traffic"?"(Required)":"(Optional)"}
+                    Proof Photo {excuseType==="traffic"?"(Required)":"(Optional)"}
                   </label>
                   <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                    <button style={{...s.btn,background:HW.surface,
-                      color:HW.text,border:`1px dashed ${HW.border}`}}
+                    <button style={{...s.btn,background:HW.surface,color:HW.text,
+                      border:`1px dashed ${HW.border}`}}
                       onClick={()=>excuseRef.current.click()}>
                       📷 {excusePhoto?"Change":"Upload Proof"}
                     </button>
                     <input ref={excuseRef} type="file" accept="image/*"
-                      style={{display:"none"}}
-                      onChange={handleExcusePhoto}/>
+                      style={{display:"none"}} onChange={handleExcusePhoto}/>
                     {excusePreview&&(
                       <img src={excusePreview} alt="proof"
-                        style={{width:60,height:60,objectFit:"cover",
-                          borderRadius:8}}/>
+                        style={{width:60,height:60,objectFit:"cover",borderRadius:8}}/>
                     )}
                   </div>
                   {excuseType==="traffic"&&(
                     <p style={{fontSize:11,color:HW.muted,marginTop:6}}>
                       Traffic excuses this month:{" "}
-                      <b style={{color:trafficCount>=2?HW.red:HW.text}}>
-                        {trafficCount}/2
-                      </b>
+                      <b style={{color:trafficCount>=2?HW.red:HW.text}}>{trafficCount}/2</b>
                     </p>
                   )}
                 </div>
@@ -1666,9 +1511,7 @@ export default function App() {
             {/* Face ID */}
             <div style={{marginTop:16,padding:16,background:HW.surface2,
               borderRadius:12,
-              border:faceCaptured
-                ?`1px solid rgba(207,10,44,.5)`
-                :`1px solid ${HW.border}`}}>
+              border:faceCaptured?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
               <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>
                 🤳 Face ID Verification
               </div>
@@ -1680,35 +1523,40 @@ export default function App() {
                 <div>
                   <video ref={videoRef} autoPlay playsInline
                     style={{width:"100%",maxWidth:280,borderRadius:10,
-                      border:`2px solid ${HW.red}`,display:"block",
-                      marginBottom:10}}/>
+                      border:`2px solid ${HW.red}`,display:"block",marginBottom:10}}/>
                   <canvas ref={canvasRef} style={{display:"none"}}/>
                   <div style={{display:"flex",gap:8}}>
-                    <button style={{...s.btn,background:HW.red,
-                      color:HW.white}} onClick={captureface}>
-                      📸 Capture
-                    </button>
+                    <button style={{...s.btn,background:HW.red,color:HW.white}}
+                      onClick={captureface}>📸 Capture</button>
                     <button style={{...s.btn,background:HW.surface,
                       color:HW.muted,border:`1px solid ${HW.border}`}}
                       onClick={stopCamera}>Cancel</button>
                   </div>
                 </div>
               )}
-              {faceCaptured&&(
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:48,height:48,borderRadius:"50%",
-                    background:"rgba(207,10,44,.15)",display:"flex",
-                    alignItems:"center",justifyContent:"center",
-                    fontSize:22}}>✅</div>
+              {/* ── Show captured face photo ── */}
+              {faceCaptured&&facePreviewUrl&&(
+                <div style={{display:"flex",alignItems:"center",gap:16}}>
+                  <img src={facePreviewUrl} alt="Face ID"
+                    style={{width:90,height:90,borderRadius:"50%",
+                      objectFit:"cover",
+                      border:`3px solid ${HW.red}`,
+                      boxShadow:`0 0 20px rgba(207,10,44,.3)`}}/>
                   <div>
-                    <div style={{fontWeight:700,color:HW.red}}>
-                      Face Captured
+                    <div style={{fontWeight:700,color:HW.red,fontSize:15,
+                      marginBottom:4}}>
+                      ✅ Face Captured Successfully
                     </div>
-                    <button style={{...s.btn,background:"none",
-                      color:HW.muted,padding:"2px 0",fontSize:12}}
+                    <div style={{fontSize:12,color:HW.muted,marginBottom:8}}>
+                      Identity verified
+                    </div>
+                    <button style={{...s.btn,background:"rgba(207,10,44,.1)",
+                      color:HW.red,padding:"5px 12px",fontSize:12}}
                       onClick={()=>{
-                        setFaceCaptured(false);setFaceCapture(null);
-                      }}>Retake</button>
+                        setFaceCaptured(false);
+                        setFaceCapture(null);
+                        setFacePreviewUrl(null);
+                      }}>🔄 Retake</button>
                   </div>
                 </div>
               )}
@@ -1717,18 +1565,18 @@ export default function App() {
             {/* Location */}
             <div style={{marginTop:12,padding:16,background:HW.surface2,
               borderRadius:12,
-              border:locationOk
-                ?`1px solid rgba(207,10,44,.5)`
-                :`1px solid ${HW.border}`}}>
+              border:locationOk?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
               <div style={{fontWeight:700,color:HW.red,marginBottom:10}}>
                 📍 Location Verification
               </div>
+              <p style={{fontSize:12,color:HW.muted,marginBottom:10}}>
+                Must be within <b style={{color:HW.text}}>{WORK_RADIUS}m</b> of workplace.
+              </p>
               <button style={{...s.btn,
                 background:locationOk?"rgba(207,10,44,.15)":HW.red,
                 color:locationOk?HW.red:HW.white,
                 opacity:geoStatus==="checking"?0.6:1}}
-                onClick={checkLocation}
-                disabled={geoStatus==="checking"}>
+                onClick={checkLocation} disabled={geoStatus==="checking"}>
                 {geoStatus==="checking"?"Checking…":
                  locationOk?"✅ Verified":"📍 Verify Location"}
               </button>
@@ -1741,23 +1589,18 @@ export default function App() {
               color:(locationOk&&faceCaptured)?HW.white:HW.muted,
               marginTop:16,width:"100%",padding:14,fontSize:15,
               opacity:loading?0.6:1,
-              cursor:(locationOk&&faceCaptured)
-                ?"pointer":"not-allowed"}}
+              cursor:(locationOk&&faceCaptured)?"pointer":"not-allowed"}}
               onClick={submitAttendance}
               disabled={loading||!locationOk||!faceCaptured}>
               {loading?"Saving…":"✅ Submit Attendance"}
             </button>
             {(!locationOk||!faceCaptured)&&(
-              <p style={{fontSize:12,color:HW.muted,
-                textAlign:"center",marginTop:8}}>
-                {!locationOk&&!faceCaptured
-                  ?"Verify location and face ID above"
-                  :!locationOk?"📍 Verify location first"
-                  :"🤳 Complete face ID first"}
+              <p style={{fontSize:12,color:HW.muted,textAlign:"center",marginTop:8}}>
+                {!locationOk&&!faceCaptured?"Verify location and face ID above"
+                  :!locationOk?"📍 Verify location first":"🤳 Complete face ID first"}
               </p>
             )}
-            {msg&&<p style={{
-              color:msg.startsWith("✅")?"#34d399":HW.red,
+            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
               fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
         </div>
@@ -1767,52 +1610,38 @@ export default function App() {
       {traineeTab==="tasks"&&(
         <div>
           <div style={s.card}>
-            <h3 style={{marginBottom:8,color:HW.red}}>
-              📋 Daily Tasks Report
-            </h3>
+            <h3 style={{marginBottom:8,color:HW.red}}>📋 Daily Tasks Report</h3>
             <p style={{color:HW.muted,fontSize:13,marginBottom:20}}>
-              Describe everything you worked on today. AI will analyze
-              your report and generate a KPI score.
+              Describe everything you worked on today. AI will analyze your report and generate a KPI score.
             </p>
-            <div style={{display:"grid",
-              gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div><label style={s.label}>Report Date</label>
-                <input style={s.input} type="date"
-                  value={taskReport.report_date}
-                  onChange={e=>setTaskReport({
-                    ...taskReport,report_date:e.target.value})}/></div>
-              <div style={{display:"flex",alignItems:"center",
-                gap:8,paddingTop:22}}>
+                <input style={s.input} type="date" value={taskReport.report_date}
+                  onChange={e=>setTaskReport({...taskReport,report_date:e.target.value})}/></div>
+              <div style={{display:"flex",alignItems:"center",gap:8,paddingTop:22}}>
                 <span style={{fontSize:20}}>💡</span>
-                <span style={{fontSize:12,color:HW.muted}}>
-                  More detail = higher AI score!
-                </span>
+                <span style={{fontSize:12,color:HW.muted}}>More detail = higher AI score!</span>
               </div>
               <div style={{gridColumn:"1/-1"}}>
-                <label style={s.label}>
-                  What did you work on today? *
-                </label>
+                <label style={s.label}>What did you work on today? *</label>
                 <textarea style={{...s.input,height:180,resize:"vertical"}}
-                  placeholder="Example: Completed the circuit analysis report and submitted it to my mentor. Attended a 2-hour lab session. Reviewed the safety protocols document. Participated in team meeting and took minutes..."
+                  placeholder="Example: Completed the circuit analysis report and submitted it to my mentor. Attended a 2-hour lab session. Reviewed safety protocols..."
                   value={taskReport.report_text}
-                  onChange={e=>setTaskReport({
-                    ...taskReport,report_text:e.target.value})}/>
+                  onChange={e=>setTaskReport({...taskReport,report_text:e.target.value})}/>
               </div>
               <div style={{gridColumn:"1/-1"}}>
                 <label style={s.label}>📸 Proof Photo (optional)</label>
                 <div style={{display:"flex",gap:12,alignItems:"center"}}>
-                  <button style={{...s.btn,background:HW.surface2,
-                    color:HW.text,border:`1px dashed ${HW.border}`}}
+                  <button style={{...s.btn,background:HW.surface2,color:HW.text,
+                    border:`1px dashed ${HW.border}`}}
                     onClick={()=>photoRef.current.click()}>
                     {photoFile?"📷 Change Photo":"📷 Upload Photo"}
                   </button>
                   <input ref={photoRef} type="file" accept="image/*"
-                    style={{display:"none"}}
-                    onChange={handleProofPhoto}/>
+                    style={{display:"none"}} onChange={handleProofPhoto}/>
                   {photoPreview&&(
                     <img src={photoPreview} alt="preview"
-                      style={{width:60,height:60,objectFit:"cover",
-                        borderRadius:8}}/>
+                      style={{width:60,height:60,objectFit:"cover",borderRadius:8}}/>
                   )}
                 </div>
               </div>
@@ -1821,66 +1650,44 @@ export default function App() {
               marginTop:16,width:"100%",padding:14,fontSize:15,
               opacity:(loading||aiLoading)?0.6:1}}
               onClick={submitTasks} disabled={loading||aiLoading}>
-              {aiLoading?"🤖 AI Analyzing…":loading?"Saving…":
-                "📋 Submit Daily Tasks ✓"}
+              {aiLoading?"🤖 AI Analyzing…":loading?"Saving…":"📋 Submit Daily Tasks ✓"}
             </button>
-            {msg&&<p style={{
-              color:msg.startsWith("✅")?"#34d399":
-                msg.startsWith("🤖")?"#FFA500":HW.red,
+            {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":
+              msg.startsWith("🤖")?"#FFA500":HW.red,
               fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
-
           {aiResult&&(
-            <div style={{...s.card,
-              border:`1px solid rgba(207,10,44,.4)`}}>
-              <h3 style={{marginBottom:20,color:HW.red}}>
-                🤖 AI Analysis Result
-              </h3>
-              <div style={{display:"grid",
-                gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
-                <div style={{background:HW.surface2,borderRadius:12,
-                  padding:16,textAlign:"center"}}>
+            <div style={{...s.card,border:`1px solid rgba(207,10,44,.4)`}}>
+              <h3 style={{marginBottom:20,color:HW.red}}>🤖 AI Analysis Result</h3>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+                <div style={{background:HW.surface2,borderRadius:12,padding:16,textAlign:"center"}}>
                   <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                    textTransform:"uppercase",marginBottom:8}}>
-                    KPI Score
-                  </div>
-                  <div style={{fontSize:52,fontWeight:800,
-                    color:kpiColor(aiResult.kpi_score)}}>
+                    textTransform:"uppercase",marginBottom:8}}>KPI Score</div>
+                  <div style={{fontSize:52,fontWeight:800,color:kpiColor(aiResult.kpi_score)}}>
                     {aiResult.kpi_score}
                   </div>
                   <div style={{fontSize:11,color:HW.muted}}>out of 100</div>
                 </div>
-                <div style={{background:HW.surface2,borderRadius:12,
-                  padding:16}}>
+                <div style={{background:HW.surface2,borderRadius:12,padding:16}}>
                   <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                    textTransform:"uppercase",marginBottom:12}}>
-                    Task Breakdown
-                  </div>
-                  {aiResult.pie_chart&&
-                    <PieChart data={aiResult.pie_chart}/>}
+                    textTransform:"uppercase",marginBottom:12}}>Task Breakdown</div>
+                  {aiResult.pie_chart&&<PieChart data={aiResult.pie_chart}/>}
                 </div>
               </div>
               {aiResult.summary&&(
-                <div style={{background:HW.surface2,borderRadius:10,
-                  padding:14,marginBottom:12,
-                  borderLeft:`3px solid ${HW.red}`}}>
+                <div style={{background:HW.surface2,borderRadius:10,padding:14,
+                  marginBottom:12,borderLeft:`3px solid ${HW.red}`}}>
                   <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                    marginBottom:6,textTransform:"uppercase"}}>
-                    Day Summary
-                  </div>
+                    marginBottom:6,textTransform:"uppercase"}}>Day Summary</div>
                   <div style={{fontSize:14}}>{aiResult.summary}</div>
                 </div>
               )}
               {aiResult.talent_notes&&(
-                <div style={{background:HW.surface2,borderRadius:10,
-                  padding:14,borderLeft:"3px solid #FFA500"}}>
+                <div style={{background:HW.surface2,borderRadius:10,padding:14,
+                  borderLeft:"3px solid #FFA500"}}>
                   <div style={{fontSize:11,color:"#FFA500",fontWeight:700,
-                    marginBottom:6,textTransform:"uppercase"}}>
-                    🌟 Talent Notes
-                  </div>
-                  <div style={{fontSize:14,lineHeight:1.6}}>
-                    {aiResult.talent_notes}
-                  </div>
+                    marginBottom:6,textTransform:"uppercase"}}>🌟 Talent Notes</div>
+                  <div style={{fontSize:14,lineHeight:1.6}}>{aiResult.talent_notes}</div>
                 </div>
               )}
             </div>
@@ -1896,23 +1703,17 @@ export default function App() {
             gap:12,marginBottom:24}}>
             {KRA_CATEGORIES.map(kra=>{
               const kraGoals=goals.filter(g=>g.kra===kra.id);
-              const completed=kraGoals.filter(
-                g=>g.status==="completed").length;
+              const completed=kraGoals.filter(g=>g.status==="completed").length;
               return (
                 <div key={kra.id} style={{background:HW.surface,
-                  border:`1px solid ${HW.border}`,borderRadius:12,
-                  padding:16,cursor:"pointer",
-                  borderTop:`3px solid ${kra.color}`,
+                  border:`1px solid ${HW.border}`,borderRadius:12,padding:16,
+                  cursor:"pointer",borderTop:`3px solid ${kra.color}`,
                   opacity:goalFilter===kra.id?1:0.7,
-                  outline:goalFilter===kra.id
-                    ?`2px solid ${kra.color}`:"none"}}
-                  onClick={()=>setGoalFilter(
-                    goalFilter===kra.id?"all":kra.id)}>
+                  outline:goalFilter===kra.id?`2px solid ${kra.color}`:"none"}}
+                  onClick={()=>setGoalFilter(goalFilter===kra.id?"all":kra.id)}>
                   <div style={{fontSize:22,marginBottom:6}}>{kra.icon}</div>
                   <div style={{fontSize:11,fontWeight:700,color:kra.color,
-                    textTransform:"uppercase",marginBottom:4}}>
-                    {kra.label}
-                  </div>
+                    textTransform:"uppercase",marginBottom:4}}>{kra.label}</div>
                   <div style={{fontSize:13,color:HW.muted}}>
                     {kraGoals.length} goals · {completed} done
                   </div>
@@ -1920,55 +1721,36 @@ export default function App() {
               );
             })}
           </div>
-
-          <div style={{display:"grid",
-            gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",
+            gap:12,marginBottom:20}}>
             {[
               {label:"Total Goals",value:goals.length,color:HW.red},
-              {label:"In Progress",
-                value:goals.filter(g=>g.status==="in_progress").length,
-                color:"#4f8ef7"},
-              {label:"Completed",
-                value:goals.filter(g=>g.status==="completed").length,
-                color:"#34d399"},
-              {label:"Overdue",
-                value:goals.filter(g=>g.due_date&&
-                  new Date(g.due_date)<new Date()&&
-                  g.status!=="completed").length,
-                color:"#f87171"},
+              {label:"In Progress",value:goals.filter(g=>g.status==="in_progress").length,color:"#4f8ef7"},
+              {label:"Completed",value:goals.filter(g=>g.status==="completed").length,color:"#34d399"},
+              {label:"Overdue",value:goals.filter(g=>g.due_date&&
+                new Date(g.due_date)<new Date()&&g.status!=="completed").length,color:"#f87171"},
             ].map((stat,i)=>(
-              <div key={i} style={{background:HW.surface,
-                border:`1px solid ${HW.border}`,borderRadius:12,
-                padding:14,textAlign:"center",
+              <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                borderRadius:12,padding:14,textAlign:"center",
                 borderTop:`3px solid ${stat.color}`}}>
-                <div style={{fontSize:24,fontWeight:800,color:stat.color}}>
-                  {stat.value}
-                </div>
-                <div style={{fontSize:11,color:HW.muted,marginTop:4}}>
-                  {stat.label}
-                </div>
+                <div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div>
+                <div style={{fontSize:11,color:HW.muted,marginTop:4}}>{stat.label}</div>
               </div>
             ))}
           </div>
-
           <div style={{display:"flex",justifyContent:"space-between",
             alignItems:"center",marginBottom:16}}>
             <h3 style={{margin:0}}>
               {goalFilter==="all"?"All Goals"
-                :`${KRA_CATEGORIES.find(k=>k.id===goalFilter)
-                  ?.label||""} Goals`}
-              <span style={{fontSize:13,color:HW.muted,fontWeight:400,
-                marginLeft:8}}>
+                :`${KRA_CATEGORIES.find(k=>k.id===goalFilter)?.label||""} Goals`}
+              <span style={{fontSize:13,color:HW.muted,fontWeight:400,marginLeft:8}}>
                 ({filteredGoals.length})
               </span>
             </h3>
             <div style={{display:"flex",gap:8}}>
               {goalFilter!=="all"&&(
-                <button style={{...s.btn,background:HW.surface2,
-                  color:HW.muted,fontSize:12}}
-                  onClick={()=>setGoalFilter("all")}>
-                  Show All
-                </button>
+                <button style={{...s.btn,background:HW.surface2,color:HW.muted,fontSize:12}}
+                  onClick={()=>setGoalFilter("all")}>Show All</button>
               )}
               <button style={{...s.btn,background:HW.red,color:HW.white}}
                 onClick={()=>setShowAddGoal(!showAddGoal)}>
@@ -1976,59 +1758,39 @@ export default function App() {
               </button>
             </div>
           </div>
-
           {showAddGoal&&(
-            <div style={{...s.card,
-              border:`1px solid rgba(207,10,44,.3)`,marginBottom:20}}>
-              <h4 style={{marginBottom:16,color:HW.red}}>
-                🎯 Set New Goal
-              </h4>
-              <div style={{display:"grid",
-                gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{...s.card,border:`1px solid rgba(207,10,44,.3)`,marginBottom:20}}>
+              <h4 style={{marginBottom:16,color:HW.red}}>🎯 Set New Goal</h4>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                 <div><label style={s.label}>KRA Category</label>
                   <select style={s.input} value={newGoal.kra}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,kra:e.target.value})}>
+                    onChange={e=>setNewGoal({...newGoal,kra:e.target.value})}>
                     {KRA_CATEGORIES.map(k=>(
-                      <option key={k.id} value={k.id}>
-                        {k.icon} {k.label}
-                      </option>
+                      <option key={k.id} value={k.id}>{k.icon} {k.label}</option>
                     ))}
-                  </select>
-                </div>
+                  </select></div>
                 <div><label style={s.label}>Status</label>
                   <select style={s.input} value={newGoal.status}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,status:e.target.value})}>
+                    onChange={e=>setNewGoal({...newGoal,status:e.target.value})}>
                     <option value="not_started">⬜ Not Started</option>
                     <option value="in_progress">🔵 In Progress</option>
-                  </select>
-                </div>
-                <div style={{gridColumn:"1/-1"}}>
-                  <label style={s.label}>Goal Title *</label>
+                  </select></div>
+                <div style={{gridColumn:"1/-1"}}><label style={s.label}>Goal Title *</label>
                   <input style={s.input}
                     placeholder="e.g. Achieve 95% attendance this month"
                     value={newGoal.goal_title}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,goal_title:e.target.value})}/>
-                </div>
-                <div style={{gridColumn:"1/-1"}}>
-                  <label style={s.label}>Description</label>
+                    onChange={e=>setNewGoal({...newGoal,goal_title:e.target.value})}/></div>
+                <div style={{gridColumn:"1/-1"}}><label style={s.label}>Description</label>
                   <textarea style={{...s.input,height:70,resize:"vertical"}}
                     placeholder="How do you plan to achieve this?"
                     value={newGoal.description}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,description:e.target.value})}/>
-                </div>
+                    onChange={e=>setNewGoal({...newGoal,description:e.target.value})}/></div>
                 <div><label style={s.label}>Target Value</label>
-                  <input style={s.input} type="number"
-                    value={newGoal.target_value}
-                    onChange={e=>setNewGoal({...newGoal,
-                      target_value:parseFloat(e.target.value)})}/></div>
+                  <input style={s.input} type="number" value={newGoal.target_value}
+                    onChange={e=>setNewGoal({...newGoal,target_value:parseFloat(e.target.value)})}/></div>
                 <div><label style={s.label}>Unit</label>
                   <select style={s.input} value={newGoal.unit}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,unit:e.target.value})}>
+                    onChange={e=>setNewGoal({...newGoal,unit:e.target.value})}>
                     <option value="%">%</option>
                     <option value="days">Days</option>
                     <option value="sessions">Sessions</option>
@@ -2036,42 +1798,32 @@ export default function App() {
                     <option value="tasks">Tasks</option>
                     <option value="hours">Hours</option>
                     <option value="score">Score</option>
-                  </select>
-                </div>
+                  </select></div>
                 <div><label style={s.label}>Start Date</label>
-                  <input style={s.input} type="date"
-                    value={newGoal.start_date}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,start_date:e.target.value})}/></div>
+                  <input style={s.input} type="date" value={newGoal.start_date}
+                    onChange={e=>setNewGoal({...newGoal,start_date:e.target.value})}/></div>
                 <div><label style={s.label}>Due Date</label>
-                  <input style={s.input} type="date"
-                    value={newGoal.due_date}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,due_date:e.target.value})}/></div>
+                  <input style={s.input} type="date" value={newGoal.due_date}
+                    onChange={e=>setNewGoal({...newGoal,due_date:e.target.value})}/></div>
               </div>
               <button style={{...s.btn,background:HW.red,color:HW.white,
                 marginTop:16,opacity:loading?0.6:1}}
                 onClick={addGoal} disabled={loading}>
                 {loading?"Saving…":"🎯 Set Goal"}
               </button>
-              {msg&&<p style={{
-                color:msg.startsWith("✅")?"#34d399":HW.red,
+              {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
                 fontSize:13,marginTop:10}}>{msg}</p>}
             </div>
           )}
-
           {filteredGoals.length===0?(
             <div style={{...s.card,textAlign:"center",padding:40}}>
               <div style={{fontSize:40,marginBottom:12}}>🎯</div>
-              <p style={{color:HW.muted}}>
-                No goals yet. Click "+ Add Goal" to get started!
-              </p>
+              <p style={{color:HW.muted}}>No goals yet. Click "+ Add Goal" to get started!</p>
             </div>
           ):(
             filteredGoals.map(goal=>(
               <GoalCard key={goal.id} goal={goal}
-                onUpdate={updateGoal} onDelete={deleteGoal}
-                isTrainee={true}/>
+                onUpdate={updateGoal} onDelete={deleteGoal} isTrainee={true}/>
             ))
           )}
           {msg&&!showAddGoal&&(
@@ -2097,9 +1849,7 @@ export default function App() {
             <HuaweiLogo size={36}/>
             <div>
               <h2 style={{margin:0,fontSize:20}}>Management Dashboard</h2>
-              <p style={{color:HW.muted,fontSize:12,margin:0}}>
-                {user?.email}
-              </p>
+              <p style={{color:HW.muted,fontSize:12,margin:0}}>{user?.email}</p>
             </div>
           </div>
           <div style={{textAlign:"center"}}>
@@ -2112,8 +1862,7 @@ export default function App() {
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
-            <button style={{...s.btn,
-              background:"rgba(207,10,44,.15)",color:HW.red}}
+            <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red}}
               onClick={exportExcel}>📊 Export Excel</button>
             <button style={{...s.btn,background:HW.red,color:HW.white}}
               onClick={logout}>Sign out</button>
@@ -2129,8 +1878,7 @@ export default function App() {
                 background:mgmtTab===tab?HW.surface:"none",
                 color:mgmtTab===tab?HW.text:HW.muted,
                 fontSize:13,borderRadius:7,
-                borderBottom:mgmtTab===tab
-                  ?`2px solid ${HW.red}`:"none"}}>
+                borderBottom:mgmtTab===tab?`2px solid ${HW.red}`:"none"}}>
               {tab==="trainees"?"👥 Trainees":
                tab==="live"?"📡 Live Sign-ins":
                tab==="analytics"?"📊 KPI Analytics":"🎯 OKR"}
@@ -2138,55 +1886,36 @@ export default function App() {
           ))}
         </div>
 
-        {/* LIVE SIGN-INS */}
+        {/* LIVE */}
         {mgmtTab==="live"&&(
           <div>
             <div style={{display:"grid",
               gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",
               gap:16,marginBottom:24}}>
               {[
-                {label:"Signed In Today",
-                  value:liveSignins.filter(s=>s.attended).length,
-                  icon:"✅",color:"#34d399"},
-                {label:"Absent Today",
-                  value:liveSignins.filter(s=>!s.attended).length,
-                  icon:"❌",color:HW.red},
-                {label:"On Time",
-                  value:liveSignins.filter(s=>
-                    s.signin_time&&s.signin_time<=MAX_SIGNIN).length,
-                  icon:"⏰",color:"#4f8ef7"},
-                {label:"Late",
-                  value:liveSignins.filter(s=>
-                    s.signin_time&&s.signin_time>MAX_SIGNIN).length,
-                  icon:"⚠️",color:"#FFA500"},
+                {label:"Signed In Today",value:liveSignins.filter(s=>s.attended).length,icon:"✅",color:"#34d399"},
+                {label:"Absent Today",value:liveSignins.filter(s=>!s.attended).length,icon:"❌",color:HW.red},
+                {label:"On Time",value:liveSignins.filter(s=>s.signin_time&&s.signin_time<=MAX_SIGNIN).length,icon:"⏰",color:"#4f8ef7"},
+                {label:"Late",value:liveSignins.filter(s=>s.signin_time&&s.signin_time>MAX_SIGNIN).length,icon:"⚠️",color:"#FFA500"},
               ].map((stat,i)=>(
-                <div key={i} style={{background:HW.surface,
-                  border:`1px solid ${HW.border}`,borderRadius:14,
-                  padding:20,borderTop:`3px solid ${stat.color}`}}>
+                <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                  borderRadius:14,padding:20,borderTop:`3px solid ${stat.color}`}}>
                   <div style={{fontSize:24,marginBottom:8}}>{stat.icon}</div>
-                  <div style={{fontSize:28,fontWeight:800,color:stat.color}}>
-                    {stat.value}
-                  </div>
-                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>
-                    {stat.label}
-                  </div>
+                  <div style={{fontSize:28,fontWeight:800,color:stat.color}}>{stat.value}</div>
+                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>{stat.label}</div>
                 </div>
               ))}
             </div>
-
             <div style={s.card}>
               <div style={{display:"flex",justifyContent:"space-between",
                 alignItems:"center",marginBottom:16}}>
                 <h3 style={{margin:0}}>📡 Live Sign-in Feed</h3>
                 <div style={{display:"flex",alignItems:"center",gap:6,
-                  background:"rgba(52,211,153,.1)",
-                  border:"1px solid rgba(52,211,153,.3)",
+                  background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.3)",
                   borderRadius:20,padding:"4px 12px"}}>
-                  <div style={{width:8,height:8,borderRadius:"50%",
-                    background:"#34d399",
+                  <div style={{width:8,height:8,borderRadius:"50%",background:"#34d399",
                     animation:"pulse 1.5s infinite"}}/>
-                  <span style={{fontSize:12,color:"#34d399",
-                    fontWeight:700}}>LIVE</span>
+                  <span style={{fontSize:12,color:"#34d399",fontWeight:700}}>LIVE</span>
                 </div>
               </div>
               <style>{`
@@ -2196,64 +1925,48 @@ export default function App() {
               {liveSignins.length===0?(
                 <div style={{textAlign:"center",padding:40}}>
                   <div style={{fontSize:40,marginBottom:12}}>📡</div>
-                  <p style={{color:HW.muted}}>
-                    No sign-ins yet today. Waiting…
-                  </p>
+                  <p style={{color:HW.muted}}>No sign-ins yet today. Waiting…</p>
                 </div>
               ):(
                 liveSignins.map((signin,i)=>(
-                  <div key={signin.id} style={{display:"flex",
-                    alignItems:"center",gap:16,padding:"14px 16px",
-                    background:HW.surface2,borderRadius:12,marginBottom:10,
+                  <div key={signin.id} style={{display:"flex",alignItems:"center",
+                    gap:16,padding:"14px 16px",background:HW.surface2,
+                    borderRadius:12,marginBottom:10,
                     borderLeft:`4px solid ${signin.attended?"#34d399":HW.red}`,
                     animation:i===0?"slideIn .4s ease":"none"}}>
                     <div style={{width:44,height:44,borderRadius:"50%",
                       background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,
-                      display:"flex",alignItems:"center",
-                      justifyContent:"center",fontSize:16,
-                      fontWeight:800,color:HW.white,flexShrink:0}}>
-                      {signin.full_name?.split(" ")
-                        .map(w=>w[0]).join("").slice(0,2)}
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:16,fontWeight:800,color:HW.white,flexShrink:0}}>
+                      {signin.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}
                     </div>
                     <div style={{flex:1}}>
-                      <div style={{fontWeight:700,fontSize:15}}>
-                        {signin.full_name}
-                      </div>
-                      <div style={{fontSize:12,color:HW.muted,marginTop:2}}>
-                        {signin.department}
-                      </div>
+                      <div style={{fontWeight:700,fontSize:15}}>{signin.full_name}</div>
+                      <div style={{fontSize:12,color:HW.muted,marginTop:2}}>{signin.department}</div>
                     </div>
                     <div style={{textAlign:"center"}}>
-                      <div style={{fontSize:20,fontWeight:800,
-                        fontFamily:"monospace",
-                        color:signin.signin_time>MAX_SIGNIN
-                          ?HW.red:"#34d399"}}>
+                      <div style={{fontSize:20,fontWeight:800,fontFamily:"monospace",
+                        color:signin.signin_time>MAX_SIGNIN?HW.red:"#34d399"}}>
                         {signin.signin_time||"—"}
                       </div>
-                      <div style={{fontSize:10,color:HW.muted}}>
-                        Sign-in
-                      </div>
+                      <div style={{fontSize:10,color:HW.muted}}>Sign-in</div>
                     </div>
                     <div style={{textAlign:"right"}}>
-                      <span style={{padding:"4px 12px",borderRadius:20,
-                        fontSize:12,fontWeight:700,
-                        background:signin.attended
-                          ?"rgba(52,211,153,.15)"
-                          :"rgba(207,10,44,.15)",
+                      <span style={{padding:"4px 12px",borderRadius:20,fontSize:12,
+                        fontWeight:700,
+                        background:signin.attended?"rgba(52,211,153,.15)":"rgba(207,10,44,.15)",
                         color:signin.attended?"#34d399":HW.red}}>
                         {signin.attended?"● Present":"○ Absent"}
                       </span>
                       {signin.penalty_applied&&(
-                        <div style={{fontSize:11,color:HW.red,
-                          marginTop:4,fontWeight:700}}>
+                        <div style={{fontSize:11,color:HW.red,marginTop:4,fontWeight:700}}>
                           ⚠️ Penalty
                         </div>
                       )}
                       <div style={{fontSize:10,color:HW.muted,marginTop:4}}>
                         {signin.timestamp instanceof Date
                           ?signin.timestamp.toLocaleTimeString("en-GB",
-                            {hour:"2-digit",minute:"2-digit"})
-                          :"—"}
+                            {hour:"2-digit",minute:"2-digit"}):"—"}
                       </div>
                     </div>
                   </div>
@@ -2269,40 +1982,29 @@ export default function App() {
             <h3 style={{marginBottom:16}}>All Trainees</h3>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead><tr>
-                {["Name","Department","Mentor","GPA","Joined",
-                  "Status",""].map(h=>(
+                {["Name","Department","Mentor","GPA","Joined","Status",""].map(h=>(
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr></thead>
               <tbody>
                 {trainees.map(t=>(
-                  <tr key={t.id} style={{cursor:"pointer",
-                    opacity:t.status==="dropped"?0.4:1}}
+                  <tr key={t.id} style={{cursor:"pointer",opacity:t.status==="dropped"?0.4:1}}
                     onClick={()=>openProfile(t)}>
                     <td style={s.td}><b>{t.full_name}</b></td>
                     <td style={s.td}>{t.department}</td>
-                    <td style={{...s.td,color:HW.muted,fontSize:13}}>
-                      {t.assigned_mentor}
-                    </td>
+                    <td style={{...s.td,color:HW.muted,fontSize:13}}>{t.assigned_mentor}</td>
                     <td style={s.td}><b>{t.gpa}</b></td>
-                    <td style={{...s.td,color:HW.muted,fontSize:12}}>
-                      {t.joining_date||"—"}
-                    </td>
+                    <td style={{...s.td,color:HW.muted,fontSize:12}}>{t.joining_date||"—"}</td>
                     <td style={s.td}>
-                      <span style={{padding:"3px 10px",borderRadius:20,
-                        fontSize:11,fontWeight:700,
-                        background:statusColors[t.status]?.bg,
-                        color:statusColors[t.status]?.color}}>
+                      <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
+                        background:statusColors[t.status]?.bg,color:statusColors[t.status]?.color}}>
                         {t.status}
                       </span>
                     </td>
                     <td style={s.td}>
-                      <button style={{...s.btn,
-                        background:"rgba(207,10,44,.1)",color:HW.red,
+                      <button style={{...s.btn,background:"rgba(207,10,44,.1)",color:HW.red,
                         fontSize:11,padding:"4px 10px"}}
-                        onClick={e=>{
-                          e.stopPropagation();exportPDF(t);
-                        }}>📄 PDF</button>
+                        onClick={e=>{e.stopPropagation();exportPDF(t);}}>📄 PDF</button>
                     </td>
                   </tr>
                 ))}
@@ -2311,10 +2013,7 @@ export default function App() {
             {trainees.length===0&&(
               <div style={{textAlign:"center",padding:40}}>
                 <div style={{fontSize:40,marginBottom:12}}>👥</div>
-                <p style={{color:HW.muted}}>
-                  No trainees yet. They will appear here once they
-                  complete their profile setup.
-                </p>
+                <p style={{color:HW.muted}}>No trainees yet.</p>
               </div>
             )}
             {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
@@ -2334,50 +2033,35 @@ export default function App() {
               <div style={{display:"flex",alignItems:"center",gap:16}}>
                 <div style={{width:56,height:56,borderRadius:14,
                   background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,
-                  display:"flex",alignItems:"center",
-                  justifyContent:"center",fontSize:22,
-                  fontWeight:800,color:HW.white}}>
-                  {selected.full_name?.split(" ")
-                    .map(w=>w[0]).join("").slice(0,2)}
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:22,fontWeight:800,color:HW.white}}>
+                  {selected.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}
                 </div>
                 <div>
-                  <div style={{fontWeight:700,fontSize:18}}>
-                    {selected.full_name}
-                  </div>
+                  <div style={{fontWeight:700,fontSize:18}}>{selected.full_name}</div>
                   <div style={{color:HW.muted,fontSize:13}}>
                     {selected.department} · {selected.assigned_mentor}
                   </div>
-                  <div style={{display:"flex",gap:16,marginTop:4,
-                    flexWrap:"wrap"}}>
+                  <div style={{display:"flex",gap:16,marginTop:4,flexWrap:"wrap"}}>
                     <span style={{fontSize:12,color:HW.muted}}>
-                      📅 Joined:{" "}
-                      <b style={{color:HW.text}}>
-                        {selected.joining_date||"—"}
-                      </b>
+                      📅 Joined: <b style={{color:HW.text}}>{selected.joining_date||"—"}</b>
                     </span>
                     {selected.quitting_date&&(
                       <span style={{fontSize:12,color:HW.muted}}>
-                        🚪 Quit:{" "}
-                        <b style={{color:HW.red}}>
-                          {selected.quitting_date}
-                        </b>
+                        🚪 Quit: <b style={{color:HW.red}}>{selected.quitting_date}</b>
                       </span>
                     )}
                     {selected.joining_date&&(
                       <span style={{fontSize:12,color:HW.muted}}>
-                        ⏱{" "}
-                        <b style={{color:HW.text}}>
-                          {Math.floor((new Date(
-                            selected.quitting_date||new Date())-
-                            new Date(selected.joining_date))/
-                            (1000*60*60*24))} days
+                        ⏱ <b style={{color:HW.text}}>
+                          {Math.floor((new Date(selected.quitting_date||new Date())-
+                            new Date(selected.joining_date))/(1000*60*60*24))} days
                         </b>
                       </span>
                     )}
                   </div>
-                  <span style={{padding:"3px 10px",borderRadius:20,
-                    fontSize:11,fontWeight:700,marginTop:6,
-                    display:"inline-block",
+                  <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,
+                    fontWeight:700,marginTop:6,display:"inline-block",
                     background:statusColors[selected.status]?.bg,
                     color:statusColors[selected.status]?.color}}>
                     {selected.status}
@@ -2385,41 +2069,23 @@ export default function App() {
                 </div>
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <button style={{...s.btn,
-                  background:"rgba(207,10,44,.15)",
-                  color:HW.red,fontSize:12}}
+                <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
                   onClick={()=>exportPDF()}>📄 PDF</button>
                 {selected.status!=="active"&&(
-                  <button style={{...s.btn,
-                    background:"rgba(207,10,44,.15)",
-                    color:HW.red,fontSize:12}}
-                    onClick={()=>changeStatus("active")}>
-                    ✅ Reactivate
-                  </button>
+                  <button style={{...s.btn,background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
+                    onClick={()=>changeStatus("active")}>✅ Reactivate</button>
                 )}
                 {selected.status!=="transferred"&&(
-                  <button style={{...s.btn,
-                    background:"rgba(255,165,0,.15)",
-                    color:"#FFA500",fontSize:12}}
-                    onClick={()=>changeStatus("transferred")}>
-                    🔄 Transferred
-                  </button>
+                  <button style={{...s.btn,background:"rgba(255,165,0,.15)",color:"#FFA500",fontSize:12}}
+                    onClick={()=>changeStatus("transferred")}>🔄 Transferred</button>
                 )}
                 {selected.status!=="inactive"&&(
-                  <button style={{...s.btn,
-                    background:"rgba(136,136,136,.15)",
-                    color:HW.muted,fontSize:12}}
-                    onClick={()=>changeStatus("inactive")}>
-                    ⏸ Inactive
-                  </button>
+                  <button style={{...s.btn,background:"rgba(136,136,136,.15)",color:HW.muted,fontSize:12}}
+                    onClick={()=>changeStatus("inactive")}>⏸ Inactive</button>
                 )}
                 {selected.status!=="dropped"&&(
-                  <button style={{...s.btn,
-                    background:"rgba(100,100,100,.2)",
-                    color:"#666",fontSize:12}}
-                    onClick={()=>changeStatus("dropped")}>
-                    🔴 Dropped
-                  </button>
+                  <button style={{...s.btn,background:"rgba(100,100,100,.2)",color:"#666",fontSize:12}}
+                    onClick={()=>changeStatus("dropped")}>🔴 Dropped</button>
                 )}
               </div>
             </div>
@@ -2432,12 +2098,9 @@ export default function App() {
                     background:profileTab===tab?HW.surface:"none",
                     color:profileTab===tab?HW.text:HW.muted,
                     fontSize:11,borderRadius:7,
-                    borderBottom:profileTab===tab
-                      ?`2px solid ${HW.red}`:"none"}}>
-                  {tab==="timeline"?"📅 Timeline":
-                   tab==="edit"?"✏️ Edit":
-                   tab==="reports"?"📋 Reports":
-                   tab==="penalties"?"⚠️ Penalties":"🎯 Goals"}
+                    borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
+                  {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":
+                   tab==="reports"?"📋 Reports":tab==="penalties"?"⚠️ Penalties":"🎯 Goals"}
                 </button>
               ))}
             </div>
@@ -2445,45 +2108,33 @@ export default function App() {
             {profileTab==="timeline"&&(
               <div style={s.card}>
                 <h3 style={{marginBottom:20}}>Activity Timeline</h3>
-                {logs.length===0
-                  ?<p style={{color:HW.muted}}>No activity yet.</p>
+                {logs.length===0?<p style={{color:HW.muted}}>No activity yet.</p>
                   :logs.map((log,i)=>(
                     <div key={log.id} style={{display:"flex",gap:16,
                       marginBottom:20,position:"relative"}}>
                       {i<logs.length-1&&(
                         <div style={{position:"absolute",left:19,top:40,
-                          width:2,height:"calc(100% + 4px)",
-                          background:HW.border}}/>
+                          width:2,height:"calc(100% + 4px)",background:HW.border}}/>
                       )}
                       <div style={{width:40,height:40,borderRadius:"50%",
-                        background:HW.surface2,
-                        border:`2px solid ${HW.border}`,
-                        display:"flex",alignItems:"center",
-                        justifyContent:"center",fontSize:18,
-                        flexShrink:0,zIndex:1}}>
+                        background:HW.surface2,border:`2px solid ${HW.border}`,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:18,flexShrink:0,zIndex:1}}>
                         {eventIcons[log.event_type]||"📌"}
                       </div>
                       <div style={{flex:1,paddingTop:6}}>
-                        <div style={{fontWeight:600,fontSize:14}}>
-                          {log.description}
-                        </div>
+                        <div style={{fontWeight:600,fontSize:14}}>{log.description}</div>
                         {log.old_value&&log.new_value&&(
-                          <div style={{fontSize:12,color:HW.muted,
-                            marginTop:4}}>
-                            <span style={{color:"#f87171"}}>
-                              {log.old_value}
-                            </span>
+                          <div style={{fontSize:12,color:HW.muted,marginTop:4}}>
+                            <span style={{color:"#f87171"}}>{log.old_value}</span>
                             {" → "}
-                            <span style={{color:"#34d399"}}>
-                              {log.new_value}
-                            </span>
+                            <span style={{color:"#34d399"}}>{log.new_value}</span>
                           </div>
                         )}
                         <div style={{fontSize:11,color:HW.muted,marginTop:4}}>
-                          {new Date(log.created_at).toLocaleDateString(
-                            "en-GB",{day:"numeric",month:"short",
-                              year:"numeric",hour:"2-digit",
-                              minute:"2-digit"})}
+                          {new Date(log.created_at).toLocaleDateString("en-GB",{
+                            day:"numeric",month:"short",year:"numeric",
+                            hour:"2-digit",minute:"2-digit"})}
                           {log.logged_by&&` · by ${log.logged_by}`}
                         </div>
                       </div>
@@ -2496,100 +2147,72 @@ export default function App() {
             {profileTab==="edit"&&(
               <div style={s.card}>
                 <h3 style={{marginBottom:18}}>Edit Profile</h3>
-                <div style={{display:"grid",
-                  gridTemplateColumns:"1fr 1fr",gap:14}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                   <div><label style={s.label}>Department</label>
                     <input style={s.input} value={selected.department||""}
-                      onChange={e=>setSelected({...selected,
-                        department:e.target.value,
+                      onChange={e=>setSelected({...selected,department:e.target.value,
                         _original:selected._original||{...selected}})}/></div>
                   <div><label style={s.label}>Assigned Mentor</label>
-                    <input style={s.input}
-                      value={selected.assigned_mentor||""}
-                      onChange={e=>setSelected({...selected,
-                        assigned_mentor:e.target.value,
+                    <input style={s.input} value={selected.assigned_mentor||""}
+                      onChange={e=>setSelected({...selected,assigned_mentor:e.target.value,
                         _original:selected._original||{...selected}})}/></div>
                   <div><label style={s.label}>GPA</label>
-                    <input style={s.input} type="number" step="0.01"
-                      min="0" max="4" value={selected.gpa||""}
-                      onChange={e=>setSelected({
-                        ...selected,gpa:e.target.value})}/></div>
+                    <input style={s.input} type="number" step="0.01" min="0" max="4"
+                      value={selected.gpa||""}
+                      onChange={e=>setSelected({...selected,gpa:e.target.value})}/></div>
                   <div><label style={s.label}>Joining Date</label>
-                    <input style={s.input} type="date"
-                      value={selected.joining_date||""}
-                      onChange={e=>setSelected({
-                        ...selected,joining_date:e.target.value})}/></div>
+                    <input style={s.input} type="date" value={selected.joining_date||""}
+                      onChange={e=>setSelected({...selected,joining_date:e.target.value})}/></div>
                 </div>
-                <button style={{...s.btn,background:HW.red,color:HW.white,
-                  marginTop:16}} onClick={saveProfile}>
-                  Save Changes
-                </button>
-                {msg&&<p style={{
-                  color:msg.startsWith("✅")?"#34d399":HW.red,
+                <button style={{...s.btn,background:HW.red,color:HW.white,marginTop:16}}
+                  onClick={saveProfile}>Save Changes</button>
+                {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
                   fontSize:13,marginTop:10}}>{msg}</p>}
               </div>
             )}
 
             {profileTab==="reports"&&(
               <div style={s.card}>
-                <h3 style={{marginBottom:16}}>
-                  Daily Reports + AI Analysis
-                </h3>
-                {reports.length===0
-                  ?<p style={{color:HW.muted}}>No reports yet.</p>
+                <h3 style={{marginBottom:16}}>Daily Reports + AI Analysis</h3>
+                {reports.length===0?<p style={{color:HW.muted}}>No reports yet.</p>
                   :reports.map(r=>{
                     let pie=null;
-                    try{pie=r.pie_chart_json
-                      ?JSON.parse(r.pie_chart_json):null;}
-                    catch(e){}
+                    try{pie=r.pie_chart_json?JSON.parse(r.pie_chart_json):null;}catch(e){}
                     return (
-                      <div key={r.id} style={{background:HW.surface2,
-                        borderRadius:12,padding:16,marginBottom:14}}>
-                        <div style={{display:"flex",
-                          justifyContent:"space-between",
+                      <div key={r.id} style={{background:HW.surface2,borderRadius:12,
+                        padding:16,marginBottom:14}}>
+                        <div style={{display:"flex",justifyContent:"space-between",
                           alignItems:"center",marginBottom:10}}>
-                          <div style={{fontWeight:600}}>
-                            📅 {r.report_date}
-                          </div>
-                          <div style={{display:"flex",
-                            alignItems:"center",gap:12}}>
+                          <div style={{fontWeight:600}}>📅 {r.report_date}</div>
+                          <div style={{display:"flex",alignItems:"center",gap:12}}>
                             {r.penalty_applied&&(
                               <span style={{fontSize:11,color:HW.red,
                                 background:"rgba(207,10,44,.1)",
-                                padding:"2px 8px",borderRadius:10,
-                                fontWeight:700}}>
+                                padding:"2px 8px",borderRadius:10,fontWeight:700}}>
                                 ⚠️ -{r.penalty_amount}%
                               </span>
                             )}
                             {r.kpi_score&&(
-                              <div style={{fontSize:22,fontWeight:800,
-                                color:kpiColor(r.kpi_score)}}>
+                              <div style={{fontSize:22,fontWeight:800,color:kpiColor(r.kpi_score)}}>
                                 {r.kpi_score}
-                                <span style={{fontSize:11,color:HW.muted,
-                                  fontWeight:400}}> KPI</span>
+                                <span style={{fontSize:11,color:HW.muted,fontWeight:400}}> KPI</span>
                               </div>
                             )}
                           </div>
                         </div>
-                        <div style={{fontSize:11,color:HW.muted,
-                          marginBottom:8}}>
+                        <div style={{fontSize:11,color:HW.muted,marginBottom:8}}>
                           {r.signin_time||"no sign-in"} ·{" "}
-                          <span style={{
-                            color:r.attended?"#34d399":HW.red}}>
+                          <span style={{color:r.attended?"#34d399":HW.red}}>
                             {r.attended?"● Attended":"○ Absent"}
                           </span>
                         </div>
                         {r.excuse_type&&(
-                          <div style={{background:"rgba(255,165,0,.08)",
-                            borderRadius:8,padding:10,marginBottom:10,
-                            borderLeft:"3px solid #FFA500"}}>
-                            <div style={{fontSize:11,color:"#FFA500",
-                              fontWeight:700,marginBottom:4}}>
+                          <div style={{background:"rgba(255,165,0,.08)",borderRadius:8,
+                            padding:10,marginBottom:10,borderLeft:"3px solid #FFA500"}}>
+                            <div style={{fontSize:11,color:"#FFA500",fontWeight:700,marginBottom:4}}>
                               Excuse: {r.excuse_type}
                             </div>
-                            <div style={{fontSize:12}}>
-                              {r.excuse_text}
-                            </div>
+                            <div style={{fontSize:12}}>{r.excuse_text}</div>
                           </div>
                         )}
                         <div style={{fontSize:13,marginBottom:12,
@@ -2598,34 +2221,27 @@ export default function App() {
                         </div>
                         {r.face_capture_url&&(
                           <div style={{marginBottom:10}}>
-                            <div style={{fontSize:11,color:HW.muted,
-                              fontWeight:700,textTransform:"uppercase",
-                              marginBottom:6}}>🤳 Face ID</div>
+                            <div style={{fontSize:11,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:6}}>🤳 Face ID</div>
                             <img src={r.face_capture_url} alt="face"
-                              style={{width:80,height:80,
-                                objectFit:"cover",borderRadius:"50%",
-                                border:`2px solid ${HW.red}`}}/>
+                              style={{width:80,height:80,objectFit:"cover",
+                                borderRadius:"50%",border:`2px solid ${HW.red}`}}/>
                           </div>
                         )}
                         {pie&&(
                           <div style={{marginBottom:12}}>
-                            <div style={{fontSize:11,color:HW.muted,
-                              fontWeight:700,textTransform:"uppercase",
-                              marginBottom:8}}>Task Breakdown</div>
+                            <div style={{fontSize:11,color:HW.muted,fontWeight:700,
+                              textTransform:"uppercase",marginBottom:8}}>Task Breakdown</div>
                             <PieChart data={pie}/>
                           </div>
                         )}
                         {r.talent_notes&&(
-                          <div style={{background:"rgba(207,10,44,.06)",
-                            borderRadius:8,padding:10,
-                            borderLeft:`3px solid ${HW.red}`}}>
-                            <div style={{fontSize:11,color:HW.red,
-                              fontWeight:700,marginBottom:4}}>
+                          <div style={{background:"rgba(207,10,44,.06)",borderRadius:8,
+                            padding:10,borderLeft:`3px solid ${HW.red}`}}>
+                            <div style={{fontSize:11,color:HW.red,fontWeight:700,marginBottom:4}}>
                               🌟 AI Talent Notes
                             </div>
-                            <div style={{fontSize:12,lineHeight:1.6}}>
-                              {r.talent_notes}
-                            </div>
+                            <div style={{fontSize:12,lineHeight:1.6}}>{r.talent_notes}</div>
                           </div>
                         )}
                       </div>
@@ -2638,43 +2254,29 @@ export default function App() {
             {profileTab==="penalties"&&(
               <div style={s.card}>
                 <h3 style={{marginBottom:16}}>⚠️ Penalty Log</h3>
-                {penalties.length===0
-                  ?<p style={{color:HW.muted}}>No penalties recorded.</p>
-                  :(
-                    <>
-                      <div style={{background:"rgba(207,10,44,.08)",
-                        border:`1px solid rgba(207,10,44,.2)`,
-                        borderRadius:10,padding:14,marginBottom:16}}>
-                        <div style={{fontSize:13,color:HW.red,
-                          fontWeight:700}}>
-                          Total: {penalties.length} day(s) ·{" "}
-                          {(penalties.length*PENALTY_PCT).toFixed(2)}%
-                          deduction
-                        </div>
+                {penalties.length===0?<p style={{color:HW.muted}}>No penalties recorded.</p>:(
+                  <>
+                    <div style={{background:"rgba(207,10,44,.08)",
+                      border:`1px solid rgba(207,10,44,.2)`,
+                      borderRadius:10,padding:14,marginBottom:16}}>
+                      <div style={{fontSize:13,color:HW.red,fontWeight:700}}>
+                        Total: {penalties.length} day(s) ·{" "}
+                        {(penalties.length*PENALTY_PCT).toFixed(2)}% deduction
                       </div>
-                      {penalties.map(p=>(
-                        <div key={p.id} style={{display:"flex",
-                          justifyContent:"space-between",
-                          alignItems:"center",background:HW.surface2,
-                          borderRadius:10,
-                          borderLeft:`3px solid ${HW.red}`,
-                          padding:12,marginBottom:10}}>
-                          <div>
-                            <div style={{fontSize:13,fontWeight:600}}>
-                              📅 {p.report_date}
-                            </div>
-                            <div style={{fontSize:12,color:HW.muted,
-                              marginTop:3}}>{p.reason}</div>
-                          </div>
-                          <div style={{fontSize:18,fontWeight:800,
-                            color:HW.red}}>
-                            -{p.amount}%
-                          </div>
+                    </div>
+                    {penalties.map(p=>(
+                      <div key={p.id} style={{display:"flex",justifyContent:"space-between",
+                        alignItems:"center",background:HW.surface2,borderRadius:10,
+                        borderLeft:`3px solid ${HW.red}`,padding:12,marginBottom:10}}>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:600}}>📅 {p.report_date}</div>
+                          <div style={{fontSize:12,color:HW.muted,marginTop:3}}>{p.reason}</div>
                         </div>
-                      ))}
-                    </>
-                  )
-                }
+                        <div style={{fontSize:18,fontWeight:800,color:HW.red}}>-{p.amount}%</div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
 
@@ -2685,29 +2287,18 @@ export default function App() {
                   gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",
                   gap:10,marginBottom:20}}>
                   {KRA_CATEGORIES.map(kra=>{
-                    const kraGoals=selectedGoals.filter(
-                      g=>g.kra===kra.id);
-                    const completed=kraGoals.filter(
-                      g=>g.status==="completed").length;
+                    const kraGoals=selectedGoals.filter(g=>g.kra===kra.id);
+                    const completed=kraGoals.filter(g=>g.status==="completed").length;
                     return (
-                      <div key={kra.id} style={{background:HW.surface2,
-                        borderRadius:10,padding:12,
-                        borderTop:`3px solid ${kra.color}`,
-                        textAlign:"center"}}>
-                        <div style={{fontSize:18,marginBottom:4}}>
-                          {kra.icon}
-                        </div>
-                        <div style={{fontSize:10,color:kra.color,
-                          fontWeight:700,textTransform:"uppercase",
-                          marginBottom:4}}>
+                      <div key={kra.id} style={{background:HW.surface2,borderRadius:10,
+                        padding:12,borderTop:`3px solid ${kra.color}`,textAlign:"center"}}>
+                        <div style={{fontSize:18,marginBottom:4}}>{kra.icon}</div>
+                        <div style={{fontSize:10,color:kra.color,fontWeight:700,
+                          textTransform:"uppercase",marginBottom:4}}>
                           {kra.label.split(" ")[0]}
                         </div>
-                        <div style={{fontSize:13,fontWeight:700}}>
-                          {kraGoals.length} goals
-                        </div>
-                        <div style={{fontSize:11,color:"#34d399"}}>
-                          {completed} done
-                        </div>
+                        <div style={{fontSize:13,fontWeight:700}}>{kraGoals.length} goals</div>
+                        <div style={{fontSize:11,color:"#34d399"}}>{completed} done</div>
                       </div>
                     );
                   })}
@@ -2715,8 +2306,7 @@ export default function App() {
                 {selectedGoals.length===0
                   ?<p style={{color:HW.muted}}>No goals set yet.</p>
                   :selectedGoals.map(goal=>(
-                    <GoalCard key={goal.id} goal={goal}
-                      isTrainee={false}/>
+                    <GoalCard key={goal.id} goal={goal} isTrainee={false}/>
                   ))
                 }
               </div>
@@ -2731,70 +2321,47 @@ export default function App() {
               gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",
               gap:16,marginBottom:24}}>
               {[
-                {label:"Active Trainees",
-                  value:analytics.active.length,icon:"👥",color:HW.red},
-                {label:"Avg KPI Score",
-                  value:analytics.avgKpi,icon:"📊",color:"#FFA500"},
-                {label:"Attendance Rate",
-                  value:`${analytics.attendanceRate}%`,
-                  icon:"✅",color:"#34d399"},
-                {label:"Total Penalties",
-                  value:analytics.totalPenalties,
-                  icon:"⚠️",color:"#f87171"},
-                {label:"Total Reports",
-                  value:allReports.length,icon:"📋",color:HW.red},
+                {label:"Active Trainees",value:analytics.active.length,icon:"👥",color:HW.red},
+                {label:"Avg KPI Score",value:analytics.avgKpi,icon:"📊",color:"#FFA500"},
+                {label:"Attendance Rate",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},
+                {label:"Total Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},
+                {label:"Total Reports",value:allReports.length,icon:"📋",color:HW.red},
                 {label:"Departments",
-                  value:[...new Set(trainees.map(t=>t.department)
-                    .filter(Boolean))].length,
+                  value:[...new Set(trainees.map(t=>t.department).filter(Boolean))].length,
                   icon:"🏢",color:"#FFA500"},
               ].map((stat,i)=>(
-                <div key={i} style={{background:HW.surface,
-                  border:`1px solid ${HW.border}`,borderRadius:14,
-                  padding:20,borderTop:`3px solid ${stat.color}`}}>
+                <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                  borderRadius:14,padding:20,borderTop:`3px solid ${stat.color}`}}>
                   <div style={{fontSize:24,marginBottom:8}}>{stat.icon}</div>
-                  <div style={{fontSize:28,fontWeight:800,color:stat.color}}>
-                    {stat.value}
-                  </div>
-                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>
-                    {stat.label}
-                  </div>
+                  <div style={{fontSize:28,fontWeight:800,color:stat.color}}>{stat.value}</div>
+                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>{stat.label}</div>
                 </div>
               ))}
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",
-              gap:20,marginBottom:20}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20}}>
               <div style={s.card}>
                 <h3 style={{marginBottom:16}}>🏆 KPI Leaderboard</h3>
-                {analytics.traineeKpi.length===0
-                  ?<p style={{color:HW.muted}}>No data yet.</p>
+                {analytics.traineeKpi.length===0?<p style={{color:HW.muted}}>No data yet.</p>
                   :analytics.traineeKpi.slice(0,8).map((t,i)=>(
-                    <div key={t.id} style={{display:"flex",
-                      alignItems:"center",gap:12,padding:"10px 0",
-                      borderBottom:`1px solid ${HW.border}`}}>
+                    <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,
+                      padding:"10px 0",borderBottom:`1px solid ${HW.border}`}}>
                       <div style={{width:28,height:28,borderRadius:"50%",
-                        background:i===0?"#FFD700":i===1?"#C0C0C0":
-                          i===2?"#CD7F32":HW.surface2,
-                        display:"flex",alignItems:"center",
-                        justifyContent:"center",fontSize:12,
-                        fontWeight:800,
-                        color:i<3?HW.dark:HW.muted,
-                        flexShrink:0}}>{i+1}</div>
+                        background:i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":HW.surface2,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:12,fontWeight:800,color:i<3?HW.dark:HW.muted,flexShrink:0}}>
+                        {i+1}
+                      </div>
                       <div style={{flex:1}}>
-                        <div style={{fontWeight:600,fontSize:14}}>
-                          {t.full_name}
-                        </div>
+                        <div style={{fontWeight:600,fontSize:14}}>{t.full_name}</div>
                         <div style={{fontSize:11,color:HW.muted}}>
                           {t.department} · {t.reports} reports
                         </div>
                       </div>
                       <div style={{textAlign:"right"}}>
-                        <div style={{fontSize:18,fontWeight:800,
-                          color:kpiColor(parseFloat(t.avgKpi))}}>
+                        <div style={{fontSize:18,fontWeight:800,color:kpiColor(parseFloat(t.avgKpi))}}>
                           {t.avgKpi}
                         </div>
-                        <div style={{fontSize:10,color:HW.muted}}>
-                          avg KPI
-                        </div>
+                        <div style={{fontSize:10,color:HW.muted}}>avg KPI</div>
                       </div>
                     </div>
                   ))
@@ -2802,31 +2369,21 @@ export default function App() {
               </div>
               <div style={s.card}>
                 <h3 style={{marginBottom:16}}>🏢 Department Performance</h3>
-                {analytics.deptData.length===0
-                  ?<p style={{color:HW.muted}}>No data yet.</p>
-                  :<BarChart data={analytics.deptData}/>
-                }
+                {analytics.deptData.length===0?<p style={{color:HW.muted}}>No data yet.</p>
+                  :<BarChart data={analytics.deptData}/>}
                 <div style={{marginTop:16}}>
                   {analytics.deptData.map((d,i)=>(
-                    <div key={i} style={{display:"flex",
-                      justifyContent:"space-between",alignItems:"center",
-                      padding:"8px 0",
-                      borderBottom:`1px solid ${HW.border}`}}>
-                      <span style={{fontSize:13,color:HW.muted}}>
-                        {d.label}
-                      </span>
-                      <div style={{display:"flex",
-                        alignItems:"center",gap:8}}>
-                        <div style={{width:80,height:6,
-                          background:HW.border,borderRadius:10,
-                          overflow:"hidden"}}>
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",
+                      alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${HW.border}`}}>
+                      <span style={{fontSize:13,color:HW.muted}}>{d.label}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{width:80,height:6,background:HW.border,
+                          borderRadius:10,overflow:"hidden"}}>
                           <div style={{height:"100%",background:HW.red,
                             borderRadius:10,width:`${d.value}%`}}/>
                         </div>
                         <span style={{fontSize:13,fontWeight:700,
-                          color:kpiColor(d.value),minWidth:30}}>
-                          {d.value}
-                        </span>
+                          color:kpiColor(d.value),minWidth:30}}>{d.value}</span>
                       </div>
                     </div>
                   ))}
@@ -2834,43 +2391,27 @@ export default function App() {
               </div>
             </div>
             {analytics.atRisk.length>0&&(
-              <div style={{...s.card,
-                border:`1px solid rgba(248,113,113,.3)`}}>
-                <h3 style={{marginBottom:16,color:"#f87171"}}>
-                  ⚠️ At Risk Trainees
-                </h3>
+              <div style={{...s.card,border:`1px solid rgba(248,113,113,.3)`}}>
+                <h3 style={{marginBottom:16,color:"#f87171"}}>⚠️ At Risk Trainees</h3>
                 <div style={{display:"grid",
-                  gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",
-                  gap:12}}>
+                  gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
                   {analytics.atRisk.map(t=>(
-                    <div key={t.id} style={{background:HW.surface2,
-                      borderRadius:12,padding:16,
-                      borderLeft:"3px solid #f87171"}}>
-                      <div style={{fontWeight:700,fontSize:15,
-                        marginBottom:4}}>{t.full_name}</div>
-                      <div style={{fontSize:12,color:HW.muted,
-                        marginBottom:8}}>{t.department}</div>
+                    <div key={t.id} style={{background:HW.surface2,borderRadius:12,
+                      padding:16,borderLeft:"3px solid #f87171"}}>
+                      <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>{t.full_name}</div>
+                      <div style={{fontSize:12,color:HW.muted,marginBottom:8}}>{t.department}</div>
                       <div style={{display:"flex",gap:12}}>
                         <div style={{textAlign:"center"}}>
-                          <div style={{fontSize:20,fontWeight:800,
-                            color:"#f87171"}}>{t.avgKpi}</div>
-                          <div style={{fontSize:10,color:HW.muted}}>
-                            Avg KPI
-                          </div>
+                          <div style={{fontSize:20,fontWeight:800,color:"#f87171"}}>{t.avgKpi}</div>
+                          <div style={{fontSize:10,color:HW.muted}}>Avg KPI</div>
                         </div>
                         <div style={{textAlign:"center"}}>
-                          <div style={{fontSize:20,fontWeight:800,
-                            color:"#f87171"}}>{t.penalties}</div>
-                          <div style={{fontSize:10,color:HW.muted}}>
-                            Penalties
-                          </div>
+                          <div style={{fontSize:20,fontWeight:800,color:"#f87171"}}>{t.penalties}</div>
+                          <div style={{fontSize:10,color:HW.muted}}>Penalties</div>
                         </div>
                         <div style={{textAlign:"center"}}>
-                          <div style={{fontSize:20,fontWeight:800,
-                            color:HW.muted}}>{t.reports}</div>
-                          <div style={{fontSize:10,color:HW.muted}}>
-                            Reports
-                          </div>
+                          <div style={{fontSize:20,fontWeight:800,color:HW.muted}}>{t.reports}</div>
+                          <div style={{fontSize:10,color:HW.muted}}>Reports</div>
                         </div>
                       </div>
                     </div>
@@ -2898,58 +2439,41 @@ export default function App() {
               </button>
             </div>
             {showAddOkr&&(
-              <div style={{...s.card,
-                border:`1px solid rgba(207,10,44,.3)`}}>
+              <div style={{...s.card,border:`1px solid rgba(207,10,44,.3)`}}>
                 <h4 style={{marginBottom:16,color:HW.red}}>Add New OKR</h4>
-                <div style={{display:"grid",
-                  gridTemplateColumns:"1fr 1fr",gap:14}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                   <div><label style={s.label}>Department</label>
-                    <input style={s.input}
-                      placeholder="e.g. Engineering"
+                    <input style={s.input} placeholder="e.g. Engineering"
                       value={newOkr.department}
-                      onChange={e=>setNewOkr({
-                        ...newOkr,department:e.target.value})}/></div>
+                      onChange={e=>setNewOkr({...newOkr,department:e.target.value})}/></div>
                   <div><label style={s.label}>Due Date</label>
-                    <input style={s.input} type="date"
-                      value={newOkr.due_date}
-                      onChange={e=>setNewOkr({
-                        ...newOkr,due_date:e.target.value})}/></div>
-                  <div style={{gridColumn:"1/-1"}}>
-                    <label style={s.label}>Objective</label>
-                    <input style={s.input}
-                      placeholder="e.g. Improve Technical Skills"
+                    <input style={s.input} type="date" value={newOkr.due_date}
+                      onChange={e=>setNewOkr({...newOkr,due_date:e.target.value})}/></div>
+                  <div style={{gridColumn:"1/-1"}}><label style={s.label}>Objective</label>
+                    <input style={s.input} placeholder="e.g. Improve Technical Skills"
                       value={newOkr.objective}
-                      onChange={e=>setNewOkr({
-                        ...newOkr,objective:e.target.value})}/></div>
-                  <div style={{gridColumn:"1/-1"}}>
-                    <label style={s.label}>Key Result</label>
-                    <input style={s.input}
-                      placeholder="e.g. Complete 20 lab sessions"
+                      onChange={e=>setNewOkr({...newOkr,objective:e.target.value})}/></div>
+                  <div style={{gridColumn:"1/-1"}}><label style={s.label}>Key Result</label>
+                    <input style={s.input} placeholder="e.g. Complete 20 lab sessions"
                       value={newOkr.key_result}
-                      onChange={e=>setNewOkr({
-                        ...newOkr,key_result:e.target.value})}/></div>
+                      onChange={e=>setNewOkr({...newOkr,key_result:e.target.value})}/></div>
                   <div><label style={s.label}>Target</label>
-                    <input style={s.input} type="number"
-                      value={newOkr.target}
-                      onChange={e=>setNewOkr({...newOkr,
-                        target:parseFloat(e.target.value)})}/></div>
+                    <input style={s.input} type="number" value={newOkr.target}
+                      onChange={e=>setNewOkr({...newOkr,target:parseFloat(e.target.value)})}/></div>
                   <div><label style={s.label}>Unit</label>
                     <select style={s.input} value={newOkr.unit}
-                      onChange={e=>setNewOkr({
-                        ...newOkr,unit:e.target.value})}>
+                      onChange={e=>setNewOkr({...newOkr,unit:e.target.value})}>
                       <option value="%">%</option>
                       <option value="sessions">Sessions</option>
                       <option value="reports">Reports</option>
                       <option value="tasks">Tasks</option>
                       <option value="reviews">Reviews</option>
                       <option value="workflows">Workflows</option>
-                    </select>
-                  </div>
+                    </select></div>
                 </div>
-                <button style={{...s.btn,background:HW.red,color:HW.white,
-                  marginTop:16}} onClick={addOkr}>Add OKR</button>
-                {msg&&<p style={{
-                  color:msg.startsWith("✅")?"#34d399":HW.red,
+                <button style={{...s.btn,background:HW.red,color:HW.white,marginTop:16}}
+                  onClick={addOkr}>Add OKR</button>
+                {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
                   fontSize:13,marginTop:10}}>{msg}</p>}
               </div>
             )}
@@ -2958,26 +2482,14 @@ export default function App() {
               gap:16,marginBottom:20}}>
               {[
                 {label:"Total OKRs",value:okrs.length,color:HW.red},
-                {label:"On Track",
-                  value:okrs.filter(o=>(o.current/o.target)>=.8).length,
-                  color:"#34d399"},
-                {label:"In Progress",
-                  value:okrs.filter(o=>(o.current/o.target)>=.5&&
-                    (o.current/o.target)<.8).length,color:"#FFA500"},
-                {label:"Behind",
-                  value:okrs.filter(o=>(o.current/o.target)<.5).length,
-                  color:"#f87171"},
+                {label:"On Track",value:okrs.filter(o=>(o.current/o.target)>=.8).length,color:"#34d399"},
+                {label:"In Progress",value:okrs.filter(o=>(o.current/o.target)>=.5&&(o.current/o.target)<.8).length,color:"#FFA500"},
+                {label:"Behind",value:okrs.filter(o=>(o.current/o.target)<.5).length,color:"#f87171"},
               ].map((s2,i)=>(
-                <div key={i} style={{background:HW.surface,
-                  border:`1px solid ${HW.border}`,borderRadius:14,
-                  padding:16,textAlign:"center",
-                  borderTop:`3px solid ${s2.color}`}}>
-                  <div style={{fontSize:28,fontWeight:800,color:s2.color}}>
-                    {s2.value}
-                  </div>
-                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>
-                    {s2.label}
-                  </div>
+                <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                  borderRadius:14,padding:16,textAlign:"center",borderTop:`3px solid ${s2.color}`}}>
+                  <div style={{fontSize:28,fontWeight:800,color:s2.color}}>{s2.value}</div>
+                  <div style={{fontSize:12,color:HW.muted,marginTop:4}}>{s2.label}</div>
                 </div>
               ))}
             </div>
@@ -2992,9 +2504,7 @@ export default function App() {
             {okrs.length===0&&(
               <div style={{...s.card,textAlign:"center",padding:40}}>
                 <div style={{fontSize:40,marginBottom:12}}>🎯</div>
-                <p style={{color:HW.muted}}>
-                  No OKRs yet. Click "+ Add OKR"!
-                </p>
+                <p style={{color:HW.muted}}>No OKRs yet. Click "+ Add OKR"!</p>
               </div>
             )}
           </div>
