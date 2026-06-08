@@ -20,44 +20,24 @@ const KRA_CATEGORIES = [
   { id:"initiative",  label:"Initiative & Innovation",   icon:"💡", color:"#FFD700" },
 ];
 
+const CHINESE_QUOTES = [
+  { chinese:"千里之行，始于足下", english:"A journey of a thousand miles begins with a single step.", author:"老子 Lao Tzu" },
+  { chinese:"学而不思则罔，思而不学则殆", english:"Learning without thought is labor lost; thought without learning is perilous.", author:"孔子 Confucius" },
+  { chinese:"不积跬步，无以至千里", english:"Without accumulating small steps, one cannot walk a thousand miles.", author:"荀子 Xunzi" },
+  { chinese:"志不强者智不达", english:"Those with weak ambition cannot achieve great wisdom.", author:"墨子 Mozi" },
+  { chinese:"勤能补拙", english:"Diligence can make up for lack of talent.", author:"中国谚语 Chinese Proverb" },
+  { chinese:"宝剑锋从磨砺出，梅花香自苦寒来", english:"A sharp sword comes from grinding; the fragrance of plum blossoms comes from bitter cold.", author:"中国谚语 Chinese Proverb" },
+  { chinese:"失败是成功之母", english:"Failure is the mother of success.", author:"中国谚语 Chinese Proverb" },
+  { chinese:"活到老，学到老", english:"Live and learn until old age.", author:"中国谚语 Chinese Proverb" },
+  { chinese:"知己知彼，百战不殆", english:"Know yourself and your enemy, and you will never be defeated.", author:"孙子 Sun Tzu" },
+  { chinese:"人无远虑，必有近忧", english:"He who does not think ahead will find trouble at his doorstep.", author:"孔子 Confucius" },
+];
+
 const HW = {
   red:"#CF0A2C", darkRed:"#A00820", black:"#1A1A1A",
   dark:"#0D0D0D", surface:"#1E1E1E", surface2:"#2A2A2A",
   border:"#333333", text:"#F5F5F5", muted:"#888888", white:"#FFFFFF",
 };
-
-// ── Live Clock ───────────────────────────────────────
-function LiveClock({showDate=false}) {
-  const [time,setTime] = useState(new Date());
-  useEffect(()=>{
-    const interval=setInterval(()=>setTime(new Date()),1000);
-    return ()=>clearInterval(interval);
-  },[]);
-  const hh = String(time.getHours()).padStart(2,"0");
-  const mm = String(time.getMinutes()).padStart(2,"0");
-  const ss = String(time.getSeconds()).padStart(2,"0");
-  const late = time.getHours()>9||(time.getHours()===9&&time.getMinutes()>0);
-  const color = late?HW.red:"#34d399";
-  return (
-    <div style={{textAlign:"center",padding:"20px 0"}}>
-      <div style={{fontSize:52,fontWeight:800,color,fontFamily:"monospace",
-        letterSpacing:6,textShadow:`0 0 30px ${color}40`}}>
-        {hh}:{mm}:{ss}
-      </div>
-      {showDate&&(
-        <div style={{fontSize:13,color:HW.muted,marginTop:6}}>
-          {time.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",
-            month:"long",year:"numeric"})}
-        </div>
-      )}
-      <div style={{fontSize:13,marginTop:8,fontWeight:700,color,
-        background:`${color}15`,display:"inline-block",
-        padding:"4px 16px",borderRadius:20,border:`1px solid ${color}40`}}>
-        {late?"⚠️ Past 9:00 AM — Excuse Required":"✅ On Time"}
-      </div>
-    </div>
-  );
-}
 
 function HuaweiLogo({size=32}) {
   return (
@@ -109,13 +89,15 @@ function PieChart({data}) {
     <div style={{display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
       <svg viewBox="-1.1 -1.1 2.2 2.2" width="160" height="160">
         {slices.map((s,i)=>(
-          <path key={i} d={s.d} fill={s.color} stroke={HW.surface} strokeWidth="0.03"/>
+          <path key={i} d={s.d} fill={s.color} stroke={HW.surface}
+            strokeWidth="0.03"/>
         ))}
         <circle cx="0" cy="0" r="0.55" fill={HW.surface}/>
       </svg>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {slices.map((s,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}>
+          <div key={i} style={{display:"flex",alignItems:"center",
+            gap:8,fontSize:13}}>
             <div style={{width:10,height:10,borderRadius:"50%",
               background:s.color,flexShrink:0}}/>
             <span style={{color:HW.muted}}>{s.label}</span>
@@ -136,12 +118,16 @@ function BarChart({data}) {
       {data.map((d,i)=>(
         <div key={i} style={{flex:1,display:"flex",flexDirection:"column",
           alignItems:"center",gap:4}}>
-          <div style={{fontSize:10,color:HW.muted,fontWeight:700}}>{d.value}</div>
+          <div style={{fontSize:10,color:HW.muted,fontWeight:700}}>
+            {d.value}
+          </div>
           <div style={{width:"100%",background:HW.red,
             borderRadius:"4px 4px 0 0",
             height:`${(d.value/max)*80}px`,minHeight:4}}/>
           <div style={{fontSize:9,color:HW.muted,textAlign:"center",
-            whiteSpace:"nowrap",overflow:"hidden",maxWidth:40}}>{d.label}</div>
+            whiteSpace:"nowrap",overflow:"hidden",maxWidth:40}}>
+            {d.label}
+          </div>
         </div>
       ))}
     </div>
@@ -152,12 +138,17 @@ function OKRBar({okr,onUpdate}) {
   const pct=Math.min((okr.current/okr.target)*100,100).toFixed(0);
   const color=pct>=80?HW.red:pct>=50?"#FFA500":"#666";
   return (
-    <div style={{background:HW.surface2,borderRadius:12,padding:16,marginBottom:12}}>
+    <div style={{background:HW.surface2,borderRadius:12,padding:16,
+      marginBottom:12}}>
       <div style={{display:"flex",justifyContent:"space-between",
         alignItems:"flex-start",marginBottom:8}}>
         <div style={{flex:1}}>
-          <div style={{fontSize:12,color:HW.muted,marginBottom:2}}>{okr.department}</div>
-          <div style={{fontWeight:600,fontSize:14,marginBottom:2}}>{okr.objective}</div>
+          <div style={{fontSize:12,color:HW.muted,marginBottom:2}}>
+            {okr.department}
+          </div>
+          <div style={{fontWeight:600,fontSize:14,marginBottom:2}}>
+            {okr.objective}
+          </div>
           <div style={{fontSize:13,color:HW.muted}}>{okr.key_result}</div>
         </div>
         <div style={{textAlign:"right",marginLeft:12}}>
@@ -167,7 +158,8 @@ function OKRBar({okr,onUpdate}) {
           </div>
         </div>
       </div>
-      <div style={{height:8,background:HW.border,borderRadius:10,overflow:"hidden"}}>
+      <div style={{height:8,background:HW.border,borderRadius:10,
+        overflow:"hidden"}}>
         <div style={{height:"100%",borderRadius:10,background:color,
           width:`${pct}%`,transition:"width .6s ease"}}/>
       </div>
@@ -193,7 +185,8 @@ function OKRBar({okr,onUpdate}) {
 
 function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
   const kra=KRA_CATEGORIES.find(k=>k.id===goal.kra)||KRA_CATEGORIES[0];
-  const pct=Math.min((goal.current_value/goal.target_value)*100,100).toFixed(0);
+  const pct=Math.min((goal.current_value/goal.target_value)*100,100)
+    .toFixed(0);
   const isOverdue=goal.due_date&&new Date(goal.due_date)<new Date()&&
     goal.status!=="completed";
   const statusColors={
@@ -209,7 +202,8 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
       <div style={{display:"flex",justifyContent:"space-between",
         alignItems:"flex-start",marginBottom:12}}>
         <div style={{flex:1}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+          <div style={{display:"flex",alignItems:"center",
+            gap:8,marginBottom:4}}>
             <span style={{fontSize:18}}>{kra.icon}</span>
             <span style={{fontSize:11,color:kra.color,fontWeight:700,
               textTransform:"uppercase"}}>{kra.label}</span>
@@ -218,7 +212,9 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
             {goal.goal_title}
           </div>
           {goal.description&&(
-            <div style={{fontSize:13,color:HW.muted}}>{goal.description}</div>
+            <div style={{fontSize:13,color:HW.muted}}>
+              {goal.description}
+            </div>
           )}
         </div>
         <div style={{display:"flex",flexDirection:"column",
@@ -231,7 +227,8 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
              status==="completed"?"✅ Completed":"🔴 Overdue"}
           </span>
           {goal.due_date&&(
-            <div style={{fontSize:11,color:isOverdue?HW.red:HW.muted}}>
+            <div style={{fontSize:11,
+              color:isOverdue?HW.red:HW.muted}}>
               Due: {new Date(goal.due_date).toLocaleDateString("en-GB",
                 {day:"numeric",month:"short",year:"numeric"})}
             </div>
@@ -246,13 +243,15 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
             {goal.current_value}/{goal.target_value} {goal.unit} ({pct}%)
           </span>
         </div>
-        <div style={{height:8,background:HW.border,borderRadius:10,overflow:"hidden"}}>
+        <div style={{height:8,background:HW.border,borderRadius:10,
+          overflow:"hidden"}}>
           <div style={{height:"100%",borderRadius:10,background:kra.color,
             width:`${pct}%`,transition:"width .6s ease"}}/>
         </div>
       </div>
       {isTrainee&&goal.status!=="completed"&&(
-        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",
+          flexWrap:"wrap"}}>
           <input type="number" placeholder="Update value"
             id={`prog_${goal.id}`}
             style={{background:HW.surface,border:`1px solid ${HW.border}`,
@@ -263,21 +262,24 @@ function GoalCard({goal,onUpdate,onDelete,isTrainee}) {
             fontSize:12,cursor:"pointer"}}
             onClick={()=>{
               const input=document.getElementById(`prog_${goal.id}`);
-              if(input&&input.value) onUpdate(goal.id,parseFloat(input.value));
+              if(input&&input.value)
+                onUpdate(goal.id,parseFloat(input.value));
             }}>Update</button>
           {parseFloat(pct)>=100&&(
-            <button style={{padding:"6px 14px",borderRadius:6,border:"none",
-              background:"rgba(52,211,153,.15)",color:"#34d399",
-              fontWeight:700,fontSize:12,cursor:"pointer"}}
+            <button style={{padding:"6px 14px",borderRadius:6,
+              border:"none",background:"rgba(52,211,153,.15)",
+              color:"#34d399",fontWeight:700,fontSize:12,cursor:"pointer"}}
               onClick={()=>onUpdate(goal.id,goal.target_value,"completed")}>
               ✅ Mark Complete
             </button>
           )}
           {onDelete&&(
-            <button style={{padding:"6px 14px",borderRadius:6,border:"none",
-              background:"rgba(248,113,113,.1)",color:"#f87171",
-              fontWeight:700,fontSize:12,cursor:"pointer"}}
-              onClick={()=>onDelete(goal.id)}>🗑 Delete</button>
+            <button style={{padding:"6px 14px",borderRadius:6,
+              border:"none",background:"rgba(248,113,113,.1)",
+              color:"#f87171",fontWeight:700,fontSize:12,cursor:"pointer"}}
+              onClick={()=>onDelete(goal.id)}>
+              🗑 Delete
+            </button>
           )}
         </div>
       )}
@@ -298,13 +300,129 @@ function ReminderPopup({onDismiss}) {
           Task Submission Reminder
         </h3>
         <p style={{color:HW.muted,fontSize:14,lineHeight:1.6,marginBottom:20}}>
-          It is <strong style={{color:HW.text}}>4:30 PM</strong> — please submit
-          your daily report!
+          It is <strong style={{color:HW.text}}>4:30 PM</strong> — please
+          submit your daily report!
         </p>
         <button onClick={onDismiss} style={{background:HW.red,color:HW.white,
           border:"none",borderRadius:8,padding:"12px 32px",fontWeight:700,
           fontSize:14,cursor:"pointer",width:"100%"}}>
           Got it — I'll submit now!
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Greeting Popup ───────────────────────────────────
+function GreetingPopup({name,onDismiss}) {
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
+  const greetingAr = hour<12?"صباح الخير":hour<17?"مساء الخير":"مساء النور";
+  const quote = CHINESE_QUOTES[Math.floor(Math.random()*CHINESE_QUOTES.length)];
+
+  useEffect(()=>{
+    // Voice greeting
+    if("speechSynthesis" in window){
+      const msg = new SpeechSynthesisUtterance(
+        `${greeting}, ${name}! Welcome to TraineeOS. ${quote.english}`
+      );
+      msg.rate = 0.9;
+      msg.pitch = 1;
+      msg.volume = 1;
+      // Try to find a good voice
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v=>
+        v.lang.startsWith("en")&&v.name.includes("Female")
+      )||voices.find(v=>v.lang.startsWith("en"))||voices[0];
+      if(preferred) msg.voice = preferred;
+      setTimeout(()=>window.speechSynthesis.speak(msg),500);
+    }
+    return ()=>window.speechSynthesis?.cancel();
+  },[]);
+
+  return (
+    <div style={{position:"fixed",inset:0,
+      background:"rgba(0,0,0,.85)",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      zIndex:1000,backdropFilter:"blur(8px)"}}>
+      <div style={{background:HW.surface,
+        border:`2px solid ${HW.red}`,
+        borderRadius:24,padding:44,maxWidth:480,width:"90%",
+        textAlign:"center",
+        boxShadow:`0 0 80px rgba(207,10,44,.25)`,
+        animation:"popIn .4s cubic-bezier(.34,1.56,.64,1)"}}>
+
+        <style>{`
+          @keyframes popIn {
+            from{transform:scale(.8);opacity:0}
+            to{transform:scale(1);opacity:1}
+          }
+          @keyframes float {
+            0%,100%{transform:translateY(0)}
+            50%{transform:translateY(-8px)}
+          }
+        `}</style>
+
+        {/* Huawei logo animated */}
+        <div style={{animation:"float 3s ease-in-out infinite",
+          marginBottom:16}}>
+          <HuaweiLogo size={64}/>
+        </div>
+
+        {/* Greeting */}
+        <div style={{fontSize:13,color:HW.muted,marginBottom:4,
+          letterSpacing:".1em",textTransform:"uppercase"}}>
+          {greetingAr}
+        </div>
+        <h2 style={{fontSize:32,fontWeight:800,color:HW.white,
+          margin:"0 0 4px"}}>
+          {greeting},
+        </h2>
+        <h2 style={{fontSize:36,fontWeight:800,color:HW.red,
+          margin:"0 0 24px"}}>
+          {name}! 👋
+        </h2>
+
+        {/* Quote divider */}
+        <div style={{height:1,background:HW.border,marginBottom:24}}/>
+
+        {/* Chinese quote */}
+        <div style={{background:HW.surface2,borderRadius:16,
+          padding:20,marginBottom:24,
+          border:`1px solid ${HW.border}`}}>
+          <div style={{fontSize:11,color:HW.red,fontWeight:700,
+            textTransform:"uppercase",letterSpacing:".1em",marginBottom:12}}>
+            🈲 Today's Motivation
+          </div>
+          <div style={{fontSize:26,fontWeight:800,color:HW.white,
+            marginBottom:10,lineHeight:1.4,
+            fontFamily:"serif",letterSpacing:4}}>
+            {quote.chinese}
+          </div>
+          <div style={{fontSize:14,color:HW.muted,lineHeight:1.7,
+            fontStyle:"italic",marginBottom:8}}>
+            "{quote.english}"
+          </div>
+          <div style={{fontSize:12,color:HW.red,fontWeight:600}}>
+            — {quote.author}
+          </div>
+        </div>
+
+        {/* Date */}
+        <div style={{fontSize:13,color:HW.muted,marginBottom:24}}>
+          {now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",
+            month:"long",year:"numeric"})}
+        </div>
+
+        <button onClick={onDismiss}
+          style={{background:HW.red,color:HW.white,border:"none",
+            borderRadius:12,padding:"14px 40px",fontWeight:800,
+            fontSize:16,cursor:"pointer",width:"100%",
+            transition:"all .2s"}}
+          onMouseOver={e=>e.target.style.background=HW.darkRed}
+          onMouseOut={e=>e.target.style.background=HW.red}>
+          Let's Go! 🚀
         </button>
       </div>
     </div>
@@ -342,6 +460,8 @@ export default function App() {
   const [geoMsg,setGeoMsg]           = useState("");
   const [locationOk,setLocationOk]   = useState(false);
   const [showReminder,setShowReminder] = useState(false);
+  const [showGreeting,setShowGreeting] = useState(false);
+  const [traineeName,setTraineeName] = useState("");
   const [trafficCount,setTrafficCount] = useState(0);
   const [faceCapture,setFaceCapture] = useState(null);
   const [faceCaptured,setFaceCaptured] = useState(false);
@@ -363,6 +483,15 @@ export default function App() {
   });
   const [goalFilter,setGoalFilter]   = useState("all");
   const [currentTime,setCurrentTime] = useState(new Date());
+  const [profileCompleted,setProfileCompleted] = useState(false);
+
+  // One-time profile setup form
+  const [setupProfile,setSetupProfile] = useState({
+    full_name:"",civil_id:"",phone_number:"",
+    department:"",assigned_mentor:"",gpa:"",
+    date_of_birth:"",gender:"",nationality:"Omani",
+  });
+
   const videoRef=useRef(),canvasRef=useRef(),streamRef=useRef();
   const excuseRef=useRef(),photoRef=useRef();
 
@@ -416,18 +545,18 @@ export default function App() {
     return score>=80?HW.red:score>=60?"#FFA500":"#666";
   }
 
-  // ── Live clock ticker ────────────────────────────────
+  // ── Live clock ───────────────────────────────────────
   useEffect(()=>{
     const interval=setInterval(()=>{
       const now=new Date();
       setCurrentTime(now);
-      const timeStr=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-      setIsLate(timeStr>MAX_SIGNIN);
+      const t=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+      setIsLate(t>MAX_SIGNIN);
     },1000);
     return ()=>clearInterval(interval);
   },[]);
 
-  // ── 4:30 PM Reminder ────────────────────────────────
+  // ── 4:30 PM reminder ────────────────────────────────
   useEffect(()=>{
     const check=()=>{
       const now=new Date();
@@ -454,35 +583,25 @@ export default function App() {
     return ()=>listener.subscription.unsubscribe();
   },[]);
 
-  // ── Realtime Sign-in Feed (Manager) ─────────────────
+  // ── Realtime sign-ins ────────────────────────────────
   useEffect(()=>{
     if(view!=="mgmt") return;
-    // Load today's sign-ins
     fetchTodaySignins();
-    // Subscribe to new sign-ins in real time
     const channel=supabase.channel("live-signins")
       .on("postgres_changes",{
-        event:"INSERT",
-        schema:"public",
-        table:"daily_reports",
+        event:"INSERT",schema:"public",table:"daily_reports",
       },async(payload)=>{
         const r=payload.new;
-        // Get trainee name
         const{data:t}=await supabase.from("trainees")
           .select("full_name,department").eq("id",r.trainee_id).single();
-        const newSignin={
-          id:r.id,
-          full_name:t?.full_name||"Unknown",
+        setLiveSignins(prev=>[{
+          id:r.id,full_name:t?.full_name||"Unknown",
           department:t?.department||"—",
-          signin_time:r.signin_time,
-          attended:r.attended,
+          signin_time:r.signin_time,attended:r.attended,
           report_date:r.report_date,
-          penalty_applied:r.penalty_applied,
-          timestamp:new Date(),
-        };
-        setLiveSignins(prev=>[newSignin,...prev].slice(0,50));
-      })
-      .subscribe();
+          penalty_applied:r.penalty_applied,timestamp:new Date(),
+        },...prev].slice(0,50));
+      }).subscribe();
     return ()=>supabase.removeChannel(channel);
   },[view]);
 
@@ -494,11 +613,9 @@ export default function App() {
       .order("created_at",{ascending:false});
     if(data){
       setLiveSignins(data.map(r=>({
-        id:r.id,
-        full_name:r.trainees?.full_name||"Unknown",
+        id:r.id,full_name:r.trainees?.full_name||"Unknown",
         department:r.trainees?.department||"—",
-        signin_time:r.signin_time,
-        attended:r.attended,
+        signin_time:r.signin_time,attended:r.attended,
         report_date:r.report_date,
         penalty_applied:r.penalty_applied,
         timestamp:new Date(r.created_at),
@@ -509,28 +626,81 @@ export default function App() {
   async function handleSession(authUser){
     setUser(authUser);
     const{data}=await supabase.from("profiles")
-      .select("role,trainee_id").eq("id",authUser.id).single();
+      .select("role,trainee_id,profile_completed")
+      .eq("id",authUser.id).single();
     if(data){
       if(data.role==="management"){
         setView("mgmt");fetchTrainees();fetchOkrs();fetchAllData();
       } else {
-        setView("trainee");
-        if(data.trainee_id){
-          setTraineeId(data.trainee_id);
-          const{data:t}=await supabase.from("trainees")
-            .select("*").eq("id",data.trainee_id).single();
-          if(t) setProfile({full_name:t.full_name||"",civil_id:t.civil_id||"",
-            phone_number:t.phone_number||"",department:t.department||"",
-            assigned_mentor:t.assigned_mentor||"",gpa:t.gpa||""});
-          fetchGoals(data.trainee_id);
-          const start=new Date();start.setDate(1);
-          const{data:tc}=await supabase.from("traffic_excuses")
-            .select("id").eq("trainee_id",data.trainee_id)
-            .gte("created_at",start.toISOString());
-          if(tc) setTrafficCount(tc.length);
+        if(!data.profile_completed){
+          // First time — show profile setup
+          setView("setup");
+        } else {
+          // Returning — show greeting then dashboard
+          setView("trainee");
+          if(data.trainee_id){
+            setTraineeId(data.trainee_id);
+            const{data:t}=await supabase.from("trainees")
+              .select("*").eq("id",data.trainee_id).single();
+            if(t){
+              setProfile({full_name:t.full_name||"",civil_id:t.civil_id||"",
+                phone_number:t.phone_number||"",department:t.department||"",
+                assigned_mentor:t.assigned_mentor||"",gpa:t.gpa||""});
+              setTraineeName(t.full_name.split(" ")[0]);
+              // Show greeting popup
+              setTimeout(()=>setShowGreeting(true),500);
+            }
+            fetchGoals(data.trainee_id);
+            const start=new Date();start.setDate(1);
+            const{data:tc}=await supabase.from("traffic_excuses")
+              .select("id").eq("trainee_id",data.trainee_id)
+              .gte("created_at",start.toISOString());
+            if(tc) setTrafficCount(tc.length);
+          }
         }
       }
     }
+  }
+
+  // ── Save one-time profile ────────────────────────────
+  async function saveSetupProfile(){
+    if(!setupProfile.full_name||!setupProfile.civil_id){
+      setMsg("Please fill Full Name and Civil ID.");return;
+    }
+    setLoading(true);setMsg("");
+    // Create trainee record
+    const{data:traineeData,error:tErr}=await supabase.from("trainees").upsert({
+      full_name:setupProfile.full_name,
+      civil_id:setupProfile.civil_id,
+      phone_number:setupProfile.phone_number,
+      department:setupProfile.department,
+      assigned_mentor:setupProfile.assigned_mentor,
+      gpa:setupProfile.gpa?parseFloat(setupProfile.gpa):null,
+      date_of_birth:setupProfile.date_of_birth||null,
+      gender:setupProfile.gender||null,
+      nationality:setupProfile.nationality||null,
+      joining_date:new Date().toISOString().split("T")[0],
+    },{onConflict:"civil_id"}).select().single();
+    if(tErr){setMsg("Error: "+tErr.message);setLoading(false);return;}
+    // Mark profile as completed
+    await supabase.from("profiles").update({
+      trainee_id:traineeData.id,
+      profile_completed:true,
+    }).eq("id",user.id);
+    setTraineeId(traineeData.id);
+    setProfile({
+      full_name:setupProfile.full_name,
+      civil_id:setupProfile.civil_id,
+      phone_number:setupProfile.phone_number,
+      department:setupProfile.department,
+      assigned_mentor:setupProfile.assigned_mentor,
+      gpa:setupProfile.gpa,
+    });
+    setTraineeName(setupProfile.full_name.split(" ")[0]);
+    fetchGoals(traineeData.id);
+    setLoading(false);
+    setView("trainee");
+    setTimeout(()=>setShowGreeting(true),500);
   }
 
   async function login(){
@@ -547,8 +717,8 @@ export default function App() {
     setLoading(true);setMsg("");
     const{data:authData,error}=await supabase.auth.signUp({email,password});
     if(error){setMsg(error.message);setLoading(false);return;}
-    await supabase.from("profiles")
-      .insert({id:authData.user.id,email,role:"trainee"});
+    await supabase.from("profiles").insert({
+      id:authData.user.id,email,role:"trainee",profile_completed:false});
     setMsg("✅ Account created! You can now log in.");
     setLoading(false);
     setTimeout(()=>{setView("login");setMsg("");setConfirmPwd("");},2000);
@@ -561,12 +731,14 @@ export default function App() {
     setLocationOk(false);setGeoStatus("idle");setGeoMsg("");
     setFaceCapture(null);setFaceCaptured(false);stopCamera();
     setTraineeId(null);setGoals([]);setLiveSignins([]);
+    setShowGreeting(false);setTraineeName("");
   }
 
   function checkLocation(){
     setGeoStatus("checking");setGeoMsg("📍 Checking your location…");
     if(!navigator.geolocation){
-      setGeoStatus("error");setGeoMsg("❌ Browser does not support location.");return;
+      setGeoStatus("error");
+      setGeoMsg("❌ Browser does not support location.");return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos)=>{
@@ -631,36 +803,20 @@ export default function App() {
 
   async function submitAttendance(){
     if(!locationOk){setMsg("📍 Please verify your location first.");return;}
-    if(!faceCaptured){setMsg("🤳 Please complete Face ID verification first.");return;}
-    if(!profile.full_name||!profile.civil_id){
-      setMsg("Please fill your profile first.");return;
-    }
-    // Time lock check
+    if(!faceCaptured){setMsg("🤳 Please complete Face ID first.");return;}
     const now=new Date();
     const timeStr=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
     if(timeStr>MAX_SIGNIN&&!excuseText){
-      setMsg("⚠️ It is past 9:00 AM. Please provide an excuse before submitting.");
-      return;
+      setMsg("⚠️ Past 9:00 AM — please provide an excuse.");return;
     }
     if(excuseType==="traffic"){
       if(trafficCount>=2){setMsg("❌ Traffic excuse limit reached.");return;}
-      if(!excusePhoto){setMsg("⚠️ Traffic excuse requires a proof photo.");return;}
+      if(!excusePhoto){setMsg("⚠️ Traffic excuse requires proof photo.");return;}
     }
-    const penaltyApplied=!attendance.attended||
-      (timeStr>MAX_SIGNIN&&!excuseText);
+    const penaltyApplied=!attendance.attended||(timeStr>MAX_SIGNIN&&!excuseText);
     setLoading(true);setMsg("");
-    const{data:traineeData,error:tErr}=await supabase.from("trainees").upsert({
-      full_name:profile.full_name,civil_id:profile.civil_id,
-      phone_number:profile.phone_number,department:profile.department,
-      assigned_mentor:profile.assigned_mentor,
-      gpa:profile.gpa?parseFloat(profile.gpa):null,
-      joining_date:new Date().toISOString().split("T")[0],
-    },{onConflict:"civil_id"}).select().single();
-    if(tErr){setMsg("Error: "+tErr.message);setLoading(false);return;}
-    await supabase.from("profiles")
-      .update({trainee_id:traineeData.id}).eq("id",user.id);
-    setTraineeId(traineeData.id);
-    const tid=traineeData.id,ts=Date.now();
+    const tid=traineeId;
+    const ts=Date.now();
     const faceUrl=faceCapture
       ?await uploadFile("report-photos",`${tid}/face_${ts}.jpg`,faceCapture)
       :null;
@@ -683,15 +839,11 @@ export default function App() {
         amount:PENALTY_PCT,
       });
     }
-    // Use actual current time for signin_time
-    const actualSigninTime=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
     await supabase.from("daily_reports").upsert({
       trainee_id:tid,report_date:attendance.report_date,
-      attended:attendance.attended,
-      signin_time:actualSigninTime,
+      attended:attendance.attended,signin_time:timeStr,
       face_capture_url:faceUrl,
-      excuse_type:excuseType||null,
-      excuse_text:excuseText||null,
+      excuse_type:excuseType||null,excuse_text:excuseText||null,
       excuse_photo_url:excusePhotoUrl,
       traffic_excuse:excuseType==="traffic",
       penalty_applied:penaltyApplied,
@@ -706,13 +858,12 @@ export default function App() {
   async function submitTasks(){
     if(!taskReport.report_text){setMsg("Please write your daily tasks.");return;}
     setLoading(true);setAiLoading(true);setMsg("");setAiResult(null);
-    const{data:profileData}=await supabase.from("profiles")
-      .select("trainee_id").eq("id",user.id).single();
-    if(!profileData?.trainee_id){
+    const tid=traineeId;
+    if(!tid){
       setMsg("Please submit attendance first.");
       setLoading(false);setAiLoading(false);return;
     }
-    const tid=profileData.trainee_id,ts=Date.now();
+    const ts=Date.now();
     const photoUrl=photoFile
       ?await uploadFile("report-photos",`${tid}/proof_${ts}.jpg`,photoFile)
       :null;
@@ -739,16 +890,13 @@ export default function App() {
 
   async function addGoal(){
     if(!newGoal.goal_title){setMsg("Please enter a goal title.");return;}
-    if(!traineeId){
-      setMsg("Please submit attendance first to set up your profile.");return;
-    }
+    if(!traineeId){setMsg("Please complete your profile first.");return;}
     setLoading(true);setMsg("");
     const{error}=await supabase.from("goals")
       .insert({...newGoal,trainee_id:traineeId});
     if(error){setMsg(error.message);}
     else{
-      setMsg("✅ Goal added successfully!");
-      setShowAddGoal(false);
+      setMsg("✅ Goal added!");setShowAddGoal(false);
       setNewGoal({kra:"attendance",goal_title:"",description:"",
         target_value:100,current_value:0,unit:"%",
         start_date:new Date().toISOString().split("T")[0],
@@ -903,14 +1051,19 @@ export default function App() {
     doc.text("Trainee Information",14,52);
     autoTable(doc,{startY:56,
       head:[["Field","Details"]],
-      body:[["Full Name",t.full_name||"—"],["Civil ID",t.civil_id||"—"],
-        ["Department",t.department||"—"],["Mentor",t.assigned_mentor||"—"],
-        ["GPA",t.gpa?.toString()||"—"],["Status",t.status||"—"],
+      body:[
+        ["Full Name",t.full_name||"—"],
+        ["Civil ID",t.civil_id||"—"],
+        ["Department",t.department||"—"],
+        ["Mentor",t.assigned_mentor||"—"],
+        ["GPA",t.gpa?.toString()||"—"],
+        ["Status",t.status||"—"],
         ["Joining Date",t.joining_date||"—"],
         ["Quitting Date",t.quitting_date||"Still Active"],
         ["Days in Program",t.joining_date
-          ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24))+" days"
-          :"—"]],
+          ?Math.floor((new Date()-new Date(t.joining_date))/
+            (1000*60*60*24))+" days":"—"],
+      ],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
@@ -918,14 +1071,17 @@ export default function App() {
     doc.setFontSize(14);doc.setFont("helvetica","bold");
     doc.text("Weekly Reports",14,reportsY);
     const{data:reps}=await supabase.from("daily_reports").select("*")
-      .eq("trainee_id",t.id).order("report_date",{ascending:false}).limit(7);
+      .eq("trainee_id",t.id)
+      .order("report_date",{ascending:false}).limit(7);
     if(reps?.length>0){
       autoTable(doc,{startY:reportsY+4,
         head:[["Date","Attended","Sign-in","KPI","Penalty","Report"]],
-        body:reps.map(r=>[r.report_date,r.attended?"✓":"✗",
-          r.signin_time||"—",r.kpi_score||"—",
+        body:reps.map(r=>[
+          r.report_date,r.attended?"✓":"✗",r.signin_time||"—",
+          r.kpi_score||"—",
           r.penalty_applied?`-${r.penalty_amount}%`:"None",
-          (r.report_text||"").substring(0,50)+"..."]),
+          (r.report_text||"").substring(0,50)+"...",
+        ]),
         headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
         alternateRowStyles:{fillColor:[245,245,245]},
       });
@@ -969,18 +1125,22 @@ export default function App() {
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>({
-        "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
-        "Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,
-        "Status":t.status,"Joining Date":t.joining_date,
+        "Full Name":t.full_name,"Civil ID":t.civil_id,
+        "Phone":t.phone_number,"Department":t.department,
+        "Mentor":t.assigned_mentor,"GPA":t.gpa,
+        "Gender":t.gender||"—","Nationality":t.nationality||"—",
+        "DOB":t.date_of_birth||"—","Status":t.status,
+        "Joining Date":t.joining_date,
         "Quitting Date":t.quitting_date||"Still Active",
         "Days":t.joining_date
-          ?Math.floor((new Date()-new Date(t.joining_date))/(1000*60*60*24))
-          :"—",
+          ?Math.floor((new Date()-new Date(t.joining_date))/
+            (1000*60*60*24)):"—",
       }))),"Trainees");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allR||[]).map(r=>({
         "Trainee ID":r.trainee_id,"Date":r.report_date,
-        "Attended":r.attended?"Yes":"No","Sign-in":r.signin_time||"—",
+        "Attended":r.attended?"Yes":"No",
+        "Sign-in":r.signin_time||"—",
         "KPI":r.kpi_score||"—","Report":r.report_text,
         "Talent Notes":r.talent_notes||"—",
         "Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
@@ -992,9 +1152,10 @@ export default function App() {
       }))),"Penalties");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allG||[]).map(g=>({
-        "Trainee ID":g.trainee_id,"KRA":g.kra,"Goal":g.goal_title,
-        "Target":g.target_value,"Current":g.current_value,
-        "Unit":g.unit,"Status":g.status,"Due Date":g.due_date||"—",
+        "Trainee ID":g.trainee_id,"KRA":g.kra,
+        "Goal":g.goal_title,"Target":g.target_value,
+        "Current":g.current_value,"Unit":g.unit,
+        "Status":g.status,"Due Date":g.due_date||"—",
         "Progress":Math.min((g.current_value/g.target_value)*100,100)
           .toFixed(0)+"%",
       }))),"Goals");
@@ -1009,7 +1170,8 @@ export default function App() {
           "Full Name":t.full_name,"Department":t.department,
           "Status":t.status,"Reports":tr.length,
           "Attended":tr.filter(r=>r.attended).length,
-          "Avg KPI":avg?avg.toFixed(1):"—","Penalties":tp.length,
+          "Avg KPI":avg?avg.toFixed(1):"—",
+          "Penalties":tp.length,
           "Goals Set":tg.length,
           "Goals Completed":tg.filter(g=>g.status==="completed").length,
           "Deduction":`${(tp.length*PENALTY_PCT).toFixed(2)}%`,
@@ -1028,11 +1190,12 @@ export default function App() {
       ?((attended/totalReports)*100).toFixed(1):0;
     const kpiReports=allReports.filter(r=>r.kpi_score);
     const avgKpi=kpiReports.length>0
-      ?(kpiReports.reduce((a,r)=>a+r.kpi_score,0)/kpiReports.length).toFixed(1)
-      :0;
+      ?(kpiReports.reduce((a,r)=>a+r.kpi_score,0)/
+        kpiReports.length).toFixed(1):0;
     const traineeKpi=trainees.map(t=>{
       const tr=allReports.filter(r=>r.trainee_id===t.id&&r.kpi_score);
-      const avg=tr.length>0?tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length:0;
+      const avg=tr.length>0
+        ?tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length:0;
       const tp=allPenalties.filter(p=>p.trainee_id===t.id).length;
       return{...t,avgKpi:avg.toFixed(1),penalties:tp,
         reports:allReports.filter(r=>r.trainee_id===t.id).length};
@@ -1078,7 +1241,8 @@ export default function App() {
         </div>
         <label style={s.label}>Email</label>
         <input style={{...s.input,marginBottom:14}} value={email}
-          onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/>
+          onChange={e=>setEmail(e.target.value)}
+          placeholder="you@example.com"/>
         <label style={s.label}>Password</label>
         <input style={{...s.input,marginBottom:20}} type="password"
           value={password} onChange={e=>setPassword(e.target.value)}
@@ -1088,7 +1252,8 @@ export default function App() {
           onClick={login} disabled={loading}>
           {loading?"Signing in…":"Sign In →"}
         </button>
-        <div style={{display:"flex",alignItems:"center",gap:10,margin:"20px 0"}}>
+        <div style={{display:"flex",alignItems:"center",
+          gap:10,margin:"20px 0"}}>
           <div style={{flex:1,height:1,background:HW.border}}/>
           <span style={{color:HW.muted,fontSize:12}}>OR</span>
           <div style={{flex:1,height:1,background:HW.border}}/>
@@ -1114,7 +1279,9 @@ export default function App() {
         <div style={{textAlign:"center",marginBottom:24}}>
           <HuaweiLogo size={40}/>
           <h2 style={{margin:"10px 0 4px"}}>Create Account</h2>
-          <p style={{color:HW.muted,fontSize:13}}>Register as a new trainee</p>
+          <p style={{color:HW.muted,fontSize:13}}>
+            Register as a new trainee
+          </p>
         </div>
         <label style={s.label}>Email Address</label>
         <input style={{...s.input,marginBottom:14}} value={email}
@@ -1146,11 +1313,154 @@ export default function App() {
   );
 
   // ══════════════════════════════════════════════════
+  // PROFILE SETUP (First time only)
+  // ══════════════════════════════════════════════════
+  if(view==="setup") return (
+    <div style={{...s.page,display:"flex",alignItems:"center",
+      justifyContent:"center",padding:"32px 16px"}}>
+      <div style={{width:"100%",maxWidth:600}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <HuaweiLogo size={56}/>
+          <h2 style={{margin:"16px 0 8px",fontSize:26}}>
+            Welcome to TraineeOS! 🎉
+          </h2>
+          <p style={{color:HW.muted,fontSize:14}}>
+            Please complete your profile. You only need to do this once.
+          </p>
+        </div>
+
+        {/* Progress indicator */}
+        <div style={{display:"flex",alignItems:"center",
+          justifyContent:"center",gap:8,marginBottom:32}}>
+          {["Personal Info","Academic","Contact"].map((step,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:28,height:28,borderRadius:"50%",
+                background:HW.red,display:"flex",alignItems:"center",
+                justifyContent:"center",fontSize:12,
+                fontWeight:800,color:HW.white}}>
+                {i+1}
+              </div>
+              <span style={{fontSize:12,color:HW.muted}}>{step}</span>
+              {i<2&&<div style={{width:30,height:1,
+                background:HW.border}}/>}
+            </div>
+          ))}
+        </div>
+
+        <div style={s.card}>
+          <h3 style={{marginBottom:20,color:HW.red}}>
+            👤 Personal Information
+          </h3>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",
+            gap:14,marginBottom:20}}>
+            <div style={{gridColumn:"1/-1"}}>
+              <label style={s.label}>Full Name *</label>
+              <input style={s.input}
+                placeholder="e.g. Ahmed Mohammed Al-Rashidi"
+                value={setupProfile.full_name}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,full_name:e.target.value})}/>
+            </div>
+            <div>
+              <label style={s.label}>Civil ID *</label>
+              <input style={s.input} placeholder="e.g. 10234567"
+                value={setupProfile.civil_id}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,civil_id:e.target.value})}/>
+            </div>
+            <div>
+              <label style={s.label}>Date of Birth</label>
+              <input style={s.input} type="date"
+                value={setupProfile.date_of_birth}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,date_of_birth:e.target.value})}/>
+            </div>
+            <div>
+              <label style={s.label}>Gender</label>
+              <select style={s.input} value={setupProfile.gender}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,gender:e.target.value})}>
+                <option value="">Select…</option>
+                <option value="Male">Male / ذكر</option>
+                <option value="Female">Female / أنثى</option>
+              </select>
+            </div>
+            <div>
+              <label style={s.label}>Nationality</label>
+              <input style={s.input} placeholder="e.g. Omani"
+                value={setupProfile.nationality}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,nationality:e.target.value})}/>
+            </div>
+          </div>
+
+          <h3 style={{marginBottom:16,color:HW.red,
+            paddingTop:16,borderTop:`1px solid ${HW.border}`}}>
+            📚 Academic Information
+          </h3>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",
+            gap:14,marginBottom:20}}>
+            <div>
+              <label style={s.label}>Department</label>
+              <input style={s.input} placeholder="e.g. Engineering"
+                value={setupProfile.department}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,department:e.target.value})}/>
+            </div>
+            <div>
+              <label style={s.label}>GPA</label>
+              <input style={s.input} type="number"
+                placeholder="e.g. 3.85" min="0" max="4" step="0.01"
+                value={setupProfile.gpa}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,gpa:e.target.value})}/>
+            </div>
+            <div style={{gridColumn:"1/-1"}}>
+              <label style={s.label}>Assigned Mentor</label>
+              <input style={s.input} placeholder="e.g. Dr. Fatima Al-Sayed"
+                value={setupProfile.assigned_mentor}
+                onChange={e=>setSetupProfile({
+                  ...setupProfile,assigned_mentor:e.target.value})}/>
+            </div>
+          </div>
+
+          <h3 style={{marginBottom:16,color:HW.red,
+            paddingTop:16,borderTop:`1px solid ${HW.border}`}}>
+            📞 Contact Information
+          </h3>
+          <div>
+            <label style={s.label}>Phone Number</label>
+            <input style={s.input} placeholder="e.g. +968-9100-0001"
+              value={setupProfile.phone_number}
+              onChange={e=>setSetupProfile({
+                ...setupProfile,phone_number:e.target.value})}/>
+          </div>
+
+          <button style={{...s.btn,background:HW.red,color:HW.white,
+            width:"100%",padding:14,fontSize:15,marginTop:24,
+            opacity:loading?0.6:1}}
+            onClick={saveSetupProfile} disabled={loading}>
+            {loading?"Saving your profile…":
+              "Complete Profile & Start →"}
+          </button>
+          {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+            fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════
   // TRAINEE DASHBOARD
   // ══════════════════════════════════════════════════
   if(view==="trainee") return (
     <div style={s.page}>
       {showReminder&&<ReminderPopup onDismiss={()=>setShowReminder(false)}/>}
+      {showGreeting&&(
+        <GreetingPopup
+          name={traineeName}
+          onDismiss={()=>setShowGreeting(false)}/>
+      )}
 
       {/* Topbar */}
       <div style={{display:"flex",justifyContent:"space-between",
@@ -1159,11 +1469,14 @@ export default function App() {
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <HuaweiLogo size={36}/>
           <div>
-            <h2 style={{margin:0,fontSize:20}}>Trainee Dashboard</h2>
-            <p style={{color:HW.muted,fontSize:12,margin:0}}>{user?.email}</p>
+            <h2 style={{margin:0,fontSize:20}}>
+              {traineeName?`Welcome, ${traineeName}!`:"Trainee Dashboard"}
+            </h2>
+            <p style={{color:HW.muted,fontSize:12,margin:0}}>
+              {user?.email}
+            </p>
           </div>
         </div>
-        {/* Live clock in topbar */}
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:28,fontWeight:800,color:clockColor,
             fontFamily:"monospace",letterSpacing:3}}>
@@ -1176,7 +1489,10 @@ export default function App() {
         <div style={{display:"flex",gap:8}}>
           <button style={{...s.btn,background:HW.surface2,
             color:HW.muted,fontSize:12}}
-            onClick={()=>setShowReminder(true)}>⏰ Reminder</button>
+            onClick={()=>setShowReminder(true)}>⏰</button>
+          <button style={{...s.btn,background:HW.surface2,
+            color:HW.muted,fontSize:12}}
+            onClick={()=>setShowGreeting(true)}>👋</button>
           <button style={{...s.btn,background:HW.red,color:HW.white}}
             onClick={logout}>Sign out</button>
         </div>
@@ -1204,13 +1520,12 @@ export default function App() {
       {/* ══ ATTENDANCE TAB ══ */}
       {traineeTab==="attendance"&&(
         <div>
-          {/* Big live clock */}
+          {/* Big clock */}
           <div style={{...s.card,textAlign:"center",
             border:`1px solid ${clockColor}40`}}>
             <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-              textTransform:"uppercase",letterSpacing:".1em",marginBottom:8}}>
-              Current Time
-            </div>
+              textTransform:"uppercase",letterSpacing:".1em",
+              marginBottom:8}}>Current Time</div>
             <div style={{fontSize:64,fontWeight:800,color:clockColor,
               fontFamily:"monospace",letterSpacing:8,
               textShadow:`0 0 40px ${clockColor}40`}}>
@@ -1222,16 +1537,15 @@ export default function App() {
                 month:"long",year:"numeric"})}
             </div>
             <div style={{marginTop:12,display:"inline-block",
-              padding:"6px 20px",borderRadius:20,fontWeight:700,fontSize:13,
-              background:`${clockColor}15`,color:clockColor,
+              padding:"6px 20px",borderRadius:20,fontWeight:700,
+              fontSize:13,background:`${clockColor}15`,color:clockColor,
               border:`1px solid ${clockColor}40`}}>
               {isLate
-                ?"⚠️ Past 9:00 AM — Excuse Required to Sign In"
+                ?"⚠️ Past 9:00 AM — Excuse Required"
                 :"✅ On Time — You Can Sign In"}
             </div>
           </div>
 
-          {/* Time lock warning */}
           {isLate&&(
             <div style={{background:"rgba(207,10,44,.08)",
               border:`1px solid rgba(207,10,44,.3)`,
@@ -1243,134 +1557,36 @@ export default function App() {
                   Attendance Time Locked
                 </div>
                 <div style={{fontSize:13,color:HW.muted,marginTop:4}}>
-                  The sign-in deadline was <b style={{color:HW.text}}>9:00 AM</b>.
-                  You must provide an excuse below to submit attendance.
-                  A <b style={{color:HW.red}}>penalty of 8.33%</b> will be applied.
+                  Sign-in deadline was <b style={{color:HW.text}}>9:00 AM</b>.
+                  Provide an excuse below. A{" "}
+                  <b style={{color:HW.red}}>penalty of 8.33%</b> will apply.
                 </div>
               </div>
             </div>
           )}
 
           <div style={s.card}>
-            <h3 style={{marginBottom:18,color:HW.red}}>👤 My Profile</h3>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-              <div><label style={s.label}>Full Name *</label>
-                <input style={s.input} placeholder="Ahmed Al-Rashidi"
-                  value={profile.full_name}
-                  onChange={e=>setProfile({...profile,full_name:e.target.value})}/></div>
-              <div><label style={s.label}>Civil ID *</label>
-                <input style={s.input} placeholder="10234567"
-                  value={profile.civil_id}
-                  onChange={e=>setProfile({...profile,civil_id:e.target.value})}/></div>
-              <div><label style={s.label}>Phone Number</label>
-                <input style={s.input} placeholder="+968-9100-0001"
-                  value={profile.phone_number}
-                  onChange={e=>setProfile({...profile,phone_number:e.target.value})}/></div>
-              <div><label style={s.label}>Department</label>
-                <input style={s.input} placeholder="e.g. Engineering"
-                  value={profile.department}
-                  onChange={e=>setProfile({...profile,department:e.target.value})}/></div>
-              <div><label style={s.label}>Assigned Mentor</label>
-                <input style={s.input} placeholder="Dr. Fatima Al-Sayed"
-                  value={profile.assigned_mentor}
-                  onChange={e=>setProfile({...profile,assigned_mentor:e.target.value})}/></div>
-              <div><label style={s.label}>GPA</label>
-                <input style={s.input} type="number" placeholder="3.85"
-                  min="0" max="4" step="0.01" value={profile.gpa}
-                  onChange={e=>setProfile({...profile,gpa:e.target.value})}/></div>
-            </div>
-          </div>
-
-          <div style={{...s.card,
-            border:locationOk
-              ?`1px solid rgba(207,10,44,.5)`
-              :`1px solid ${HW.border}`}}>
-            <h3 style={{marginBottom:12,color:HW.red}}>
-              📍 Location Verification
-            </h3>
-            <p style={{color:HW.muted,fontSize:13,marginBottom:14}}>
-              Must be within <b style={{color:HW.text}}>500m</b> of workplace.
-              Max sign-in: <b style={{color:HW.red}}>9:00 AM</b>.
-            </p>
-            <button style={{...s.btn,
-              background:locationOk?"rgba(207,10,44,.15)":HW.red,
-              color:locationOk?HW.red:HW.white,
-              opacity:geoStatus==="checking"?0.6:1}}
-              onClick={checkLocation} disabled={geoStatus==="checking"}>
-              {geoStatus==="checking"?"Checking…":
-               locationOk?"✅ Location Verified":"📍 Verify My Location"}
-            </button>
-            {geoMsg&&<p style={{fontSize:13,marginTop:10,
-              color:geoStatus==="ok"?"#34d399":HW.red}}>{geoMsg}</p>}
-          </div>
-
-          <div style={{...s.card,
-            border:faceCaptured
-              ?`1px solid rgba(207,10,44,.5)`
-              :`1px solid ${HW.border}`}}>
-            <h3 style={{marginBottom:12,color:HW.red}}>
-              🤳 Face ID Verification
-            </h3>
-            {!cameraActive&&!faceCaptured&&(
-              <button style={{...s.btn,background:HW.red,color:HW.white}}
-                onClick={startCamera}>📷 Open Camera</button>
-            )}
-            {cameraActive&&(
-              <div>
-                <video ref={videoRef} autoPlay playsInline
-                  style={{width:"100%",maxWidth:320,borderRadius:12,
-                    border:`2px solid ${HW.red}`,display:"block",
-                    marginBottom:12}}/>
-                <canvas ref={canvasRef} style={{display:"none"}}/>
-                <div style={{display:"flex",gap:8}}>
-                  <button style={{...s.btn,background:HW.red,color:HW.white}}
-                    onClick={captureface}>📸 Capture Face</button>
-                  <button style={{...s.btn,background:HW.surface2,
-                    color:HW.muted,border:`1px solid ${HW.border}`}}
-                    onClick={stopCamera}>Cancel</button>
-                </div>
-              </div>
-            )}
-            {faceCaptured&&(
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:56,height:56,borderRadius:"50%",
-                  background:"rgba(207,10,44,.15)",display:"flex",
-                  alignItems:"center",justifyContent:"center",fontSize:26}}>
-                  ✅
-                </div>
-                <div>
-                  <div style={{fontWeight:700,color:HW.red}}>
-                    Face Captured Successfully
-                  </div>
-                  <button style={{...s.btn,background:"none",
-                    color:HW.muted,padding:"4px 0",fontSize:12}}
-                    onClick={()=>{
-                      setFaceCaptured(false);setFaceCapture(null);
-                    }}>Retake</button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={s.card}>
             <h3 style={{marginBottom:18,color:HW.red}}>✅ Sign Attendance</h3>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{display:"grid",
+              gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div><label style={s.label}>Date</label>
                 <input style={s.input} type="date"
                   value={attendance.report_date}
                   onChange={e=>setAttendance({
                     ...attendance,report_date:e.target.value})}/></div>
               <div>
-                <label style={s.label}>Your Sign-in Time</label>
-                <div style={{background:HW.surface2,border:`1px solid ${HW.border}`,
-                  borderRadius:8,padding:"9px 13px",fontSize:14,
-                  color:clockColor,fontWeight:700,fontFamily:"monospace"}}>
-                  {hh}:{mm}:{ss} (auto)
+                <label style={s.label}>Your Sign-in Time (auto)</label>
+                <div style={{background:HW.surface2,
+                  border:`1px solid ${HW.border}`,borderRadius:8,
+                  padding:"9px 13px",fontSize:16,color:clockColor,
+                  fontWeight:800,fontFamily:"monospace"}}>
+                  {hh}:{mm}:{ss}
                 </div>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:10,
-                paddingTop:22}}>
-                <input type="checkbox" id="att" checked={attendance.attended}
+              <div style={{display:"flex",alignItems:"center",
+                gap:10,paddingTop:22}}>
+                <input type="checkbox" id="att"
+                  checked={attendance.attended}
                   onChange={e=>setAttendance({
                     ...attendance,attended:e.target.checked})}/>
                 <label htmlFor="att" style={{...s.label,margin:0}}>
@@ -1387,7 +1603,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Late excuse — shows if past 9:00 AM */}
             {isLate&&(
               <div style={{marginTop:16,background:HW.surface2,
                 borderRadius:12,padding:16,
@@ -1401,7 +1616,8 @@ export default function App() {
                     onChange={e=>setExcuseType(e.target.value)}>
                     <option value="">Select reason…</option>
                     <option value="traffic">
-                      🚗 Road Traffic {trafficCount>=2?"(LIMIT REACHED)":""}
+                      🚗 Road Traffic{" "}
+                      {trafficCount>=2?"(LIMIT REACHED)":""}
                     </option>
                     <option value="medical">🏥 Medical Emergency</option>
                     <option value="family">👨‍👩‍👧 Family Emergency</option>
@@ -1411,7 +1627,7 @@ export default function App() {
                 <div style={{marginBottom:10}}>
                   <label style={s.label}>Excuse Description *</label>
                   <textarea style={{...s.input,height:80,resize:"vertical"}}
-                    placeholder="Please describe your reason for being late…"
+                    placeholder="Please describe your reason…"
                     value={excuseText}
                     onChange={e=>setExcuseText(e.target.value)}/>
                 </div>
@@ -1427,7 +1643,8 @@ export default function App() {
                       📷 {excusePhoto?"Change":"Upload Proof"}
                     </button>
                     <input ref={excuseRef} type="file" accept="image/*"
-                      style={{display:"none"}} onChange={handleExcusePhoto}/>
+                      style={{display:"none"}}
+                      onChange={handleExcusePhoto}/>
                     {excusePreview&&(
                       <img src={excusePreview} alt="proof"
                         style={{width:60,height:60,objectFit:"cover",
@@ -1446,12 +1663,86 @@ export default function App() {
               </div>
             )}
 
+            {/* Face ID */}
+            <div style={{marginTop:16,padding:16,background:HW.surface2,
+              borderRadius:12,
+              border:faceCaptured
+                ?`1px solid rgba(207,10,44,.5)`
+                :`1px solid ${HW.border}`}}>
+              <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>
+                🤳 Face ID Verification
+              </div>
+              {!cameraActive&&!faceCaptured&&(
+                <button style={{...s.btn,background:HW.red,color:HW.white}}
+                  onClick={startCamera}>📷 Open Camera</button>
+              )}
+              {cameraActive&&(
+                <div>
+                  <video ref={videoRef} autoPlay playsInline
+                    style={{width:"100%",maxWidth:280,borderRadius:10,
+                      border:`2px solid ${HW.red}`,display:"block",
+                      marginBottom:10}}/>
+                  <canvas ref={canvasRef} style={{display:"none"}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button style={{...s.btn,background:HW.red,
+                      color:HW.white}} onClick={captureface}>
+                      📸 Capture
+                    </button>
+                    <button style={{...s.btn,background:HW.surface,
+                      color:HW.muted,border:`1px solid ${HW.border}`}}
+                      onClick={stopCamera}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {faceCaptured&&(
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:48,height:48,borderRadius:"50%",
+                    background:"rgba(207,10,44,.15)",display:"flex",
+                    alignItems:"center",justifyContent:"center",
+                    fontSize:22}}>✅</div>
+                  <div>
+                    <div style={{fontWeight:700,color:HW.red}}>
+                      Face Captured
+                    </div>
+                    <button style={{...s.btn,background:"none",
+                      color:HW.muted,padding:"2px 0",fontSize:12}}
+                      onClick={()=>{
+                        setFaceCaptured(false);setFaceCapture(null);
+                      }}>Retake</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Location */}
+            <div style={{marginTop:12,padding:16,background:HW.surface2,
+              borderRadius:12,
+              border:locationOk
+                ?`1px solid rgba(207,10,44,.5)`
+                :`1px solid ${HW.border}`}}>
+              <div style={{fontWeight:700,color:HW.red,marginBottom:10}}>
+                📍 Location Verification
+              </div>
+              <button style={{...s.btn,
+                background:locationOk?"rgba(207,10,44,.15)":HW.red,
+                color:locationOk?HW.red:HW.white,
+                opacity:geoStatus==="checking"?0.6:1}}
+                onClick={checkLocation}
+                disabled={geoStatus==="checking"}>
+                {geoStatus==="checking"?"Checking…":
+                 locationOk?"✅ Verified":"📍 Verify Location"}
+              </button>
+              {geoMsg&&<p style={{fontSize:12,marginTop:8,
+                color:geoStatus==="ok"?"#34d399":HW.red}}>{geoMsg}</p>}
+            </div>
+
             <button style={{...s.btn,
               background:(locationOk&&faceCaptured)?HW.red:HW.surface2,
               color:(locationOk&&faceCaptured)?HW.white:HW.muted,
               marginTop:16,width:"100%",padding:14,fontSize:15,
               opacity:loading?0.6:1,
-              cursor:(locationOk&&faceCaptured)?"pointer":"not-allowed"}}
+              cursor:(locationOk&&faceCaptured)
+                ?"pointer":"not-allowed"}}
               onClick={submitAttendance}
               disabled={loading||!locationOk||!faceCaptured}>
               {loading?"Saving…":"✅ Submit Attendance"}
@@ -1460,7 +1751,7 @@ export default function App() {
               <p style={{fontSize:12,color:HW.muted,
                 textAlign:"center",marginTop:8}}>
                 {!locationOk&&!faceCaptured
-                  ?"Complete location + face verification above"
+                  ?"Verify location and face ID above"
                   :!locationOk?"📍 Verify location first"
                   :"🤳 Complete face ID first"}
               </p>
@@ -1476,28 +1767,33 @@ export default function App() {
       {traineeTab==="tasks"&&(
         <div>
           <div style={s.card}>
-            <h3 style={{marginBottom:18,color:HW.red}}>📋 Daily Tasks Report</h3>
+            <h3 style={{marginBottom:8,color:HW.red}}>
+              📋 Daily Tasks Report
+            </h3>
             <p style={{color:HW.muted,fontSize:13,marginBottom:20}}>
-              Describe everything you worked on today. The AI will analyze
+              Describe everything you worked on today. AI will analyze
               your report and generate a KPI score.
             </p>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{display:"grid",
+              gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div><label style={s.label}>Report Date</label>
                 <input style={s.input} type="date"
                   value={taskReport.report_date}
                   onChange={e=>setTaskReport({
                     ...taskReport,report_date:e.target.value})}/></div>
-              <div style={{display:"flex",alignItems:"center",gap:8,
-                paddingTop:22}}>
+              <div style={{display:"flex",alignItems:"center",
+                gap:8,paddingTop:22}}>
                 <span style={{fontSize:20}}>💡</span>
                 <span style={{fontSize:12,color:HW.muted}}>
-                  Be detailed for a better AI score!
+                  More detail = higher AI score!
                 </span>
               </div>
               <div style={{gridColumn:"1/-1"}}>
-                <label style={s.label}>What did you work on today? *</label>
-                <textarea style={{...s.input,height:160,resize:"vertical"}}
-                  placeholder="Example: Completed the circuit analysis report, attended a 2-hour lab session with my mentor Dr. Fatima, reviewed safety protocols..."
+                <label style={s.label}>
+                  What did you work on today? *
+                </label>
+                <textarea style={{...s.input,height:180,resize:"vertical"}}
+                  placeholder="Example: Completed the circuit analysis report and submitted it to my mentor. Attended a 2-hour lab session. Reviewed the safety protocols document. Participated in team meeting and took minutes..."
                   value={taskReport.report_text}
                   onChange={e=>setTaskReport({
                     ...taskReport,report_text:e.target.value})}/>
@@ -1511,7 +1807,8 @@ export default function App() {
                     {photoFile?"📷 Change Photo":"📷 Upload Photo"}
                   </button>
                   <input ref={photoRef} type="file" accept="image/*"
-                    style={{display:"none"}} onChange={handleProofPhoto}/>
+                    style={{display:"none"}}
+                    onChange={handleProofPhoto}/>
                   {photoPreview&&(
                     <img src={photoPreview} alt="preview"
                       style={{width:60,height:60,objectFit:"cover",
@@ -1532,27 +1829,35 @@ export default function App() {
                 msg.startsWith("🤖")?"#FFA500":HW.red,
               fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
+
           {aiResult&&(
-            <div style={{...s.card,border:`1px solid rgba(207,10,44,.4)`}}>
-              <h3 style={{marginBottom:20,color:HW.red}}>🤖 AI Analysis Result</h3>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",
-                gap:16,marginBottom:20}}>
+            <div style={{...s.card,
+              border:`1px solid rgba(207,10,44,.4)`}}>
+              <h3 style={{marginBottom:20,color:HW.red}}>
+                🤖 AI Analysis Result
+              </h3>
+              <div style={{display:"grid",
+                gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
                 <div style={{background:HW.surface2,borderRadius:12,
                   padding:16,textAlign:"center"}}>
                   <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                    textTransform:"uppercase",marginBottom:8}}>KPI Score</div>
+                    textTransform:"uppercase",marginBottom:8}}>
+                    KPI Score
+                  </div>
                   <div style={{fontSize:52,fontWeight:800,
                     color:kpiColor(aiResult.kpi_score)}}>
                     {aiResult.kpi_score}
                   </div>
                   <div style={{fontSize:11,color:HW.muted}}>out of 100</div>
                 </div>
-                <div style={{background:HW.surface2,borderRadius:12,padding:16}}>
+                <div style={{background:HW.surface2,borderRadius:12,
+                  padding:16}}>
                   <div style={{fontSize:11,color:HW.muted,fontWeight:700,
                     textTransform:"uppercase",marginBottom:12}}>
                     Task Breakdown
                   </div>
-                  {aiResult.pie_chart&&<PieChart data={aiResult.pie_chart}/>}
+                  {aiResult.pie_chart&&
+                    <PieChart data={aiResult.pie_chart}/>}
                 </div>
               </div>
               {aiResult.summary&&(
@@ -1560,7 +1865,9 @@ export default function App() {
                   padding:14,marginBottom:12,
                   borderLeft:`3px solid ${HW.red}`}}>
                   <div style={{fontSize:11,color:HW.muted,fontWeight:700,
-                    marginBottom:6,textTransform:"uppercase"}}>Day Summary</div>
+                    marginBottom:6,textTransform:"uppercase"}}>
+                    Day Summary
+                  </div>
                   <div style={{fontSize:14}}>{aiResult.summary}</div>
                 </div>
               )}
@@ -1613,8 +1920,9 @@ export default function App() {
               );
             })}
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",
-            gap:12,marginBottom:20}}>
+
+          <div style={{display:"grid",
+            gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
             {[
               {label:"Total Goals",value:goals.length,color:HW.red},
               {label:"In Progress",
@@ -1642,19 +1950,25 @@ export default function App() {
               </div>
             ))}
           </div>
+
           <div style={{display:"flex",justifyContent:"space-between",
             alignItems:"center",marginBottom:16}}>
             <h3 style={{margin:0}}>
               {goalFilter==="all"?"All Goals"
-                :`${KRA_CATEGORIES.find(k=>k.id===goalFilter)?.label||""} Goals`}
+                :`${KRA_CATEGORIES.find(k=>k.id===goalFilter)
+                  ?.label||""} Goals`}
               <span style={{fontSize:13,color:HW.muted,fontWeight:400,
-                marginLeft:8}}>({filteredGoals.length} goals)</span>
+                marginLeft:8}}>
+                ({filteredGoals.length})
+              </span>
             </h3>
             <div style={{display:"flex",gap:8}}>
               {goalFilter!=="all"&&(
                 <button style={{...s.btn,background:HW.surface2,
                   color:HW.muted,fontSize:12}}
-                  onClick={()=>setGoalFilter("all")}>Show All</button>
+                  onClick={()=>setGoalFilter("all")}>
+                  Show All
+                </button>
               )}
               <button style={{...s.btn,background:HW.red,color:HW.white}}
                 onClick={()=>setShowAddGoal(!showAddGoal)}>
@@ -1662,15 +1976,19 @@ export default function App() {
               </button>
             </div>
           </div>
+
           {showAddGoal&&(
             <div style={{...s.card,
               border:`1px solid rgba(207,10,44,.3)`,marginBottom:20}}>
-              <h4 style={{marginBottom:16,color:HW.red}}>🎯 Set New Goal</h4>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",
-                gap:14}}>
-                <div><label style={s.label}>Key Result Area (KRA)</label>
+              <h4 style={{marginBottom:16,color:HW.red}}>
+                🎯 Set New Goal
+              </h4>
+              <div style={{display:"grid",
+                gridTemplateColumns:"1fr 1fr",gap:14}}>
+                <div><label style={s.label}>KRA Category</label>
                   <select style={s.input} value={newGoal.kra}
-                    onChange={e=>setNewGoal({...newGoal,kra:e.target.value})}>
+                    onChange={e=>setNewGoal({
+                      ...newGoal,kra:e.target.value})}>
                     {KRA_CATEGORIES.map(k=>(
                       <option key={k.id} value={k.id}>
                         {k.icon} {k.label}
@@ -1689,15 +2007,15 @@ export default function App() {
                 <div style={{gridColumn:"1/-1"}}>
                   <label style={s.label}>Goal Title *</label>
                   <input style={s.input}
-                    placeholder="e.g. Achieve 95% attendance rate this month"
+                    placeholder="e.g. Achieve 95% attendance this month"
                     value={newGoal.goal_title}
                     onChange={e=>setNewGoal({
                       ...newGoal,goal_title:e.target.value})}/>
                 </div>
                 <div style={{gridColumn:"1/-1"}}>
-                  <label style={s.label}>Description (optional)</label>
+                  <label style={s.label}>Description</label>
                   <textarea style={{...s.input,height:70,resize:"vertical"}}
-                    placeholder="Describe how you plan to achieve this goal…"
+                    placeholder="How do you plan to achieve this?"
                     value={newGoal.description}
                     onChange={e=>setNewGoal({
                       ...newGoal,description:e.target.value})}/>
@@ -1705,12 +2023,13 @@ export default function App() {
                 <div><label style={s.label}>Target Value</label>
                   <input style={s.input} type="number"
                     value={newGoal.target_value}
-                    onChange={e=>setNewGoal({
-                      ...newGoal,target_value:parseFloat(e.target.value)})}/></div>
+                    onChange={e=>setNewGoal({...newGoal,
+                      target_value:parseFloat(e.target.value)})}/></div>
                 <div><label style={s.label}>Unit</label>
                   <select style={s.input} value={newGoal.unit}
-                    onChange={e=>setNewGoal({...newGoal,unit:e.target.value})}>
-                    <option value="%">% (Percentage)</option>
+                    onChange={e=>setNewGoal({
+                      ...newGoal,unit:e.target.value})}>
+                    <option value="%">%</option>
                     <option value="days">Days</option>
                     <option value="sessions">Sessions</option>
                     <option value="reports">Reports</option>
@@ -1735,21 +2054,24 @@ export default function App() {
                 onClick={addGoal} disabled={loading}>
                 {loading?"Saving…":"🎯 Set Goal"}
               </button>
-              {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+              {msg&&<p style={{
+                color:msg.startsWith("✅")?"#34d399":HW.red,
                 fontSize:13,marginTop:10}}>{msg}</p>}
             </div>
           )}
+
           {filteredGoals.length===0?(
             <div style={{...s.card,textAlign:"center",padding:40}}>
               <div style={{fontSize:40,marginBottom:12}}>🎯</div>
-              <p style={{color:HW.muted,marginBottom:16}}>
-                No goals set yet. Click "+ Add Goal" to get started!
+              <p style={{color:HW.muted}}>
+                No goals yet. Click "+ Add Goal" to get started!
               </p>
             </div>
           ):(
             filteredGoals.map(goal=>(
               <GoalCard key={goal.id} goal={goal}
-                onUpdate={updateGoal} onDelete={deleteGoal} isTrainee={true}/>
+                onUpdate={updateGoal} onDelete={deleteGoal}
+                isTrainee={true}/>
             ))
           )}
           {msg&&!showAddGoal&&(
@@ -1768,7 +2090,6 @@ export default function App() {
     const analytics=getAnalytics();
     return (
       <div style={s.page}>
-        {/* Topbar with live clock */}
         <div style={{display:"flex",justifyContent:"space-between",
           alignItems:"center",marginBottom:28,paddingBottom:20,
           borderBottom:`1px solid ${HW.border}`}}>
@@ -1776,17 +2097,18 @@ export default function App() {
             <HuaweiLogo size={36}/>
             <div>
               <h2 style={{margin:0,fontSize:20}}>Management Dashboard</h2>
-              <p style={{color:HW.muted,fontSize:12,margin:0}}>{user?.email}</p>
+              <p style={{color:HW.muted,fontSize:12,margin:0}}>
+                {user?.email}
+              </p>
             </div>
           </div>
-          {/* Live clock for manager */}
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:28,fontWeight:800,color:clockColor,
               fontFamily:"monospace",letterSpacing:3}}>
               {hh}:{mm}:{ss}
             </div>
             <div style={{fontSize:11,color:clockColor,fontWeight:700}}>
-              {isLate?"⚠️ Past Sign-in Deadline":"✅ Within Sign-in Window"}
+              {isLate?"⚠️ Past Sign-in Deadline":"✅ Sign-in Window Open"}
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -1798,7 +2120,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Main Tabs */}
         <div style={{display:"flex",gap:4,background:HW.surface2,
           borderRadius:10,padding:4,marginBottom:24}}>
           {["trainees","live","analytics","okr"].map(tab=>(
@@ -1808,18 +2129,18 @@ export default function App() {
                 background:mgmtTab===tab?HW.surface:"none",
                 color:mgmtTab===tab?HW.text:HW.muted,
                 fontSize:13,borderRadius:7,
-                borderBottom:mgmtTab===tab?`2px solid ${HW.red}`:"none"}}>
+                borderBottom:mgmtTab===tab
+                  ?`2px solid ${HW.red}`:"none"}}>
               {tab==="trainees"?"👥 Trainees":
                tab==="live"?"📡 Live Sign-ins":
-               tab==="analytics"?"📊 KPI Analytics":"🎯 OKR Tracking"}
+               tab==="analytics"?"📊 KPI Analytics":"🎯 OKR"}
             </button>
           ))}
         </div>
 
-        {/* ══ LIVE SIGN-INS TAB ══ */}
+        {/* LIVE SIGN-INS */}
         {mgmtTab==="live"&&(
           <div>
-            {/* Live stats */}
             <div style={{display:"grid",
               gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",
               gap:16,marginBottom:24}}>
@@ -1856,14 +2177,7 @@ export default function App() {
             <div style={s.card}>
               <div style={{display:"flex",justifyContent:"space-between",
                 alignItems:"center",marginBottom:16}}>
-                <h3 style={{margin:0}}>
-                  📡 Live Sign-in Feed
-                  <span style={{fontSize:13,color:HW.muted,
-                    fontWeight:400,marginLeft:8}}>
-                    — updates in real time
-                  </span>
-                </h3>
-                {/* Live indicator */}
+                <h3 style={{margin:0}}>📡 Live Sign-in Feed</h3>
                 <div style={{display:"flex",alignItems:"center",gap:6,
                   background:"rgba(52,211,153,.1)",
                   border:"1px solid rgba(52,211,153,.3)",
@@ -1871,28 +2185,19 @@ export default function App() {
                   <div style={{width:8,height:8,borderRadius:"50%",
                     background:"#34d399",
                     animation:"pulse 1.5s infinite"}}/>
-                  <span style={{fontSize:12,color:"#34d399",fontWeight:700}}>
-                    LIVE
-                  </span>
+                  <span style={{fontSize:12,color:"#34d399",
+                    fontWeight:700}}>LIVE</span>
                 </div>
               </div>
-
               <style>{`
-                @keyframes pulse {
-                  0%,100%{opacity:1;transform:scale(1)}
-                  50%{opacity:.5;transform:scale(1.3)}
-                }
-                @keyframes slideIn {
-                  from{transform:translateX(-20px);opacity:0}
-                  to{transform:translateX(0);opacity:1}
-                }
+                @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+                @keyframes slideIn{from{transform:translateX(-20px);opacity:0}to{transform:translateX(0);opacity:1}}
               `}</style>
-
               {liveSignins.length===0?(
                 <div style={{textAlign:"center",padding:40}}>
                   <div style={{fontSize:40,marginBottom:12}}>📡</div>
                   <p style={{color:HW.muted}}>
-                    No sign-ins yet today. Waiting for trainees to sign in…
+                    No sign-ins yet today. Waiting…
                   </p>
                 </div>
               ):(
@@ -1902,16 +2207,14 @@ export default function App() {
                     background:HW.surface2,borderRadius:12,marginBottom:10,
                     borderLeft:`4px solid ${signin.attended?"#34d399":HW.red}`,
                     animation:i===0?"slideIn .4s ease":"none"}}>
-                    {/* Avatar */}
                     <div style={{width:44,height:44,borderRadius:"50%",
                       background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,
                       display:"flex",alignItems:"center",
                       justifyContent:"center",fontSize:16,
                       fontWeight:800,color:HW.white,flexShrink:0}}>
-                      {signin.full_name?.split(" ").map(w=>w[0])
-                        .join("").slice(0,2)}
+                      {signin.full_name?.split(" ")
+                        .map(w=>w[0]).join("").slice(0,2)}
                     </div>
-                    {/* Info */}
                     <div style={{flex:1}}>
                       <div style={{fontWeight:700,fontSize:15}}>
                         {signin.full_name}
@@ -1920,7 +2223,6 @@ export default function App() {
                         {signin.department}
                       </div>
                     </div>
-                    {/* Sign-in time */}
                     <div style={{textAlign:"center"}}>
                       <div style={{fontSize:20,fontWeight:800,
                         fontFamily:"monospace",
@@ -1928,9 +2230,10 @@ export default function App() {
                           ?HW.red:"#34d399"}}>
                         {signin.signin_time||"—"}
                       </div>
-                      <div style={{fontSize:10,color:HW.muted}}>Sign-in</div>
+                      <div style={{fontSize:10,color:HW.muted}}>
+                        Sign-in
+                      </div>
                     </div>
-                    {/* Status */}
                     <div style={{textAlign:"right"}}>
                       <span style={{padding:"4px 12px",borderRadius:20,
                         fontSize:12,fontWeight:700,
@@ -1943,7 +2246,7 @@ export default function App() {
                       {signin.penalty_applied&&(
                         <div style={{fontSize:11,color:HW.red,
                           marginTop:4,fontWeight:700}}>
-                          ⚠️ Penalty applied
+                          ⚠️ Penalty
                         </div>
                       )}
                       <div style={{fontSize:10,color:HW.muted,marginTop:4}}>
@@ -1960,16 +2263,14 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ TRAINEES TAB ══ */}
+        {/* TRAINEES */}
         {mgmtTab==="trainees"&&!selected&&(
           <div style={s.card}>
-            <h3 style={{marginBottom:16}}>All Trainees
-              <span style={{fontSize:13,color:HW.muted,fontWeight:400,
-                marginLeft:8}}>— click a row to view profile</span>
-            </h3>
+            <h3 style={{marginBottom:16}}>All Trainees</h3>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead><tr>
-                {["Name","Department","Mentor","GPA","Joined","Status",""].map(h=>(
+                {["Name","Department","Mentor","GPA","Joined",
+                  "Status",""].map(h=>(
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr></thead>
@@ -1999,14 +2300,23 @@ export default function App() {
                       <button style={{...s.btn,
                         background:"rgba(207,10,44,.1)",color:HW.red,
                         fontSize:11,padding:"4px 10px"}}
-                        onClick={e=>{e.stopPropagation();exportPDF(t);}}>
-                        📄 PDF
-                      </button>
+                        onClick={e=>{
+                          e.stopPropagation();exportPDF(t);
+                        }}>📄 PDF</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {trainees.length===0&&(
+              <div style={{textAlign:"center",padding:40}}>
+                <div style={{fontSize:40,marginBottom:12}}>👥</div>
+                <p style={{color:HW.muted}}>
+                  No trainees yet. They will appear here once they
+                  complete their profile setup.
+                </p>
+              </div>
+            )}
             {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
               fontSize:13,marginTop:12,textAlign:"center"}}>{msg}</p>}
           </div>
@@ -2048,15 +2358,18 @@ export default function App() {
                     {selected.quitting_date&&(
                       <span style={{fontSize:12,color:HW.muted}}>
                         🚪 Quit:{" "}
-                        <b style={{color:HW.red}}>{selected.quitting_date}</b>
+                        <b style={{color:HW.red}}>
+                          {selected.quitting_date}
+                        </b>
                       </span>
                     )}
                     {selected.joining_date&&(
                       <span style={{fontSize:12,color:HW.muted}}>
                         ⏱{" "}
                         <b style={{color:HW.text}}>
-                          {Math.floor((new Date(selected.quitting_date||
-                            new Date())-new Date(selected.joining_date))/
+                          {Math.floor((new Date(
+                            selected.quitting_date||new Date())-
+                            new Date(selected.joining_date))/
                             (1000*60*60*24))} days
                         </b>
                       </span>
@@ -2073,11 +2386,13 @@ export default function App() {
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <button style={{...s.btn,
-                  background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
+                  background:"rgba(207,10,44,.15)",
+                  color:HW.red,fontSize:12}}
                   onClick={()=>exportPDF()}>📄 PDF</button>
                 {selected.status!=="active"&&(
                   <button style={{...s.btn,
-                    background:"rgba(207,10,44,.15)",color:HW.red,fontSize:12}}
+                    background:"rgba(207,10,44,.15)",
+                    color:HW.red,fontSize:12}}
                     onClick={()=>changeStatus("active")}>
                     ✅ Reactivate
                   </button>
@@ -2131,7 +2446,7 @@ export default function App() {
               <div style={s.card}>
                 <h3 style={{marginBottom:20}}>Activity Timeline</h3>
                 {logs.length===0
-                  ?<p style={{color:HW.muted}}>No activity logged yet.</p>
+                  ?<p style={{color:HW.muted}}>No activity yet.</p>
                   :logs.map((log,i)=>(
                     <div key={log.id} style={{display:"flex",gap:16,
                       marginBottom:20,position:"relative"}}>
@@ -2165,9 +2480,10 @@ export default function App() {
                           </div>
                         )}
                         <div style={{fontSize:11,color:HW.muted,marginTop:4}}>
-                          {new Date(log.created_at).toLocaleDateString("en-GB",{
-                            day:"numeric",month:"short",year:"numeric",
-                            hour:"2-digit",minute:"2-digit"})}
+                          {new Date(log.created_at).toLocaleDateString(
+                            "en-GB",{day:"numeric",month:"short",
+                              year:"numeric",hour:"2-digit",
+                              minute:"2-digit"})}
                           {log.logged_by&&` · by ${log.logged_by}`}
                         </div>
                       </div>
@@ -2205,7 +2521,9 @@ export default function App() {
                         ...selected,joining_date:e.target.value})}/></div>
                 </div>
                 <button style={{...s.btn,background:HW.red,color:HW.white,
-                  marginTop:16}} onClick={saveProfile}>Save Changes</button>
+                  marginTop:16}} onClick={saveProfile}>
+                  Save Changes
+                </button>
                 {msg&&<p style={{
                   color:msg.startsWith("✅")?"#34d399":HW.red,
                   fontSize:13,marginTop:10}}>{msg}</p>}
@@ -2214,7 +2532,9 @@ export default function App() {
 
             {profileTab==="reports"&&(
               <div style={s.card}>
-                <h3 style={{marginBottom:16}}>Daily Reports + AI Analysis</h3>
+                <h3 style={{marginBottom:16}}>
+                  Daily Reports + AI Analysis
+                </h3>
                 {reports.length===0
                   ?<p style={{color:HW.muted}}>No reports yet.</p>
                   :reports.map(r=>{
@@ -2254,7 +2574,8 @@ export default function App() {
                         <div style={{fontSize:11,color:HW.muted,
                           marginBottom:8}}>
                           {r.signin_time||"no sign-in"} ·{" "}
-                          <span style={{color:r.attended?"#34d399":HW.red}}>
+                          <span style={{
+                            color:r.attended?"#34d399":HW.red}}>
                             {r.attended?"● Attended":"○ Absent"}
                           </span>
                         </div>
@@ -2266,7 +2587,9 @@ export default function App() {
                               fontWeight:700,marginBottom:4}}>
                               Excuse: {r.excuse_type}
                             </div>
-                            <div style={{fontSize:12}}>{r.excuse_text}</div>
+                            <div style={{fontSize:12}}>
+                              {r.excuse_text}
+                            </div>
                           </div>
                         )}
                         <div style={{fontSize:13,marginBottom:12,
@@ -2279,8 +2602,8 @@ export default function App() {
                               fontWeight:700,textTransform:"uppercase",
                               marginBottom:6}}>🤳 Face ID</div>
                             <img src={r.face_capture_url} alt="face"
-                              style={{width:80,height:80,objectFit:"cover",
-                                borderRadius:"50%",
+                              style={{width:80,height:80,
+                                objectFit:"cover",borderRadius:"50%",
                                 border:`2px solid ${HW.red}`}}/>
                           </div>
                         )}
@@ -2322,9 +2645,11 @@ export default function App() {
                       <div style={{background:"rgba(207,10,44,.08)",
                         border:`1px solid rgba(207,10,44,.2)`,
                         borderRadius:10,padding:14,marginBottom:16}}>
-                        <div style={{fontSize:13,color:HW.red,fontWeight:700}}>
+                        <div style={{fontSize:13,color:HW.red,
+                          fontWeight:700}}>
                           Total: {penalties.length} day(s) ·{" "}
-                          {(penalties.length*PENALTY_PCT).toFixed(2)}% deduction
+                          {(penalties.length*PENALTY_PCT).toFixed(2)}%
+                          deduction
                         </div>
                       </div>
                       {penalties.map(p=>(
@@ -2342,7 +2667,9 @@ export default function App() {
                               marginTop:3}}>{p.reason}</div>
                           </div>
                           <div style={{fontSize:18,fontWeight:800,
-                            color:HW.red}}>-{p.amount}%</div>
+                            color:HW.red}}>
+                            -{p.amount}%
+                          </div>
                         </div>
                       ))}
                     </>
@@ -2379,18 +2706,17 @@ export default function App() {
                           {kraGoals.length} goals
                         </div>
                         <div style={{fontSize:11,color:"#34d399"}}>
-                          {completed} completed
+                          {completed} done
                         </div>
                       </div>
                     );
                   })}
                 </div>
                 {selectedGoals.length===0
-                  ?<p style={{color:HW.muted}}>
-                    No goals set by this trainee yet.
-                  </p>
+                  ?<p style={{color:HW.muted}}>No goals set yet.</p>
                   :selectedGoals.map(goal=>(
-                    <GoalCard key={goal.id} goal={goal} isTrainee={false}/>
+                    <GoalCard key={goal.id} goal={goal}
+                      isTrainee={false}/>
                   ))
                 }
               </div>
@@ -2398,7 +2724,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ ANALYTICS TAB ══ */}
+        {/* ANALYTICS */}
         {mgmtTab==="analytics"&&(
           <div>
             <div style={{display:"grid",
@@ -2413,12 +2739,14 @@ export default function App() {
                   value:`${analytics.attendanceRate}%`,
                   icon:"✅",color:"#34d399"},
                 {label:"Total Penalties",
-                  value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},
+                  value:analytics.totalPenalties,
+                  icon:"⚠️",color:"#f87171"},
                 {label:"Total Reports",
                   value:allReports.length,icon:"📋",color:HW.red},
                 {label:"Departments",
                   value:[...new Set(trainees.map(t=>t.department)
-                    .filter(Boolean))].length,icon:"🏢",color:"#FFA500"},
+                    .filter(Boolean))].length,
+                  icon:"🏢",color:"#FFA500"},
               ].map((stat,i)=>(
                 <div key={i} style={{background:HW.surface,
                   border:`1px solid ${HW.border}`,borderRadius:14,
@@ -2448,7 +2776,8 @@ export default function App() {
                           i===2?"#CD7F32":HW.surface2,
                         display:"flex",alignItems:"center",
                         justifyContent:"center",fontSize:12,
-                        fontWeight:800,color:i<3?HW.dark:HW.muted,
+                        fontWeight:800,
+                        color:i<3?HW.dark:HW.muted,
                         flexShrink:0}}>{i+1}</div>
                       <div style={{flex:1}}>
                         <div style={{fontWeight:600,fontSize:14}}>
@@ -2463,7 +2792,9 @@ export default function App() {
                           color:kpiColor(parseFloat(t.avgKpi))}}>
                           {t.avgKpi}
                         </div>
-                        <div style={{fontSize:10,color:HW.muted}}>avg KPI</div>
+                        <div style={{fontSize:10,color:HW.muted}}>
+                          avg KPI
+                        </div>
                       </div>
                     </div>
                   ))
@@ -2479,13 +2810,16 @@ export default function App() {
                   {analytics.deptData.map((d,i)=>(
                     <div key={i} style={{display:"flex",
                       justifyContent:"space-between",alignItems:"center",
-                      padding:"8px 0",borderBottom:`1px solid ${HW.border}`}}>
+                      padding:"8px 0",
+                      borderBottom:`1px solid ${HW.border}`}}>
                       <span style={{fontSize:13,color:HW.muted}}>
                         {d.label}
                       </span>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <div style={{width:80,height:6,background:HW.border,
-                          borderRadius:10,overflow:"hidden"}}>
+                      <div style={{display:"flex",
+                        alignItems:"center",gap:8}}>
+                        <div style={{width:80,height:6,
+                          background:HW.border,borderRadius:10,
+                          overflow:"hidden"}}>
                           <div style={{height:"100%",background:HW.red,
                             borderRadius:10,width:`${d.value}%`}}/>
                         </div>
@@ -2547,7 +2881,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ OKR TAB ══ */}
+        {/* OKR */}
         {mgmtTab==="okr"&&(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",
@@ -2570,7 +2904,8 @@ export default function App() {
                 <div style={{display:"grid",
                   gridTemplateColumns:"1fr 1fr",gap:14}}>
                   <div><label style={s.label}>Department</label>
-                    <input style={s.input} placeholder="e.g. Engineering"
+                    <input style={s.input}
+                      placeholder="e.g. Engineering"
                       value={newOkr.department}
                       onChange={e=>setNewOkr({
                         ...newOkr,department:e.target.value})}/></div>
@@ -2594,14 +2929,15 @@ export default function App() {
                       onChange={e=>setNewOkr({
                         ...newOkr,key_result:e.target.value})}/></div>
                   <div><label style={s.label}>Target</label>
-                    <input style={s.input} type="number" value={newOkr.target}
-                      onChange={e=>setNewOkr({
-                        ...newOkr,target:parseFloat(e.target.value)})}/></div>
+                    <input style={s.input} type="number"
+                      value={newOkr.target}
+                      onChange={e=>setNewOkr({...newOkr,
+                        target:parseFloat(e.target.value)})}/></div>
                   <div><label style={s.label}>Unit</label>
                     <select style={s.input} value={newOkr.unit}
                       onChange={e=>setNewOkr({
                         ...newOkr,unit:e.target.value})}>
-                      <option value="%">% (Percentage)</option>
+                      <option value="%">%</option>
                       <option value="sessions">Sessions</option>
                       <option value="reports">Reports</option>
                       <option value="tasks">Tasks</option>
@@ -2622,13 +2958,13 @@ export default function App() {
               gap:16,marginBottom:20}}>
               {[
                 {label:"Total OKRs",value:okrs.length,color:HW.red},
-                {label:"On Track (≥80%)",
+                {label:"On Track",
                   value:okrs.filter(o=>(o.current/o.target)>=.8).length,
                   color:"#34d399"},
                 {label:"In Progress",
                   value:okrs.filter(o=>(o.current/o.target)>=.5&&
                     (o.current/o.target)<.8).length,color:"#FFA500"},
-                {label:"Behind (<50%)",
+                {label:"Behind",
                   value:okrs.filter(o=>(o.current/o.target)<.5).length,
                   color:"#f87171"},
               ].map((s2,i)=>(
@@ -2657,7 +2993,7 @@ export default function App() {
               <div style={{...s.card,textAlign:"center",padding:40}}>
                 <div style={{fontSize:40,marginBottom:12}}>🎯</div>
                 <p style={{color:HW.muted}}>
-                  No OKRs yet. Click "+ Add OKR" to create your first one!
+                  No OKRs yet. Click "+ Add OKR"!
                 </p>
               </div>
             )}
