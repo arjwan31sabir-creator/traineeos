@@ -33,10 +33,36 @@ const CHINESE_QUOTES = [
   { chinese:"人无远虑，必有近忧", english:"He who does not think ahead will find trouble at his doorstep.", author:"孔子 Confucius" },
 ];
 
+const THEMES = [
+  { name:"Huawei Red",    primary:"#CF0A2C", darkPrimary:"#A00820", dark:"#0D0D0D", surface:"#1E1E1E", surface2:"#2A2A2A", border:"#333333", text:"#F5F5F5", muted:"#888888", white:"#FFFFFF" },
+  { name:"Ocean Blue",    primary:"#0066FF", darkPrimary:"#0044BB", dark:"#050E1F", surface:"#0A1628", surface2:"#0F2040", border:"#1A3A6A", text:"#F0F8FF", muted:"#7BA7D4", white:"#FFFFFF" },
+  { name:"Royal Purple",  primary:"#7C3AED", darkPrimary:"#5B21B6", dark:"#0D0A1F", surface:"#150E2E", surface2:"#1E1440", border:"#2D1F60", text:"#F5F0FF", muted:"#A78BCA", white:"#FFFFFF" },
+  { name:"Emerald Green", primary:"#059669", darkPrimary:"#047857", dark:"#030F0A", surface:"#071A10", surface2:"#0A2518", border:"#0F3D26", text:"#F0FFF8", muted:"#6BB891", white:"#FFFFFF" },
+  { name:"Sunset Orange", primary:"#EA580C", darkPrimary:"#C2410C", dark:"#100704", surface:"#1C0D06", surface2:"#28140A", border:"#4A200E", text:"#FFF7F0", muted:"#C48A6A", white:"#FFFFFF" },
+  { name:"Rose Pink",     primary:"#E11D78", darkPrimary:"#BE1065", dark:"#0F040A", surface:"#1C0712", surface2:"#28091A", border:"#4A1030", text:"#FFF0F7", muted:"#C47A9E", white:"#FFFFFF" },
+  { name:"Sky Teal",      primary:"#0891B2", darkPrimary:"#0E7490", dark:"#030D10", surface:"#071820", surface2:"#0A2230", border:"#0F3A4A", text:"#F0FEFF", muted:"#60A8BB", white:"#FFFFFF" },
+  { name:"Golden Sun",    primary:"#D97706", darkPrimary:"#B45309", dark:"#0F0A02", surface:"#1C1404", surface2:"#281E06", border:"#4A380A", text:"#FFFBF0", muted:"#BBA050", white:"#FFFFFF" },
+];
+
+const randomTheme = THEMES[Math.floor(Math.random()*THEMES.length)];
+const THEMES = [
+  { name:"Huawei Red",    primary:"#CF0A2C", darkPrimary:"#A00820", dark:"#0D0D0D", surface:"#1E1E1E", surface2:"#2A2A2A", border:"#333333", text:"#F5F5F5", muted:"#888888", white:"#FFFFFF" },
+  { name:"Ocean Blue",    primary:"#0066FF", darkPrimary:"#0044BB", dark:"#050E1F", surface:"#0A1628", surface2:"#0F2040", border:"#1A3A6A", text:"#F0F8FF", muted:"#7BA7D4", white:"#FFFFFF" },
+  { name:"Royal Purple",  primary:"#7C3AED", darkPrimary:"#5B21B6", dark:"#0D0A1F", surface:"#150E2E", surface2:"#1E1440", border:"#2D1F60", text:"#F5F0FF", muted:"#A78BCA", white:"#FFFFFF" },
+  { name:"Emerald Green", primary:"#059669", darkPrimary:"#047857", dark:"#030F0A", surface:"#071A10", surface2:"#0A2518", border:"#0F3D26", text:"#F0FFF8", muted:"#6BB891", white:"#FFFFFF" },
+  { name:"Sunset Orange", primary:"#EA580C", darkPrimary:"#C2410C", dark:"#100704", surface:"#1C0D06", surface2:"#28140A", border:"#4A200E", text:"#FFF7F0", muted:"#C48A6A", white:"#FFFFFF" },
+  { name:"Rose Pink",     primary:"#E11D78", darkPrimary:"#BE1065", dark:"#0F040A", surface:"#1C0712", surface2:"#28091A", border:"#4A1030", text:"#FFF0F7", muted:"#C47A9E", white:"#FFFFFF" },
+  { name:"Sky Teal",      primary:"#0891B2", darkPrimary:"#0E7490", dark:"#030D10", surface:"#071820", surface2:"#0A2230", border:"#0F3A4A", text:"#F0FEFF", muted:"#60A8BB", white:"#FFFFFF" },
+  { name:"Golden Sun",    primary:"#D97706", darkPrimary:"#B45309", dark:"#0F0A02", surface:"#1C1404", surface2:"#281E06", border:"#4A380A", text:"#FFFBF0", muted:"#BBA050", white:"#FFFFFF" },
+];
+
+const randomTheme = THEMES[Math.floor(Math.random()*THEMES.length)];
 const HW = {
-  red:"#CF0A2C", darkRed:"#A00820", black:"#1A1A1A",
-  dark:"#0D0D0D", surface:"#1E1E1E", surface2:"#2A2A2A",
-  border:"#333333", text:"#F5F5F5", muted:"#888888", white:"#FFFFFF",
+  red:randomTheme.primary, darkRed:randomTheme.darkPrimary,
+  black:"#1A1A1A", dark:randomTheme.dark,
+  surface:randomTheme.surface, surface2:randomTheme.surface2,
+  border:randomTheme.border, text:randomTheme.text,
+  muted:randomTheme.muted, white:randomTheme.white,
 };
 
 function HuaweiLogo({size=32}) {
