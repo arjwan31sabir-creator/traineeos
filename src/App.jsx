@@ -418,7 +418,7 @@ export default function App() {
 
   const s = {
     page:{minHeight:"100vh",background:HW.dark,color:HW.text,
-      fontFamily:"sans-serif",padding:"16px 16px 100px 16px",
+      fontFamily:"sans-serif",padding:"24px 32px 100px 32px",maxWidth:"100%",
       maxWidth:"100%",margin:"0 auto"},
     card:{background:HW.surface,border:`1px solid ${HW.border}`,
       borderRadius:16,padding:16,marginBottom:16},
@@ -1006,8 +1006,8 @@ export default function App() {
   const clockColor=isLate?HW.red:"#34d399";
 
   const TraineeNav = () => (
-    <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
-      width:"100%",maxWidth:480,background:HW.surface,
+    <div style={{position:"fixed",bottom:0,left:0,right:0,
+      background:HW.surface,
       borderTop:`1px solid ${HW.border}`,
       display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
       {[
@@ -1029,8 +1029,8 @@ export default function App() {
   );
 
   const MgmtNav = () => (
-    <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
-      width:"100%",maxWidth:480,background:HW.surface,
+    <div style={{position:"fixed",bottom:0,left:0,right:0,
+      background:HW.surface,
       borderTop:`1px solid ${HW.border}`,
       display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
       {["trainees","live","analytics","okr"].map(tab=>(
