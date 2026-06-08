@@ -1470,6 +1470,51 @@ export default function App() {
             {/* Face ID */}
             <div style={{marginTop:16,padding:16,background:HW.surface2,borderRadius:12,
               border:faceCaptured?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
+              <div style={{fontWeight:700,color:HW.red,marginBottom:12,fontSize:15}}>
+                🤳 Face ID Verification
+              </div>
+              {!cameraActive&&!faceCaptured&&(
+                <button style={{...s.btn,background:HW.red,color:HW.white}}
+                  onClick={startCamera}>📷 Open Camera</button>
+              )}
+              {cameraActive&&(
+                <div>
+                  <video ref={videoRef} autoPlay playsInline
+                    style={{width:"100%",maxWidth:280,borderRadius:10,
+                      border:`2px solid ${HW.red}`,display:"block",marginBottom:10}}/>
+                  <canvas ref={canvasRef} style={{display:"none"}}/>
+                  <div style={{display:"flex",gap:8}}>
+                    <button style={{...s.btn,background:HW.red,color:HW.white}}
+                      onClick={captureface}>📸 Capture</button>
+                    <button style={{...s.btn,background:HW.surface,color:HW.muted,
+                      border:`1px solid ${HW.border}`}} onClick={stopCamera}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {faceCaptured&&facePreviewUrl&&(
+                <div style={{display:"flex",alignItems:"center",gap:16}}>
+                  <img src={facePreviewUrl} alt="Face ID"
+                    style={{width:90,height:90,borderRadius:"50%",objectFit:"cover",
+                      border:`3px solid ${HW.red}`,
+                      boxShadow:`0 0 20px rgba(207,10,44,.3)`}}/>
+                  <div>
+                    <div style={{fontWeight:700,color:HW.red,fontSize:15,marginBottom:4}}>
+                      ✅ Face Captured Successfully
+                    </div>
+                    <div style={{fontSize:12,color:HW.muted,marginBottom:8}}>
+                      Identity verified
+                    </div>
+                    <button style={{...s.btn,background:"rgba(207,10,44,.1)",
+                      color:HW.red,padding:"5px 12px",fontSize:12}}
+                      onClick={()=>{
+                        setFaceCaptured(false);setFaceCapture(null);setFacePreviewUrl(null);
+                      }}>🔄 Retake</button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{marginTop:16,padding:16,background:HW.surface2,borderRadius:12,
+              border:faceCaptured?`1px solid rgba(207,10,44,.5)`:`1px solid ${HW.border}`}}>
               <div style={{fontWeight:700,color:HW.red,marginBottom:12}}>🤳 Face ID Verification</div>
               {!cameraActive&&!faceCaptured&&(
                 <button style={{...s.btn,background:HW.red,color:HW.white}}
