@@ -272,7 +272,7 @@ function GreetingPopup({name,onDismiss}) {
     if("speechSynthesis" in window){
       window.speechSynthesis.cancel();
       const msg=new SpeechSynthesisUtterance(
-        `${greeting}, ${name}! Welcome to TraineeOS. ${quote.english}. Have a nice day!`
+        `${greeting}, ${name}! Welcome to Huawei TechTrack. ${quote.english}. Have a nice day!`
       );
       msg.rate=0.9;msg.pitch=1;msg.volume=1;
       const setVoice=()=>{
@@ -419,7 +419,7 @@ export default function App() {
   const s = {
     page:{minHeight:"100vh",background:HW.dark,color:HW.text,
       fontFamily:"sans-serif",padding:"16px 16px 100px 16px",
-      maxWidth:480,margin:"0 auto"},
+      maxWidth:"100%",margin:"0 auto"},
     card:{background:HW.surface,border:`1px solid ${HW.border}`,
       borderRadius:16,padding:16,marginBottom:16},
     input:{background:HW.surface2,border:`1px solid ${HW.border}`,
@@ -465,7 +465,7 @@ export default function App() {
       if(now.getHours()===16&&now.getMinutes()===30){
         setShowReminder(true);
         if(Notification.permission==="granted")
-          new Notification("TraineeOS",{body:"Reminder: Submit your weekly report!"});
+          new Notification("Huawei TechTrack",{body:"Reminder: Submit your weekly report!"});
       }
     };
     if(Notification.permission==="default") Notification.requestPermission();
@@ -934,7 +934,7 @@ export default function App() {
         "Current":g.current_value,"Unit":g.unit,"Status":g.status,
         "Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%",
       }))),"Goals");
-    XLSX.writeFile(wb,`TraineeOS_${new Date().toISOString().split("T")[0]}.xlsx`);
+    XLSX.writeFile(wb,`Huawei TechTrack_${new Date().toISOString().split("T")[0]}.xlsx`);
     setMsg("✅ Excel exported!");
   }
 
@@ -942,7 +942,7 @@ export default function App() {
     const doc=new jsPDF();const t=trainee||selected;
     doc.setFillColor(207,10,44);doc.rect(0,0,210,40,"F");
     doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont("helvetica","bold");
-    doc.text("TraineeOS — Performance Report",14,18);
+    doc.text("Huawei TechTrack — Performance Report",14,18);
     doc.setFontSize(10);doc.setFont("helvetica","normal");
     doc.text(`Generated: ${new Date().toLocaleDateString("en-GB")}`,14,30);
     doc.setTextColor(0,0,0);doc.setFontSize(13);doc.setFont("helvetica","bold");
@@ -966,7 +966,7 @@ export default function App() {
       alternateRowStyles:{fillColor:[245,245,245]},
     });
     doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");
-    doc.text("TraineeOS • Powered by Huawei • Confidential",14,285);
+    doc.text("Huawei TechTrack • Powered by Arjwan Sabir • Confidential",14,285);
     doc.save(`${t.full_name}_report.pdf`);
   }
 
@@ -1058,9 +1058,9 @@ export default function App() {
       <div style={{width:"100%",maxWidth:400}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <HuaweiLogo size={64}/>
-          <h1 style={{margin:"16px 0 4px",fontSize:28,color:HW.text}}>TraineeOS</h1>
+          <h1 style={{margin:"16px 0 4px",fontSize:28,color:HW.text}}>Huawei TechTrack</h1>
           <p style={{color:HW.red,fontSize:12,fontWeight:700,
-            letterSpacing:".1em",textTransform:"uppercase"}}>Powered by Huawei</p>
+            letterSpacing:".1em",textTransform:"uppercase"}}>Powered by Arjwan Sabir</p>
           <div style={{fontSize:11,color:HW.muted,marginTop:6}}>
             🎨 {randomTheme.name} Theme
           </div>
@@ -1213,7 +1213,7 @@ export default function App() {
           <HuaweiLogo size={28}/>
           <div>
             <div style={{fontWeight:700,fontSize:15,color:HW.text}}>
-              {traineeName?`Hi, ${traineeName}!`:"TraineeOS"}
+              {traineeName?`Hi, ${traineeName}!`:"Huawei TechTrack"}
             </div>
             <div style={{fontSize:10,color:HW.muted}}>{user?.email}</div>
           </div>
