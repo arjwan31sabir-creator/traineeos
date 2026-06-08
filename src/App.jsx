@@ -1054,7 +1054,7 @@ export default function App() {
   // ══ LOGIN ══
   if(view==="login") return (
     <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",padding:20}}>
+      minHeight:"100vh",padding:20,maxWidth:"100%",maxWidth:"100%"}}>
       <div style={{width:"100%",maxWidth:400}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <HuaweiLogo size={64}/>
@@ -1098,7 +1098,7 @@ export default function App() {
   // ══ SIGNUP ══
   if(view==="signup") return (
     <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",padding:20}}>
+      minHeight:"100vh",padding:20,maxWidth:"100%",maxWidth:"100%"}}>
       <div style={{width:"100%",maxWidth:400}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <HuaweiLogo size={48}/>
