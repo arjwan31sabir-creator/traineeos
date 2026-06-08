@@ -359,6 +359,9 @@ export default function App() {
   const [allReports,setAllReports]   = useState([]);
   const [allPenalties,setAllPenalties] = useState([]);
   const [liveSignins,setLiveSignins] = useState([]);
+  const [sickLeaves,setSickLeaves]   = useState([]);
+  const [selectedSickLeaves,setSelectedSickLeaves] = useState([]);
+  const [allSickLeaves,setAllSickLeaves] = useState([]);
   const [loading,setLoading]         = useState(false);
   const [aiLoading,setAiLoading]     = useState(false);
   const [msg,setMsg]                 = useState("");
@@ -369,6 +372,8 @@ export default function App() {
   const [aiResult,setAiResult]       = useState(null);
   const [weeklyPhotoFile,setWeeklyPhotoFile] = useState(null);
   const [weeklyPhotoPreview,setWeeklyPhotoPreview] = useState(null);
+  const [sickProofFile,setSickProofFile] = useState(null);
+  const [sickProofPreview,setSickProofPreview] = useState(null);
   const [geoStatus,setGeoStatus]     = useState("idle");
   const [geoMsg,setGeoMsg]           = useState("");
   const [locationOk,setLocationOk]   = useState(false);
@@ -381,6 +386,12 @@ export default function App() {
   const [excuseText,setExcuseText]   = useState("");
   const [excusePhoto,setExcusePhoto] = useState(null);
   const [excusePreview,setExcusePreview] = useState(null);
+  const [showAddSick,setShowAddSick] = useState(false);
+  const [newSick,setNewSick]         = useState({
+    start_date:new Date().toISOString().split("T")[0],
+    end_date:new Date().toISOString().split("T")[0],
+    reason:"",
+  });
   const [newOkr,setNewOkr]           = useState({department:"",objective:"",
     key_result:"",target:100,current:0,unit:"%",due_date:""});
   const [showAddOkr,setShowAddOkr]   = useState(false);
@@ -407,6 +418,7 @@ export default function App() {
 
   const excuseRef=useRef();
   const weeklyPhotoRef=useRef();
+  const sickProofRef=useRef();
 
   const [profile,setProfile] = useState({
     full_name:"",civil_id:"",phone_number:"",
@@ -418,8 +430,7 @@ export default function App() {
 
   const s = {
     page:{minHeight:"100vh",background:HW.dark,color:HW.text,
-      fontFamily:"sans-serif",padding:"24px 32px 100px 32px",maxWidth:"100%",
-      maxWidth:"100%",margin:"0 auto"},
+      fontFamily:"sans-serif",padding:"24px 32px 100px 32px",maxWidth:"100%"},
     card:{background:HW.surface,border:`1px solid ${HW.border}`,
       borderRadius:16,padding:16,marginBottom:16},
     input:{background:HW.surface2,border:`1px solid ${HW.border}`,
@@ -543,6 +554,7 @@ export default function App() {
             }
             fetchGoals(data.trainee_id);
             fetchWeeklyReport(data.trainee_id);
+            fetchSickLeaves(data.trainee_id);
             const today=new Date().toISOString().split("T")[0];
             const{data:todayReport}=await supabase.from("daily_reports")
               .select("signout_time").eq("trainee_id",data.trainee_id)
@@ -572,6 +584,70 @@ export default function App() {
         talent_notes:data.talent_notes,summary:data.report_text,
       });
     }
+  }
+
+  async function fetchSickLeaves(tid){
+    const{data}=await supabase.from("sick_leaves").select("*")
+      .eq("trainee_id",tid).order("start_date",{ascending:false});
+    if(data) setSickLeaves(data);
+  }
+
+  async function fetchSelectedSickLeaves(tid){
+    const{data}=await supabase.from("sick_leaves").select("*")
+      .eq("trainee_id",tid).order("start_date",{ascending:false});
+    if(data) setSelectedSickLeaves(data);
+  }
+
+  async function submitSickLeave(){
+    if(!newSick.reason){setMsg("Please enter a reason.");return;}
+    setLoading(true);setMsg("");
+    const tid=traineeId;
+    const ts=Date.now();
+    const start=new Date(newSick.start_date);
+    const end=new Date(newSick.end_date);
+    const totalDays=Math.ceil((end-start)/(1000*60*60*24))+1;
+    const penaltyDays=Math.max(0,totalDays-2);
+    const penaltyApplied=penaltyDays>0;
+
+    let proofUrl=null;
+    if(sickProofFile)
+      proofUrl=await uploadFile("report-photos",`${tid}/sick_${ts}.jpg`,sickProofFile);
+
+    const{error}=await supabase.from("sick_leaves").insert({
+      trainee_id:tid,
+      start_date:newSick.start_date,
+      end_date:newSick.end_date,
+      reason:newSick.reason,
+      proof_url:proofUrl,
+      total_days:totalDays,
+      penalty_days:penaltyDays,
+      penalty_applied:penaltyApplied,
+    });
+
+    if(penaltyApplied){
+      for(let i=2;i<totalDays;i++){
+        const d=new Date(start);d.setDate(start.getDate()+i);
+        const dateStr=d.toISOString().split("T")[0];
+        await supabase.from("penalties").insert({
+          trainee_id:tid,report_date:dateStr,
+          reason:`Sick leave exceeded 48 hours (day ${i+1})`,
+          amount:PENALTY_PCT,
+        });
+      }
+    }
+
+    if(error){setMsg("Error: "+error.message);}
+    else{
+      setMsg(penaltyApplied
+        ?`✅ Sick leave submitted — ⚠️ ${penaltyDays} penalty day(s) applied`
+        :"✅ Sick leave submitted — No penalty (within 48 hours)");
+      setShowAddSick(false);
+      setNewSick({start_date:new Date().toISOString().split("T")[0],
+        end_date:new Date().toISOString().split("T")[0],reason:""});
+      setSickProofFile(null);setSickProofPreview(null);
+      fetchSickLeaves(tid);
+    }
+    setLoading(false);
   }
 
   async function saveSetupProfile(){
@@ -632,6 +708,7 @@ export default function App() {
     setShowGreeting(false);setTraineeName("");
     setSignedOut(false);setSignoutTime("");
     setWeeklySubmitted(false);setWeeklyText("");
+    setSickLeaves([]);
   }
 
   function checkLocation(){
@@ -657,6 +734,7 @@ export default function App() {
 
   function handleExcusePhoto(e){const f=e.target.files[0];if(!f)return;setExcusePhoto(f);setExcusePreview(URL.createObjectURL(f));}
   function handleWeeklyPhoto(e){const f=e.target.files[0];if(!f)return;setWeeklyPhotoFile(f);setWeeklyPhotoPreview(URL.createObjectURL(f));}
+  function handleSickProof(e){const f=e.target.files[0];if(!f)return;setSickProofFile(f);setSickProofPreview(URL.createObjectURL(f));}
 
   async function uploadFile(bucket,path,file){
     const{error}=await supabase.storage.from(bucket).upload(path,file);
@@ -801,7 +879,10 @@ export default function App() {
   async function fetchAllData(){
     const{data:reps}=await supabase.from("daily_reports").select("*");
     const{data:pens}=await supabase.from("penalties").select("*");
-    if(reps) setAllReports(reps);if(pens) setAllPenalties(pens);
+    const{data:sick}=await supabase.from("sick_leaves").select("*");
+    if(reps) setAllReports(reps);
+    if(pens) setAllPenalties(pens);
+    if(sick) setAllSickLeaves(sick);
   }
 
   async function fetchReports(tid){
@@ -826,6 +907,26 @@ export default function App() {
     setSelected({...t});setProfileTab("timeline");setMsg("");
     await fetchReports(t.id);await fetchLogs(t.id);
     await fetchPenalties(t.id);await fetchSelectedGoals(t.id);
+    await fetchSelectedSickLeaves(t.id);
+  }
+
+  async function updatePaymentStatus(status,notes){
+    await supabase.from("trainees").update({
+      payment_status:status,payment_notes:notes||null
+    }).eq("id",selected.id);
+    setSelected({...selected,payment_status:status,payment_notes:notes});
+    fetchTrainees();setMsg("✅ Payment status updated!");
+  }
+
+  async function updateLaptopStatus(received,serial,date){
+    await supabase.from("trainees").update({
+      laptop_received:received,
+      laptop_serial:serial||null,
+      laptop_received_date:date||null,
+    }).eq("id",selected.id);
+    setSelected({...selected,laptop_received:received,
+      laptop_serial:serial,laptop_received_date:date});
+    fetchTrainees();setMsg("✅ Laptop status updated!");
   }
 
   async function logEvent(tid,type,desc,old="",nw=""){
@@ -892,14 +993,24 @@ export default function App() {
     const{data:allR}=await supabase.from("daily_reports").select("*").order("report_date");
     const{data:allP}=await supabase.from("penalties").select("*").order("created_at");
     const{data:allG}=await supabase.from("goals").select("*").order("created_at");
+    const{data:allSL}=await supabase.from("sick_leaves").select("*").order("start_date");
     const wb=XLSX.utils.book_new();
+
+    // Trainees sheet
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allT||[]).map(t=>({
         "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
         "Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,
         "Gender":t.gender||"—","Nationality":t.nationality||"—",
         "Status":t.status,"Joining Date":t.joining_date,
+        "Payment Status":t.payment_status||"unpaid",
+        "Payment Notes":t.payment_notes||"—",
+        "Laptop Received":t.laptop_received?"Yes":"No",
+        "Laptop Serial":t.laptop_serial||"—",
+        "Laptop Date":t.laptop_received_date||"—",
       }))),"Trainees");
+
+    // Daily Attendance
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allR||[]).filter(r=>!r.week_start).map(r=>{
         const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
@@ -912,6 +1023,8 @@ export default function App() {
           "Time Out":r.signout_time||"—","Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None",
         };
       })),"Daily Attendance");
+
+    // Weekly Reports
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allR||[]).filter(r=>r.weekly_tasks).map(r=>{
         const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
@@ -922,11 +1035,29 @@ export default function App() {
           "Talent Notes":r.talent_notes||"—",
         };
       })),"Weekly Reports");
+
+    // Sick Leaves
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
+      (allSL||[]).map(sl=>{
+        const trainee=(allT||[]).find(t=>t.id===sl.trainee_id);
+        return{
+          "Full Name":trainee?.full_name||"—","Department":trainee?.department||"—",
+          "Start Date":sl.start_date,"End Date":sl.end_date,
+          "Total Days":sl.total_days,"Reason":sl.reason||"—",
+          "Penalty Days":sl.penalty_days||0,
+          "Penalty Applied":sl.penalty_applied?"Yes":"No",
+          "Has Proof":sl.proof_url?"Yes":"No",
+        };
+      })),"Sick Leaves");
+
+    // Penalties
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allP||[]).map(p=>({
         "Full Name":(allT||[]).find(t=>t.id===p.trainee_id)?.full_name||"—",
         "Date":p.report_date,"Reason":p.reason,"Deduction":`-${p.amount}%`,
       }))),"Penalties");
+
+    // Goals
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
       (allG||[]).map(g=>({
         "Full Name":(allT||[]).find(t=>t.id===g.trainee_id)?.full_name||"—",
@@ -934,7 +1065,19 @@ export default function App() {
         "Current":g.current_value,"Unit":g.unit,"Status":g.status,
         "Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%",
       }))),"Goals");
-    XLSX.writeFile(wb,`Huawei TechTrack_${new Date().toISOString().split("T")[0]}.xlsx`);
+
+    // Payment & Laptop
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(
+      (allT||[]).map(t=>({
+        "Full Name":t.full_name,"Department":t.department,
+        "Payment Status":t.payment_status||"unpaid",
+        "Payment Notes":t.payment_notes||"—",
+        "Laptop Received":t.laptop_received?"Yes":"No",
+        "Laptop Serial":t.laptop_serial||"—",
+        "Laptop Received Date":t.laptop_received_date||"—",
+      }))),"Payment & Laptop");
+
+    XLSX.writeFile(wb,`HuaweiTechTrack_${new Date().toISOString().split("T")[0]}.xlsx`);
     setMsg("✅ Excel exported!");
   }
 
@@ -951,7 +1094,9 @@ export default function App() {
       head:[["Field","Details"]],
       body:[["Full Name",t.full_name||"—"],["Civil ID",t.civil_id||"—"],
         ["Department",t.department||"—"],["Mentor",t.assigned_mentor||"—"],
-        ["Status",t.status||"—"],["Joining Date",t.joining_date||"—"]],
+        ["Status",t.status||"—"],["Joining Date",t.joining_date||"—"],
+        ["Payment Status",t.payment_status||"unpaid"],
+        ["Laptop Received",t.laptop_received?"Yes — "+( t.laptop_serial||""):"No"]],
       headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},
       alternateRowStyles:{fillColor:[245,245,245]},
     });
@@ -1006,19 +1151,22 @@ export default function App() {
   const clockColor=isLate?HW.red:"#34d399";
 
   const TraineeNav = () => (
-    <div style={{}}>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,
+      background:HW.surface,borderTop:`1px solid ${HW.border}`,
+      display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
       {[
         {id:"attendance",icon:"✅",label:"Attend"},
         {id:"weekly",icon:"📅",label:"Weekly"},
+        {id:"sick",icon:"🏥",label:"Sick Leave"},
         {id:"goals",icon:"🎯",label:"Goals"},
       ].map(tab=>(
         <button key={tab.id} onClick={()=>setTraineeTab(tab.id)}
-          style={{flex:1,padding:"12px 4px 8px",border:"none",
+          style={{flex:1,padding:"10px 4px 8px",border:"none",
             background:"none",cursor:"pointer",
             borderTop:traineeTab===tab.id?`3px solid ${HW.red}`:"3px solid transparent",
-            display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-          <span style={{fontSize:22}}>{tab.icon}</span>
-          <span style={{fontSize:10,fontWeight:700,
+            display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+          <span style={{fontSize:20}}>{tab.icon}</span>
+          <span style={{fontSize:9,fontWeight:700,
             color:traineeTab===tab.id?HW.red:HW.muted}}>{tab.label}</span>
         </button>
       ))}
@@ -1027,19 +1175,18 @@ export default function App() {
 
   const MgmtNav = () => (
     <div style={{position:"fixed",bottom:0,left:0,right:0,
-      background:HW.surface,
-      borderTop:`1px solid ${HW.border}`,
+      background:HW.surface,borderTop:`1px solid ${HW.border}`,
       display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
       {["trainees","live","analytics","okr"].map(tab=>(
         <button key={tab} onClick={()=>{setMgmtTab(tab);setSelected(null);setMsg("");}}
-          style={{flex:1,padding:"12px 4px 8px",border:"none",
+          style={{flex:1,padding:"10px 4px 8px",border:"none",
             background:"none",cursor:"pointer",
             borderTop:mgmtTab===tab?`3px solid ${HW.red}`:"3px solid transparent",
-            display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+            display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
           <span style={{fontSize:20}}>
             {tab==="trainees"?"👥":tab==="live"?"📡":tab==="analytics"?"📊":"🎯"}
           </span>
-          <span style={{fontSize:10,fontWeight:700,
+          <span style={{fontSize:9,fontWeight:700,
             color:mgmtTab===tab?HW.red:HW.muted}}>
             {tab==="trainees"?"Trainees":tab==="live"?"Live":tab==="analytics"?"Analytics":"OKR"}
           </span>
@@ -1050,13 +1197,11 @@ export default function App() {
 
   // ══ LOGIN ══
   if(view==="login") return (
-    <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center",
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
       minHeight:"100vh",padding:20,
       background:`linear-gradient(135deg,${HW.dark} 0%,${HW.surface} 50%,${HW.dark} 100%)`,
       fontFamily:"sans-serif",color:HW.text}}>
-      <div style={{width:"100%",maxWidth:420}}></div>
-      <div style={{width:"100%",maxWidth:400}}>
+      <div style={{width:"100%",maxWidth:420}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <HuaweiLogo size={64}/>
           <h1 style={{margin:"16px 0 4px",fontSize:28,color:HW.text}}>Huawei TechTrack</h1>
@@ -1066,17 +1211,24 @@ export default function App() {
             🎨 {randomTheme.name} Theme
           </div>
         </div>
-        <label style={s.label}>Email</label>
-        <input style={{...s.input,marginBottom:16}} value={email}
-          onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"
-          type="email" autoComplete="email"/>
-        <label style={s.label}>Password</label>
-        <input style={{...s.input,marginBottom:24}} type="password"
-          value={password} onChange={e=>setPassword(e.target.value)}
+        <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",
+          letterSpacing:".06em",display:"block",marginBottom:6}}>Email</label>
+        <input style={{background:HW.surface2,border:`1px solid ${HW.border}`,
+          color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",
+          fontFamily:"sans-serif",fontSize:16,boxSizing:"border-box",marginBottom:16}}
+          value={email} onChange={e=>setEmail(e.target.value)}
+          placeholder="you@example.com" type="email" autoComplete="email"/>
+        <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",
+          letterSpacing:".06em",display:"block",marginBottom:6}}>Password</label>
+        <input style={{background:HW.surface2,border:`1px solid ${HW.border}`,
+          color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",
+          fontFamily:"sans-serif",fontSize:16,boxSizing:"border-box",marginBottom:24}}
+          type="password" value={password} onChange={e=>setPassword(e.target.value)}
           placeholder="Password" autoComplete="current-password"
           onKeyDown={e=>e.key==="Enter"&&login()}/>
-        <button style={{...s.btn,background:HW.red,color:HW.white,
-          width:"100%",padding:16,fontSize:17,opacity:loading?0.6:1}}
+        <button style={{padding:"16px 20px",borderRadius:10,border:"none",
+          fontWeight:700,cursor:"pointer",fontSize:17,
+          background:HW.red,color:HW.white,width:"100%",opacity:loading?0.6:1}}
           onClick={login} disabled={loading}>
           {loading?"Signing in…":"Sign In →"}
         </button>
@@ -1085,8 +1237,9 @@ export default function App() {
           <span style={{color:HW.muted,fontSize:12}}>OR</span>
           <div style={{flex:1,height:1,background:HW.border}}/>
         </div>
-        <button style={{...s.btn,background:HW.surface2,color:HW.text,
-          width:"100%",padding:16,border:`1px solid ${HW.border}`,fontSize:15}}
+        <button style={{padding:"16px 20px",borderRadius:10,
+          border:`1px solid ${HW.border}`,fontWeight:700,cursor:"pointer",fontSize:15,
+          background:HW.surface2,color:HW.text,width:"100%"}}
           onClick={()=>{setView("signup");setMsg("");}}>
           Create Trainee Account
         </button>
@@ -1095,16 +1248,14 @@ export default function App() {
       </div>
     </div>
   );
-<div style={{display:"flex",alignItems:"center",justifyContent:"center",
+
+  // ══ SIGNUP ══
+  if(view==="signup") return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",
       minHeight:"100vh",padding:20,
       background:`linear-gradient(135deg,${HW.dark} 0%,${HW.surface} 50%,${HW.dark} 100%)`,
       fontFamily:"sans-serif",color:HW.text}}>
-      <div style={{width:"100%",maxWidth:420}}></div>
-  // ══ SIGNUP ══
-  if(view==="signup") return (
-    <div style={{...s.page,display:"flex",alignItems:"center",justifyContent:"center",
-      minHeight:"100vh",padding:20,maxWidth:"100%",maxWidth:"100%"}}>
-      <div style={{width:"100%",maxWidth:400}}>
+      <div style={{width:"100%",maxWidth:420}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <HuaweiLogo size={48}/>
           <h2 style={{margin:"12px 0 4px",color:HW.text}}>Create Account</h2>
@@ -1167,7 +1318,7 @@ export default function App() {
           <option value="Female">Female / أنثى</option>
         </select>
         <label style={s.label}>Nationality</label>
-        <input style={{...s.input}} placeholder="e.g. Omani"
+        <input style={s.input} placeholder="e.g. Omani"
           value={setupProfile.nationality}
           onChange={e=>setSetupProfile({...setupProfile,nationality:e.target.value})}/>
       </div>
@@ -1346,7 +1497,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Location */}
             <div style={{background:HW.surface2,borderRadius:12,padding:14,
               marginBottom:14,
               border:locationOk?`1px solid ${HW.red}50`:`1px solid ${HW.border}`}}>
@@ -1377,7 +1527,6 @@ export default function App() {
               {loading?"Saving…":"✅ Submit Attendance"}
             </button>
 
-            {/* Sign Out */}
             <div style={{marginTop:12,background:HW.surface2,borderRadius:12,padding:14,
               border:`1px solid ${HW.border}`}}>
               <div style={{fontWeight:700,color:"#4f8ef7",marginBottom:10,fontSize:15}}>
@@ -1528,6 +1677,149 @@ export default function App() {
         </div>
       )}
 
+      {/* ══ SICK LEAVE TAB ══ */}
+      {traineeTab==="sick"&&(
+        <div>
+          {/* Stats */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+            {[
+              {label:"Total",value:sickLeaves.length,color:"#4f8ef7"},
+              {label:"Free Days",value:sickLeaves.reduce((a,s)=>a+Math.min(s.total_days,2),0),color:"#34d399"},
+              {label:"Penalty Days",value:sickLeaves.reduce((a,s)=>a+(s.penalty_days||0),0),color:HW.red},
+            ].map((stat,i)=>(
+              <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
+                borderRadius:12,padding:14,textAlign:"center",
+                borderTop:`3px solid ${stat.color}`}}>
+                <div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div>
+                <div style={{fontSize:11,color:HW.muted,marginTop:3}}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 48hr rule info */}
+          <div style={{...s.card,background:"rgba(79,142,247,.08)",
+            border:"1px solid rgba(79,142,247,.3)"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#4f8ef7",marginBottom:6}}>
+              ℹ️ Sick Leave Policy
+            </div>
+            <div style={{fontSize:13,color:HW.muted,lineHeight:1.6}}>
+              First <b style={{color:HW.text}}>2 days (48 hours)</b> — No penalty ✅<br/>
+              After 48 hours — <b style={{color:HW.red}}>8.33% penalty per day</b> ⚠️<br/>
+              Medical proof photo is recommended.
+            </div>
+          </div>
+
+          <div style={{display:"flex",justifyContent:"space-between",
+            alignItems:"center",marginBottom:12}}>
+            <h3 style={{margin:0,fontSize:16,color:HW.text}}>
+              🏥 My Sick Leaves ({sickLeaves.length})
+            </h3>
+            <button style={{...s.btn,background:HW.red,color:HW.white,padding:"10px 16px"}}
+              onClick={()=>setShowAddSick(!showAddSick)}>
+              {showAddSick?"✕ Cancel":"+ Submit Sick Leave"}
+            </button>
+          </div>
+
+          {showAddSick&&(
+            <div style={{...s.card,border:`1px solid ${HW.red}40`,marginBottom:12}}>
+              <h4 style={{marginBottom:14,color:HW.red,fontSize:15}}>🏥 Submit Sick Leave</h4>
+              <label style={s.label}>Start Date</label>
+              <input style={{...s.input,marginBottom:12}} type="date"
+                value={newSick.start_date}
+                onChange={e=>setNewSick({...newSick,start_date:e.target.value})}/>
+              <label style={s.label}>End Date</label>
+              <input style={{...s.input,marginBottom:12}} type="date"
+                value={newSick.end_date}
+                onChange={e=>setNewSick({...newSick,end_date:e.target.value})}/>
+              {newSick.start_date&&newSick.end_date&&(()=>{
+                const days=Math.ceil((new Date(newSick.end_date)-new Date(newSick.start_date))/(1000*60*60*24))+1;
+                const penDays=Math.max(0,days-2);
+                return(
+                  <div style={{background:penDays>0?`${HW.red}15`:"rgba(52,211,153,.1)",
+                    border:penDays>0?`1px solid ${HW.red}40`:"1px solid rgba(52,211,153,.3)",
+                    borderRadius:10,padding:12,marginBottom:12}}>
+                    <div style={{fontSize:13,fontWeight:700,
+                      color:penDays>0?HW.red:"#34d399"}}>
+                      {days} day{days!==1?"s":""} total —{" "}
+                      {penDays>0
+                        ?`⚠️ ${penDays} penalty day(s) × 8.33% = ${(penDays*8.33).toFixed(2)}% deduction`
+                        :"✅ No penalty (within 48 hours)"}
+                    </div>
+                  </div>
+                );
+              })()}
+              <label style={s.label}>Reason *</label>
+              <textarea style={{...s.input,height:80,resize:"vertical",marginBottom:12}}
+                placeholder="Describe your illness or medical condition…"
+                value={newSick.reason}
+                onChange={e=>setNewSick({...newSick,reason:e.target.value})}/>
+              <label style={s.label}>📸 Medical Proof (Recommended)</label>
+              <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
+                <button style={{...s.btn,background:HW.surface2,color:HW.text,
+                  border:`1px dashed ${HW.border}`,flex:1}}
+                  onClick={()=>sickProofRef.current.click()}>
+                  {sickProofFile?"📷 Change Photo":"📷 Upload Medical Proof"}
+                </button>
+                <input ref={sickProofRef} type="file" accept="image/*"
+                  style={{display:"none"}} onChange={handleSickProof}/>
+                {sickProofPreview&&(
+                  <img src={sickProofPreview} alt="proof"
+                    style={{width:70,height:70,objectFit:"cover",
+                      borderRadius:10,border:`2px solid ${HW.border}`}}/>
+                )}
+              </div>
+              <button style={{...s.btn,background:HW.red,color:HW.white,
+                width:"100%",padding:14,opacity:loading?0.6:1}}
+                onClick={submitSickLeave} disabled={loading}>
+                {loading?"Submitting…":"🏥 Submit Sick Leave"}
+              </button>
+              {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+                fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
+            </div>
+          )}
+
+          {sickLeaves.length===0?(
+            <div style={{...s.card,textAlign:"center",padding:32}}>
+              <div style={{fontSize:36,marginBottom:10}}>🏥</div>
+              <p style={{color:HW.muted,fontSize:14}}>No sick leaves recorded.</p>
+            </div>
+          ):(
+            sickLeaves.map(sl=>(
+              <div key={sl.id} style={{...s.card,
+                borderLeft:`4px solid ${sl.penalty_applied?HW.red:"#34d399"}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",
+                  alignItems:"flex-start",marginBottom:8}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:14,color:HW.text}}>
+                      📅 {sl.start_date} → {sl.end_date}
+                    </div>
+                    <div style={{fontSize:12,color:HW.muted,marginTop:2}}>{sl.reason}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:13,fontWeight:700,
+                      color:sl.penalty_applied?HW.red:"#34d399"}}>
+                      {sl.total_days} day{sl.total_days!==1?"s":""}
+                    </div>
+                    <div style={{fontSize:11,color:HW.muted}}>
+                      {sl.penalty_applied
+                        ?`⚠️ -${(sl.penalty_days*PENALTY_PCT).toFixed(2)}%`
+                        :"✅ No penalty"}
+                    </div>
+                  </div>
+                </div>
+                {sl.proof_url&&(
+                  <div style={{fontSize:12,color:"#4f8ef7"}}>📎 Medical proof attached</div>
+                )}
+              </div>
+            ))
+          )}
+          {msg&&!showAddSick&&(
+            <p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+              fontSize:14,marginTop:8,textAlign:"center"}}>{msg}</p>
+          )}
+        </div>
+      )}
+
       {/* ══ GOALS TAB ══ */}
       {traineeTab==="goals"&&(
         <div>
@@ -1622,8 +1914,6 @@ export default function App() {
                 onClick={addGoal} disabled={loading}>
                 {loading?"Saving…":"🎯 Set Goal"}
               </button>
-              {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
-                fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
             </div>
           )}
           {filteredGoals.length===0?(
@@ -1637,10 +1927,8 @@ export default function App() {
                 onUpdate={updateGoal} onDelete={deleteGoal} isTrainee={true}/>
             ))
           )}
-          {msg&&!showAddGoal&&(
-            <p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
-              fontSize:14,marginTop:8,textAlign:"center"}}>{msg}</p>
-          )}
+          {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+            fontSize:14,marginTop:8,textAlign:"center"}}>{msg}</p>}
         </div>
       )}
     </div>
@@ -1657,7 +1945,7 @@ export default function App() {
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <HuaweiLogo size={28}/>
             <div>
-              <div style={{fontWeight:700,fontSize:14,color:HW.text}}>Management</div>
+              <div style={{fontWeight:700,fontSize:14,color:HW.text}}>Huawei TechTrack</div>
               <div style={{fontSize:10,color:HW.muted}}>{user?.email}</div>
             </div>
           </div>
@@ -1673,7 +1961,7 @@ export default function App() {
         <div style={{display:"flex",gap:6,marginBottom:12}}>
           <button style={{...s.btn,background:`${HW.red}20`,color:HW.red,
             fontSize:12,padding:"8px 12px"}}
-            onClick={exportExcel}>📊 Export</button>
+            onClick={exportExcel}>📊 Export Excel</button>
           <button style={{...s.btn,background:`${HW.red}20`,color:HW.red,
             fontSize:12,padding:"8px 12px",marginLeft:"auto"}}
             onClick={logout}>Sign out</button>
@@ -1708,6 +1996,20 @@ export default function App() {
                     </div>
                     <div style={{fontSize:12,color:HW.muted,marginTop:2}}>
                       {t.department} · GPA {t.gpa||"—"}
+                    </div>
+                    <div style={{display:"flex",gap:6,marginTop:4}}>
+                      <span style={{fontSize:10,fontWeight:700,
+                        color:t.payment_status==="paid"?"#34d399":HW.red,
+                        background:t.payment_status==="paid"?"rgba(52,211,153,.1)":`${HW.red}15`,
+                        padding:"2px 6px",borderRadius:6}}>
+                        💰 {t.payment_status||"unpaid"}
+                      </span>
+                      <span style={{fontSize:10,fontWeight:700,
+                        color:t.laptop_received?"#34d399":HW.muted,
+                        background:t.laptop_received?"rgba(52,211,153,.1)":"rgba(136,136,136,.1)",
+                        padding:"2px 6px",borderRadius:6}}>
+                        💻 {t.laptop_received?"received":"not received"}
+                      </span>
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",
@@ -1779,17 +2081,20 @@ export default function App() {
                 )}
               </div>
             </div>
+
             <div style={{display:"flex",gap:0,background:HW.surface2,
               borderRadius:12,padding:4,marginBottom:14,overflowX:"auto"}}>
-              {["timeline","edit","reports","penalties","goals"].map(tab=>(
+              {["timeline","edit","reports","penalties","sick","payment","laptop","goals"].map(tab=>(
                 <button key={tab} onClick={()=>setProfileTab(tab)}
                   style={{...s.btn,flex:1,padding:"10px 6px",
                     background:profileTab===tab?HW.surface:"none",
                     color:profileTab===tab?HW.text:HW.muted,
-                    fontSize:10,borderRadius:8,whiteSpace:"nowrap",
+                    fontSize:9,borderRadius:8,whiteSpace:"nowrap",
                     borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
                   {tab==="timeline"?"📅 Timeline":tab==="edit"?"✏️ Edit":
-                   tab==="reports"?"📋 Reports":tab==="penalties"?"⚠️ Penalties":"🎯 Goals"}
+                   tab==="reports"?"📋 Reports":tab==="penalties"?"⚠️ Penalties":
+                   tab==="sick"?"🏥 Sick":tab==="payment"?"💰 Payment":
+                   tab==="laptop"?"💻 Laptop":"🎯 Goals"}
                 </button>
               ))}
             </div>
@@ -1866,7 +2171,7 @@ export default function App() {
                           <div>
                             <span style={{padding:"2px 8px",borderRadius:8,fontSize:10,
                               fontWeight:700,marginRight:6,
-                              background:isWeekly?"rgba(124,92,252,.15)":"rgba(207,10,44,.15)",
+                              background:isWeekly?"rgba(124,92,252,.15)":`${HW.red}15`,
                               color:isWeekly?"#7c5cfc":HW.red}}>
                               {isWeekly?"📅 Weekly":"📋 Daily"}
                             </span>
@@ -1903,7 +2208,7 @@ export default function App() {
                         )}
                         {isWeekly&&r.weekly_tasks&&(
                           <div style={{fontSize:13,marginBottom:10,
-                            borderLeft:`3px solid #7c5cfc`,paddingLeft:10,
+                            borderLeft:"3px solid #7c5cfc",paddingLeft:10,
                             lineHeight:1.6,color:HW.muted}}>
                             {r.weekly_tasks.substring(0,200)}{r.weekly_tasks.length>200?"…":""}
                           </div>
@@ -1954,6 +2259,146 @@ export default function App() {
                     ))}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* SICK LEAVE TAB - MANAGER VIEW */}
+            {profileTab==="sick"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:12,fontSize:16,color:HW.text}}>🏥 Sick Leave History</h3>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",
+                  gap:10,marginBottom:14}}>
+                  {[
+                    {label:"Total Requests",value:selectedSickLeaves.length,color:"#4f8ef7"},
+                    {label:"Free Days",value:selectedSickLeaves.reduce((a,s)=>a+Math.min(s.total_days,2),0),color:"#34d399"},
+                    {label:"Penalty Days",value:selectedSickLeaves.reduce((a,s)=>a+(s.penalty_days||0),0),color:HW.red},
+                  ].map((stat,i)=>(
+                    <div key={i} style={{background:HW.surface2,borderRadius:10,
+                      padding:12,textAlign:"center",borderTop:`3px solid ${stat.color}`}}>
+                      <div style={{fontSize:20,fontWeight:800,color:stat.color}}>{stat.value}</div>
+                      <div style={{fontSize:10,color:HW.muted,marginTop:2}}>{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {selectedSickLeaves.length===0?<p style={{color:HW.muted}}>No sick leaves recorded.</p>
+                  :selectedSickLeaves.map(sl=>(
+                    <div key={sl.id} style={{background:HW.surface2,borderRadius:10,
+                      padding:12,marginBottom:8,
+                      borderLeft:`3px solid ${sl.penalty_applied?HW.red:"#34d399"}`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",
+                        alignItems:"flex-start"}}>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:700,color:HW.text}}>
+                            📅 {sl.start_date} → {sl.end_date}
+                          </div>
+                          <div style={{fontSize:12,color:HW.muted,marginTop:2}}>{sl.reason}</div>
+                          {sl.proof_url&&(
+                            <div style={{fontSize:11,color:"#4f8ef7",marginTop:4}}>
+                              📎 Medical proof attached
+                            </div>
+                          )}
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:13,fontWeight:700,
+                            color:sl.penalty_applied?HW.red:"#34d399"}}>
+                            {sl.total_days} day{sl.total_days!==1?"s":""}
+                          </div>
+                          <div style={{fontSize:11,color:HW.muted}}>
+                            {sl.penalty_applied
+                              ?`⚠️ -${(sl.penalty_days*PENALTY_PCT).toFixed(2)}%`
+                              :"✅ No penalty"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+
+            {/* PAYMENT TAB */}
+            {profileTab==="payment"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>💰 Payment Status</h3>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                  {["paid","unpaid"].map(status=>(
+                    <button key={status}
+                      style={{...s.btn,padding:14,
+                        background:selected.payment_status===status
+                          ?status==="paid"?"rgba(52,211,153,.2)":`${HW.red}20`
+                          :HW.surface2,
+                        color:selected.payment_status===status
+                          ?status==="paid"?"#34d399":HW.red
+                          :HW.muted,
+                        border:selected.payment_status===status
+                          ?`2px solid ${status==="paid"?"#34d399":HW.red}`
+                          :`1px solid ${HW.border}`,
+                        fontSize:15,fontWeight:800}}
+                      onClick={()=>updatePaymentStatus(status,selected.payment_notes)}>
+                      {status==="paid"?"✅ Paid":"❌ Unpaid"}
+                    </button>
+                  ))}
+                </div>
+                <label style={s.label}>Payment Notes</label>
+                <textarea style={{...s.input,height:80,resize:"vertical",marginBottom:12}}
+                  placeholder="e.g. Paid for June 2026, Stipend: 200 OMR…"
+                  value={selected.payment_notes||""}
+                  onChange={e=>setSelected({...selected,payment_notes:e.target.value})}/>
+                <button style={{...s.btn,background:HW.red,color:HW.white,
+                  width:"100%",padding:14}}
+                  onClick={()=>updatePaymentStatus(selected.payment_status,selected.payment_notes)}>
+                  Save Payment Notes
+                </button>
+                {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+                  fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
+              </div>
+            )}
+
+            {/* LAPTOP TAB */}
+            {profileTab==="laptop"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>💻 Laptop Status</h3>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                  {[true,false].map(received=>(
+                    <button key={received.toString()}
+                      style={{...s.btn,padding:14,
+                        background:selected.laptop_received===received
+                          ?received?"rgba(52,211,153,.2)":`${HW.red}20`
+                          :HW.surface2,
+                        color:selected.laptop_received===received
+                          ?received?"#34d399":HW.red
+                          :HW.muted,
+                        border:selected.laptop_received===received
+                          ?`2px solid ${received?"#34d399":HW.red}`
+                          :`1px solid ${HW.border}`,
+                        fontSize:15,fontWeight:800}}
+                      onClick={()=>updateLaptopStatus(received,
+                        selected.laptop_serial,selected.laptop_received_date)}>
+                      {received?"✅ Received":"❌ Not Received"}
+                    </button>
+                  ))}
+                </div>
+                {selected.laptop_received&&(
+                  <>
+                    <label style={s.label}>Laptop Serial Number</label>
+                    <input style={{...s.input,marginBottom:12}}
+                      placeholder="e.g. HW-2026-001"
+                      value={selected.laptop_serial||""}
+                      onChange={e=>setSelected({...selected,laptop_serial:e.target.value})}/>
+                    <label style={s.label}>Date Received</label>
+                    <input style={{...s.input,marginBottom:12}} type="date"
+                      value={selected.laptop_received_date||""}
+                      onChange={e=>setSelected({...selected,laptop_received_date:e.target.value})}/>
+                  </>
+                )}
+                <button style={{...s.btn,background:HW.red,color:HW.white,
+                  width:"100%",padding:14}}
+                  onClick={()=>updateLaptopStatus(selected.laptop_received,
+                    selected.laptop_serial,selected.laptop_received_date)}>
+                  Save Laptop Status
+                </button>
+                {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,
+                  fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
               </div>
             )}
 
@@ -2075,6 +2520,9 @@ export default function App() {
                 {label:"Avg KPI",value:analytics.avgKpi,icon:"📊",color:"#FFA500"},
                 {label:"Attendance Rate",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},
                 {label:"Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},
+                {label:"Sick Leaves",value:allSickLeaves.length,icon:"🏥",color:"#4f8ef7"},
+                {label:"Paid Trainees",value:trainees.filter(t=>t.payment_status==="paid").length,icon:"💰",color:"#34d399"},
+                {label:"Laptops Given",value:trainees.filter(t=>t.laptop_received).length,icon:"💻",color:"#7c5cfc"},
               ].map((stat,i)=>(
                 <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,
                   borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}>
