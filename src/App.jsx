@@ -69,25 +69,27 @@ function speak(text){
   else window.speechSynthesis.onvoiceschanged=setVoice;
 }
 
-function logToSupabase(userEmail, managerName, actionType, description, metadata={}){
-  return supabase.from("access_logs").insert({
-    manager_name: managerName||"Unknown",
-    manager_email: userEmail||"—",
-    action_type: actionType,
-    description: description,
-    metadata: {
-      ...metadata,
-      day: new Date().toLocaleDateString("en-GB",{weekday:"long"}),
-      date: new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
-      time: new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
-    },
-  });
+async function writeAccessLog(userEmail, managerName, actionType, description, metadata={}){
+  try{
+    await supabase.from("access_logs").insert({
+      manager_name: managerName||"Unknown",
+      manager_email: userEmail||"—",
+      action_type: actionType,
+      description: description,
+      metadata: {
+        ...metadata,
+        day: new Date().toLocaleDateString("en-GB",{weekday:"long"}),
+        date: new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
+        time: new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
+      },
+    });
+  }catch(e){console.error("Access log error:",e);}
 }
 
 function getCurrentWeek(){
-  const now=new Date(); const day=now.getDay();
-  const sunday=new Date(now); sunday.setDate(now.getDate()-day);
-  const thursday=new Date(sunday); thursday.setDate(sunday.getDate()+4);
+  const now=new Date();const day=now.getDay();
+  const sunday=new Date(now);sunday.setDate(now.getDate()-day);
+  const thursday=new Date(sunday);thursday.setDate(sunday.getDate()+4);
   const fmt=(d)=>d.toISOString().split("T")[0];
   return{week_start:fmt(sunday),week_end:fmt(thursday),label:`${sunday.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} – ${thursday.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`};
 }
@@ -110,7 +112,7 @@ async function analyzeReport(text){
 
 function PieChart({data}){
   const colors=[HW.red,"#FF6B6B","#FF9999","#FFB3B3"];
-  const entries=Object.entries(data); let cum=0;
+  const entries=Object.entries(data);let cum=0;
   const slices=entries.map(([label,pct],i)=>{
     const val=pct/100,s=cum*2*Math.PI;cum+=val;const e=cum*2*Math.PI;
     const x1=Math.cos(s-Math.PI/2),y1=Math.sin(s-Math.PI/2),x2=Math.cos(e-Math.PI/2),y2=Math.sin(e-Math.PI/2);
@@ -139,39 +141,57 @@ function ReminderPopup({onDismiss}){
 }
 
 // ── Transfer Popup ──────────────────────────────────
-function TransferPopup({trainee, onConfirm, onCancel}){
-  const [newDept, setNewDept] = useState(trainee?.department||"");
-  const [newMentor, setNewMentor] = useState(trainee?.assigned_mentor||"");
+function TransferPopup({trainee,onConfirm,onCancel}){
+  const [newDept,setNewDept]=useState(trainee?.department||"");
+  const [newMentor,setNewMentor]=useState(trainee?.assigned_mentor||"");
+  const inp={background:HW.surface2,border:`1px solid ${HW.border}`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"};
+  const lbl={fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6};
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(6px)",padding:16}}>
-      <div style={{background:HW.surface,border:`2px solid #FFA500`,borderRadius:24,padding:28,width:"100%",maxWidth:420,textAlign:"center"}}>
-        <div style={{fontSize:36,marginBottom:12}}>🔄</div>
-        <h3 style={{fontSize:20,fontWeight:800,color:"#FFA500",margin:"0 0 6px"}}>Transfer Trainee</h3>
-        <p style={{fontSize:13,color:HW.muted,marginBottom:20}}>
-          Transferring <b style={{color:HW.text}}>{trainee?.full_name}</b><br/>
-          Current department: <b style={{color:"#FFA500"}}>{trainee?.department||"—"}</b>
-        </p>
-        <div style={{textAlign:"left",marginBottom:14}}>
-          <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6}}>New Department *</label>
-          <input style={{background:HW.surface2,border:`1px solid #FFA50060`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"}}
-            placeholder="e.g. IT Infrastructure"
-            value={newDept} onChange={e=>setNewDept(e.target.value)}
-            autoFocus/>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(6px)",padding:16}}>
+      <div style={{background:HW.surface,border:`2px solid #FFA500`,borderRadius:24,padding:28,width:"100%",maxWidth:420}}>
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{fontSize:36,marginBottom:8}}>🔄</div>
+          <h3 style={{fontSize:20,fontWeight:800,color:"#FFA500",margin:"0 0 6px"}}>Transfer Trainee</h3>
+          <p style={{fontSize:13,color:HW.muted,margin:0}}>
+            <b style={{color:HW.text}}>{trainee?.full_name}</b><br/>
+            Current dept: <b style={{color:"#FFA500"}}>{trainee?.department||"—"}</b>
+            {trainee?.assigned_mentor&&<><br/>Current mentor: <b style={{color:HW.muted}}>{trainee.assigned_mentor}</b></>}
+          </p>
         </div>
-        <div style={{textAlign:"left",marginBottom:20}}>
-          <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6}}>New Mentor (optional)</label>
-          <input style={{background:HW.surface2,border:`1px solid ${HW.border}`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"}}
-            placeholder="e.g. Dr. Ahmed"
-            value={newMentor} onChange={e=>setNewMentor(e.target.value)}/>
-        </div>
+        <label style={lbl}>New Department *</label>
+        <input style={{...inp,marginBottom:14,border:`1px solid #FFA50060`}} placeholder="e.g. IT Infrastructure" value={newDept} onChange={e=>setNewDept(e.target.value)} autoFocus/>
+        <label style={lbl}>New Mentor (optional)</label>
+        <input style={{...inp,marginBottom:20}} placeholder="e.g. Dr. Ahmed" value={newMentor} onChange={e=>setNewMentor(e.target.value)}/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <button style={{padding:"14px",borderRadius:12,border:`1px solid ${HW.border}`,background:HW.surface2,color:HW.muted,fontWeight:700,fontSize:14,cursor:"pointer"}}
-            onClick={onCancel}>Cancel</button>
-          <button style={{padding:"14px",borderRadius:12,border:"none",background:"#FFA500",color:"#000",fontWeight:800,fontSize:14,cursor:"pointer",opacity:!newDept.trim()?0.5:1}}
-            disabled={!newDept.trim()}
-            onClick={()=>onConfirm(newDept.trim(), newMentor.trim())}>
-            🔄 Confirm Transfer
-          </button>
+          <button style={{padding:14,borderRadius:12,border:`1px solid ${HW.border}`,background:HW.surface2,color:HW.muted,fontWeight:700,fontSize:14,cursor:"pointer"}} onClick={onCancel}>Cancel</button>
+          <button style={{padding:14,borderRadius:12,border:"none",background:"#FFA500",color:"#000",fontWeight:800,fontSize:14,cursor:"pointer",opacity:!newDept.trim()?0.4:1}} disabled={!newDept.trim()} onClick={()=>onConfirm(newDept.trim(),newMentor.trim())}>🔄 Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Drop Popup ──────────────────────────────────────
+function DropPopup({trainee,onConfirm,onCancel}){
+  const [reason,setReason]=useState("");
+  const [quitDate,setQuitDate]=useState(new Date().toISOString().split("T")[0]);
+  const inp={background:HW.surface2,border:`1px solid ${HW.border}`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"};
+  const lbl={fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6};
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(6px)",padding:16}}>
+      <div style={{background:HW.surface,border:`2px solid ${HW.red}`,borderRadius:24,padding:28,width:"100%",maxWidth:420}}>
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{fontSize:36,marginBottom:8}}>🔴</div>
+          <h3 style={{fontSize:20,fontWeight:800,color:HW.red,margin:"0 0 6px"}}>Drop Trainee</h3>
+          <p style={{fontSize:13,color:HW.muted,margin:0}}><b style={{color:HW.text}}>{trainee?.full_name}</b></p>
+        </div>
+        <label style={lbl}>Quitting Date</label>
+        <input style={{...inp,marginBottom:14}} type="date" value={quitDate} onChange={e=>setQuitDate(e.target.value)}/>
+        <label style={lbl}>Reason for Quitting *</label>
+        <textarea style={{...inp,height:90,resize:"vertical",marginBottom:20}} placeholder="e.g. Personal reasons, found a job, health issues…" value={reason} onChange={e=>setReason(e.target.value)}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <button style={{padding:14,borderRadius:12,border:`1px solid ${HW.border}`,background:HW.surface2,color:HW.muted,fontWeight:700,fontSize:14,cursor:"pointer"}} onClick={onCancel}>Cancel</button>
+          <button style={{padding:14,borderRadius:12,border:"none",background:HW.red,color:HW.white,fontWeight:800,fontSize:14,cursor:"pointer",opacity:!reason.trim()?0.4:1}} disabled={!reason.trim()} onClick={()=>onConfirm(quitDate,reason.trim())}>🔴 Confirm Drop</button>
         </div>
       </div>
     </div>
@@ -179,13 +199,13 @@ function TransferPopup({trainee, onConfirm, onCancel}){
 }
 
 // ── Manager Greeting Popup ──────────────────────────
-function ManagerGreetingPopup({onDismiss, onLogin}){
+function ManagerGreetingPopup({onDismiss,onLogin}){
   const [selectedName,setSelectedName]=useState("");
   const [greeted,setGreeted]=useState(false);
-  const now=new Date(); const hour=now.getHours();
+  const now=new Date();const hour=now.getHours();
   const timeGreeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
   function doGreet(name){
-    setSelectedName(name); setGreeted(true);
+    setSelectedName(name);setGreeted(true);
     speak(`${timeGreeting}, ${name}! Welcome to Huawei TechTrack, Management Hub. Your insights drive our success. Let's review team performance, track attendance data, and empower the next generation of talent today.`);
     if(onLogin) onLogin(name);
   }
@@ -229,7 +249,7 @@ function ManagerGreetingPopup({onDismiss, onLogin}){
 
 // ── Trainee Greeting Popup ──────────────────────────
 function TraineeGreetingPopup({name,onDismiss}){
-  const now=new Date(); const hour=now.getHours();
+  const now=new Date();const hour=now.getHours();
   const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
   const greetingAr=hour<12?"صباح الخير":hour<17?"مساء الخير":"مساء النور";
   const quote=CHINESE_QUOTES[Math.floor(Math.random()*CHINESE_QUOTES.length)];
@@ -304,6 +324,7 @@ export default function App(){
   const [showGreeting,setShowGreeting] = useState(false);
   const [showMgrGreeting,setShowMgrGreeting] = useState(false);
   const [showTransferPopup,setShowTransferPopup] = useState(false);
+  const [showDropPopup,setShowDropPopup] = useState(false);
   const [traineeName,setTraineeName] = useState("");
   const [currentManagerName,setCurrentManagerName] = useState("");
   const [trafficCount,setTrafficCount] = useState(0);
@@ -326,7 +347,7 @@ export default function App(){
   const [currentWeek]                = useState(getCurrentWeek());
   const [weeklyText,setWeeklyText]   = useState("");
   const [weeklySubmitted,setWeeklySubmitted] = useState(false);
-  const [setupProfile,setSetupProfile] = useState({full_name:"",civil_id:"",phone_number:"",department:"",assigned_mentor:"",gpa:"",date_of_birth:"",gender:"",nationality:"Omani"});
+  const [setupProfile,setSetupProfile] = useState({full_name:"",civil_id:"",phone_number:"",department:"",assigned_mentor:"",gpa:"",date_of_birth:"",gender:"",nationality:"Omani",university:"",ojt_end_date:""});
 
   const excuseRef=useRef(),weeklyPhotoRef=useRef(),sickProofRef=useRef();
   const [attendance,setAttendance]=useState({report_date:new Date().toISOString().split("T")[0],attended:false});
@@ -351,7 +372,7 @@ export default function App(){
   useEffect(()=>{
     const check=()=>{const now=new Date();if(now.getHours()===16&&now.getMinutes()===30){setShowReminder(true);if(Notification.permission==="granted")new Notification("Huawei TechTrack",{body:"Reminder: Submit your weekly report!"});}};
     if(Notification.permission==="default")Notification.requestPermission();
-    const interval=setInterval(check,60000); return ()=>clearInterval(interval);
+    const interval=setInterval(check,60000);return ()=>clearInterval(interval);
   },[]);
 
   useEffect(()=>{
@@ -424,10 +445,10 @@ export default function App(){
     if(data)setAccessLogs(data);
   }
 
-  async function logAccess(name, actionType, description, metadata={}){
-    const resolvedName = name||currentManagerName||"Unknown";
-    await logToSupabase(user?.email, resolvedName, actionType, description, metadata);
-    fetchAccessLogs();
+  async function logAccess(actionType,description,metadata={}){
+    const name=currentManagerName||"Unknown";
+    await writeAccessLog(user?.email,name,actionType,description,metadata);
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function traineeLaptopAction(action){
@@ -450,7 +471,7 @@ export default function App(){
     if(sickProofFile)proofUrl=await uploadFile("report-photos",`${tid}/sick_${ts}.jpg`,sickProofFile);
     const{error}=await supabase.from("sick_leaves").insert({trainee_id:tid,start_date:newSick.start_date,end_date:newSick.end_date,reason:newSick.reason,proof_url:proofUrl,total_days:totalDays,penalty_days:penaltyDays,penalty_applied:penaltyApplied});
     if(penaltyApplied){for(let i=2;i<totalDays;i++){const d=new Date(start);d.setDate(start.getDate()+i);await supabase.from("penalties").insert({trainee_id:tid,report_date:d.toISOString().split("T")[0],reason:`Sick leave exceeded 48 hours (day ${i+1})`,amount:PENALTY_PCT});}}
-    if(error){setMsg("Error: "+error.message);}
+    if(error)setMsg("Error: "+error.message);
     else{setMsg(penaltyApplied?`✅ Submitted — ⚠️ ${penaltyDays} penalty day(s)`:"✅ Submitted — No penalty");setShowAddSick(false);setNewSick({start_date:new Date().toISOString().split("T")[0],end_date:new Date().toISOString().split("T")[0],reason:""});setSickProofFile(null);setSickProofPreview(null);fetchSickLeaves(tid);}
     setLoading(false);
   }
@@ -458,7 +479,17 @@ export default function App(){
   async function saveSetupProfile(){
     if(!setupProfile.full_name||!setupProfile.civil_id){setMsg("Please fill Full Name and Civil ID.");return;}
     setLoading(true);setMsg("");
-    const{data:tData,error:tErr}=await supabase.from("trainees").upsert({full_name:setupProfile.full_name,civil_id:setupProfile.civil_id,phone_number:setupProfile.phone_number,department:setupProfile.department,assigned_mentor:setupProfile.assigned_mentor,gpa:setupProfile.gpa?parseFloat(setupProfile.gpa):null,date_of_birth:setupProfile.date_of_birth||null,gender:setupProfile.gender||null,nationality:setupProfile.nationality||null,joining_date:new Date().toISOString().split("T")[0]},{onConflict:"civil_id"}).select().single();
+    const{data:tData,error:tErr}=await supabase.from("trainees").upsert({
+      full_name:setupProfile.full_name,civil_id:setupProfile.civil_id,
+      phone_number:setupProfile.phone_number,department:setupProfile.department,
+      assigned_mentor:setupProfile.assigned_mentor,
+      gpa:setupProfile.gpa?parseFloat(setupProfile.gpa):null,
+      date_of_birth:setupProfile.date_of_birth||null,
+      gender:setupProfile.gender||null,nationality:setupProfile.nationality||null,
+      university:setupProfile.university||null,
+      ojt_end_date:setupProfile.ojt_end_date||null,
+      joining_date:new Date().toISOString().split("T")[0],
+    },{onConflict:"civil_id"}).select().single();
     if(tErr){setMsg("Error: "+tErr.message);setLoading(false);return;}
     await supabase.from("profiles").update({trainee_id:tData.id,profile_completed:true}).eq("id",user.id);
     setTraineeId(tData.id);setMyTraineeData(tData);setTraineeName(setupProfile.full_name.split(" ")[0]);
@@ -481,7 +512,7 @@ export default function App(){
 
   async function logout(){
     if(currentManagerName){
-      await logToSupabase(user?.email, currentManagerName, "logout", `${currentManagerName} logged out of Management Hub`);
+      await writeAccessLog(user?.email,currentManagerName,"logout",`${currentManagerName} logged out of Management Hub`);
     }
     await supabase.auth.signOut();
     setView("login");setUser(null);setSelected(null);setMsg("");
@@ -491,7 +522,8 @@ export default function App(){
     setShowGreeting(false);setShowMgrGreeting(false);setTraineeName("");
     setSignedOut(false);setSignoutTime("");setWeeklySubmitted(false);setWeeklyText("");
     setSickLeaves([]);setMyTraineeData(null);setSearchQuery("");
-    setAccessLogs([]);setCurrentManagerName("");setShowTransferPopup(false);
+    setAccessLogs([]);setCurrentManagerName("");
+    setShowTransferPopup(false);setShowDropPopup(false);
     window.speechSynthesis?.cancel();
   }
 
@@ -500,8 +532,7 @@ export default function App(){
     if(!navigator.geolocation){setGeoStatus("error");setGeoMsg("❌ Browser does not support location.");return;}
     navigator.geolocation.getCurrentPosition(
       (pos)=>{const dist=getDistance(pos.coords.latitude,pos.coords.longitude,WORK_LAT,WORK_LNG);if(dist<=WORK_RADIUS){setLocationOk(true);setGeoStatus("ok");setGeoMsg(`✅ Verified — ${Math.round(dist)}m from workplace.`);}else{setLocationOk(false);setGeoStatus("error");setGeoMsg(`❌ ${Math.round(dist)}m away. Must be within ${WORK_RADIUS}m.`);}},
-      ()=>{setGeoStatus("error");setGeoMsg("❌ Location denied.");},
-      {enableHighAccuracy:true,timeout:10000}
+      ()=>{setGeoStatus("error");setGeoMsg("❌ Location denied.");},{enableHighAccuracy:true,timeout:10000}
     );
   }
 
@@ -525,7 +556,7 @@ export default function App(){
     let excusePhotoUrl=null;
     if(excusePhoto)excusePhotoUrl=await uploadFile("report-photos",`${tid}/excuse_${ts}.jpg`,excusePhoto);
     if(excuseType==="traffic"&&excusePhotoUrl){await supabase.from("traffic_excuses").insert({trainee_id:tid,report_date:attendance.report_date,photo_url:excusePhotoUrl});setTrafficCount(c=>c+1);}
-    if(penaltyApplied)await supabase.from("penalties").insert({trainee_id:tid,report_date:attendance.report_date,reason:!attendance.attended?"Absent — no attendance recorded":"Late sign-in after 9:00 AM without excuse",amount:PENALTY_PCT});
+    if(penaltyApplied)await supabase.from("penalties").insert({trainee_id:tid,report_date:attendance.report_date,reason:!attendance.attended?"Absent":"Late sign-in after 9:00 AM without excuse",amount:PENALTY_PCT});
     await supabase.from("daily_reports").upsert({trainee_id:tid,report_date:attendance.report_date,attended:attendance.attended,signin_time:timeStr,excuse_type:excuseType||null,excuse_text:excuseText||null,excuse_photo_url:excusePhotoUrl,traffic_excuse:excuseType==="traffic",penalty_applied:penaltyApplied,penalty_amount:penaltyApplied?PENALTY_PCT:0},{onConflict:"trainee_id,report_date"});
     setMsg(penaltyApplied?`✅ Attendance recorded — ⚠️ Penalty ${PENALTY_PCT}% applied.`:"✅ Attendance recorded successfully!");
     setLoading(false);
@@ -586,21 +617,24 @@ export default function App(){
   async function openProfile(t){
     setSelected({...t});setProfileTab("timeline");setMsg("");
     await fetchReports(t.id);await fetchLogs(t.id);await fetchPenalties(t.id);await fetchSelectedGoals(t.id);await fetchSelectedSickLeaves(t.id);
-    await logAccess(currentManagerName,"profile_view",`Viewed profile of ${t.full_name}`,{trainee:t.full_name,department:t.department});
+    await writeAccessLog(user?.email,currentManagerName,"profile_view",`Viewed profile of ${t.full_name}`,{trainee:t.full_name,department:t.department});
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function updatePaymentStatus(status,notes){
     await supabase.from("trainees").update({payment_status:status,payment_notes:notes||null}).eq("id",selected.id);
     setSelected({...selected,payment_status:status,payment_notes:notes});
     fetchTrainees();setMsg("✅ Payment status updated!");
-    await logAccess(currentManagerName,"payment_update",`Updated payment for ${selected.full_name} to ${status}`,{trainee:selected.full_name,payment_status:status,notes});
+    await writeAccessLog(user?.email,currentManagerName,"payment_update",`Updated payment for ${selected.full_name} to ${status}`,{trainee:selected.full_name,payment_status:status});
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function updateLaptopStatus(received,serial,date,returned,returnedDate){
     await supabase.from("trainees").update({laptop_received:received||false,laptop_serial:serial||null,laptop_received_date:date||null,laptop_returned:returned||false,laptop_returned_date:returnedDate||null}).eq("id",selected.id);
     setSelected({...selected,laptop_received:received,laptop_serial:serial,laptop_received_date:date,laptop_returned:returned,laptop_returned_date:returnedDate});
     fetchTrainees();setMsg("✅ Laptop status updated!");
-    await logAccess(currentManagerName,"laptop_update",`Updated laptop for ${selected.full_name} — ${returned?"Returned to HR":received?"Received":"Not received"}`,{trainee:selected.full_name,serial,received,returned});
+    await writeAccessLog(user?.email,currentManagerName,"laptop_update",`Updated laptop for ${selected.full_name}`,{trainee:selected.full_name,serial,received,returned});
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function logEvent(tid,type,desc,old="",nw=""){await supabase.from("trainee_logs").insert({trainee_id:tid,event_type:type,description:desc,old_value:old,new_value:nw,logged_by:user?.email||"manager"});}
@@ -609,48 +643,63 @@ export default function App(){
     const changes=[];
     if(selected.department!==selected._original?.department)changes.push(logEvent(selected.id,"dept_changed","Department changed",selected._original?.department,selected.department));
     if(selected.assigned_mentor!==selected._original?.assigned_mentor)changes.push(logEvent(selected.id,"mentor_changed","Mentor changed",selected._original?.assigned_mentor,selected.assigned_mentor));
-    const{error}=await supabase.from("trainees").update({department:selected.department,assigned_mentor:selected.assigned_mentor,gpa:selected.gpa,joining_date:selected.joining_date}).eq("id",selected.id);
+    const{error}=await supabase.from("trainees").update({
+      department:selected.department,assigned_mentor:selected.assigned_mentor,
+      gpa:selected.gpa,joining_date:selected.joining_date,
+      university:selected.university||null,
+      ojt_end_date:selected.ojt_end_date||null,
+    }).eq("id",selected.id);
     if(error){setMsg(error.message);return;}
     await Promise.all(changes);
     setMsg("✅ Saved!");fetchTrainees();fetchLogs(selected.id);
-    await logAccess(currentManagerName,"profile_edit",`Edited profile of ${selected.full_name}`,{trainee:selected.full_name,department:selected.department,mentor:selected.assigned_mentor,gpa:selected.gpa});
+    await writeAccessLog(user?.email,currentManagerName,"profile_edit",`Edited profile of ${selected.full_name}`,{trainee:selected.full_name,department:selected.department});
+    setTimeout(fetchAccessLogs,500);
   }
 
-  // ── TRANSFER WITH POPUP ──
-  async function handleTransferConfirm(newDept, newMentor){
+  // ── TRANSFER ──
+  async function handleTransferConfirm(newDept,newMentor){
     setShowTransferPopup(false);
-    const oldDept = selected.department;
-    const oldMentor = selected.assigned_mentor;
-    const updateData = {
-      status:"transferred",
-      department: newDept,
-      assigned_mentor: newMentor || selected.assigned_mentor,
-    };
+    const oldDept=selected.department;
+    const oldMentor=selected.assigned_mentor;
+    const updateData={status:"transferred",department:newDept,assigned_mentor:newMentor||selected.assigned_mentor};
     const{error}=await supabase.from("trainees").update(updateData).eq("id",selected.id);
     if(error){setMsg(error.message);return;}
-    await logEvent(selected.id,"transferred",`Transferred to ${newDept}${newMentor?` under ${newMentor}`:""}`,oldDept,newDept);
-    if(newMentor&&newMentor!==oldMentor) await logEvent(selected.id,"mentor_changed",`Mentor changed to ${newMentor}`,oldMentor,newMentor);
+    await logEvent(selected.id,"transferred",`Transferred from ${oldDept} to ${newDept}${newMentor?` — new mentor: ${newMentor}`:""}`,oldDept,newDept);
+    if(newMentor&&newMentor!==oldMentor)await logEvent(selected.id,"mentor_changed",`Mentor changed to ${newMentor}`,oldMentor,newMentor);
     setSelected({...selected,...updateData});
     fetchTrainees();fetchLogs(selected.id);
     setMsg(`✅ Transferred to ${newDept}${newMentor?` — Mentor: ${newMentor}`:""}`);
-    await logAccess(currentManagerName,"status_change",`Transferred ${selected.full_name} from ${oldDept} to ${newDept}`,{trainee:selected.full_name,old_department:oldDept,new_department:newDept,new_mentor:newMentor||oldMentor,old_status:"active",new_status:"transferred"});
+    await writeAccessLog(user?.email,currentManagerName,"status_change",`Transferred ${selected.full_name} from ${oldDept} to ${newDept}`,{trainee:selected.full_name,old_department:oldDept,new_department:newDept,new_mentor:newMentor||oldMentor,old_status:selected.status,new_status:"transferred"});
+    setTimeout(fetchAccessLogs,500);
+  }
+
+  // ── DROP WITH REASON ──
+  async function handleDropConfirm(quitDate,reason){
+    setShowDropPopup(false);
+    const updateData={status:"dropped",quitting_date:quitDate,quitting_reason:reason};
+    const{error}=await supabase.from("trainees").update(updateData).eq("id",selected.id);
+    if(error){setMsg(error.message);return;}
+    await logEvent(selected.id,"dropped",`Dropped — Reason: ${reason}`,selected.status,"dropped");
+    setSelected({...selected,...updateData});
+    fetchTrainees();fetchLogs(selected.id);
+    setMsg(`✅ Trainee marked as dropped`);
+    await writeAccessLog(user?.email,currentManagerName,"status_change",`Dropped ${selected.full_name} — Reason: ${reason}`,{trainee:selected.full_name,reason,quit_date:quitDate,old_status:selected.status,new_status:"dropped"});
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function changeStatus(newStatus){
-    if(newStatus==="transferred"){
-      setShowTransferPopup(true);
-      return;
-    }
-    const messages={dropped:"Trainee dropped",inactive:"Trainee inactive",active:"Trainee reactivated"};
+    if(newStatus==="transferred"){setShowTransferPopup(true);return;}
+    if(newStatus==="dropped"){setShowDropPopup(true);return;}
+    const messages={inactive:"Trainee marked as inactive",active:"Trainee reactivated"};
     const updateData={status:newStatus};
-    if(newStatus==="dropped")updateData.quitting_date=new Date().toISOString().split("T")[0];
-    if(newStatus==="active")updateData.quitting_date=null;
+    if(newStatus==="active"){updateData.quitting_date=null;updateData.quitting_reason=null;}
     const{error}=await supabase.from("trainees").update(updateData).eq("id",selected.id);
     if(error){setMsg(error.message);return;}
     await logEvent(selected.id,newStatus==="active"?"reactivated":newStatus,messages[newStatus],selected.status,newStatus);
     setSelected({...selected,status:newStatus,...updateData});fetchTrainees();fetchLogs(selected.id);
     setMsg(`✅ Status updated to ${newStatus}`);
-    await logAccess(currentManagerName,"status_change",`Changed ${selected.full_name} status from ${selected.status} to ${newStatus}`,{trainee:selected.full_name,old_status:selected.status,new_status:newStatus});
+    await writeAccessLog(user?.email,currentManagerName,"status_change",`Changed ${selected.full_name} status to ${newStatus}`,{trainee:selected.full_name,old_status:selected.status,new_status:newStatus});
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function updateOkr(id,newValue){await supabase.from("okrs").update({current:newValue}).eq("id",id);fetchOkrs();}
@@ -658,12 +707,13 @@ export default function App(){
     if(!newOkr.department||!newOkr.objective||!newOkr.key_result){setMsg("Please fill all OKR fields.");return;}
     await supabase.from("okrs").insert({...newOkr,created_by:user?.email});
     setShowAddOkr(false);setNewOkr({department:"",objective:"",key_result:"",target:100,current:0,unit:"%",due_date:""});fetchOkrs();setMsg("✅ OKR added!");
-    await logAccess(currentManagerName,"okr_add",`Added OKR: ${newOkr.objective}`,{department:newOkr.department,objective:newOkr.objective});
+    await writeAccessLog(user?.email,currentManagerName,"okr_add",`Added OKR: ${newOkr.objective}`,{department:newOkr.department});
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function exportExcel(){
     setMsg("📊 Preparing export…");
-    await logAccess(currentManagerName,"excel_export","Exported Excel report");
+    await writeAccessLog(user?.email,currentManagerName,"excel_export","Exported Excel report");
     const{data:allT}=await supabase.from("trainees").select("*").order("full_name");
     const{data:allR}=await supabase.from("daily_reports").select("*").order("report_date");
     const{data:allP}=await supabase.from("penalties").select("*").order("created_at");
@@ -672,77 +722,89 @@ export default function App(){
     const{data:allAL}=await supabase.from("access_logs").select("*").order("created_at",{ascending:false});
     const wb=XLSX.utils.book_new();
 
-    // Sheet 1 — Trainees (includes transfer department)
+    // Sheet 1 — All Trainees
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({
       "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
-      "Current Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,
-      "Status":t.status,"Joining Date":t.joining_date,
+      "University":t.university||"—","Department":t.department,"Mentor":t.assigned_mentor,
+      "GPA":t.gpa,"Gender":t.gender||"—","Nationality":t.nationality||"—",
+      "Status":t.status,
+      "Joining Date":t.joining_date||"—",
+      "OJT End Date":t.ojt_end_date||"—",
+      "Quitting Date":t.quitting_date||"—",
+      "Quitting Reason":t.quitting_reason||"—",
       "Payment Status":t.payment_status||"unpaid","Payment Notes":t.payment_notes||"—",
-      "Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial Number":t.laptop_serial||"—",
+      "Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial":t.laptop_serial||"—",
       "Laptop Received Date":t.laptop_received_date||"—",
-      "Laptop Returned to HR":t.laptop_returned?"Yes":"No","Laptop Returned Date":t.laptop_returned_date||"—",
+      "Laptop Returned":t.laptop_returned?"Yes":"No","Laptop Returned Date":t.laptop_returned_date||"—",
     }))),"Trainees");
 
-    // Sheet 2 — Transferred Trainees (dedicated sheet)
+    // Sheet 2 — Transferred Trainees
     const transferred=(allT||[]).filter(t=>t.status==="transferred");
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(transferred.length>0?transferred.map(t=>({
-      "Full Name":t.full_name,"Civil ID":t.civil_id,
-      "Transferred To (Department)":t.department||"—",
-      "New Mentor":t.assigned_mentor||"—",
-      "GPA":t.gpa,"Phone":t.phone_number,
-      "Transfer Date":(()=>{
-        const tLog=allAL?.find(l=>l.action_type==="status_change"&&l.metadata?.trainee===t.full_name&&l.metadata?.new_status==="transferred");
-        return tLog?new Date(tLog.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}):"—";
-      })(),
-      "Transferred By":(()=>{
-        const tLog=allAL?.find(l=>l.action_type==="status_change"&&l.metadata?.trainee===t.full_name&&l.metadata?.new_status==="transferred");
-        return tLog?.manager_name||"—";
-      })(),
-      "Previous Department":(()=>{
-        const tLog=allAL?.find(l=>l.action_type==="status_change"&&l.metadata?.trainee===t.full_name&&l.metadata?.new_status==="transferred");
-        return tLog?.metadata?.old_department||"—";
-      })(),
-    })):[{"Info":"No transferred trainees yet"}]),"Transferred Trainees");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(transferred.length>0?transferred.map(t=>{
+      const tLog=allAL?.find(l=>l.action_type==="status_change"&&l.metadata?.trainee===t.full_name&&l.metadata?.new_status==="transferred");
+      return{
+        "Full Name":t.full_name,"Civil ID":t.civil_id,
+        "University":t.university||"—",
+        "Previous Department":tLog?.metadata?.old_department||"—",
+        "New Department":t.department||"—",
+        "New Mentor":t.assigned_mentor||"—",
+        "Transfer Date":tLog?new Date(tLog.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}):"—",
+        "Transferred By":tLog?.manager_name||"—",
+        "GPA":t.gpa||"—","Phone":t.phone_number||"—",
+      };
+    }):[{"Info":"No transferred trainees yet"}]),"Transferred Trainees");
 
-    // Sheet 3 — Daily Attendance
+    // Sheet 3 — Dropped Trainees
+    const dropped=(allT||[]).filter(t=>t.status==="dropped");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(dropped.length>0?dropped.map(t=>({
+      "Full Name":t.full_name,"Civil ID":t.civil_id,
+      "University":t.university||"—",
+      "Department":t.department||"—","GPA":t.gpa||"—",
+      "Joining Date":t.joining_date||"—",
+      "Quitting Date":t.quitting_date||"—",
+      "Quitting Reason":t.quitting_reason||"—",
+      "OJT End Date":t.ojt_end_date||"—",
+    })):[{"Info":"No dropped trainees yet"}]),"Dropped Trainees");
+
+    // Sheet 4 — Daily Attendance
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allR||[]).filter(r=>!r.week_start).map(r=>{
       const trainee=(allT||[]).find(t=>t.id===r.trainee_id);const dateObj=new Date(r.report_date+"T00:00:00");
       return{"Full Name":trainee?.full_name||"—","Department":trainee?.department||"—","Day":dateObj.toLocaleDateString("en-GB",{weekday:"long"}),"Date":dateObj.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),"Attended":r.attended?"Yes":"No","Time In":r.signin_time||"—","Time Out":r.signout_time||"—","Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None"};
     })),"Daily Attendance");
 
-    // Sheet 4 — Weekly Reports
+    // Sheet 5 — Weekly Reports
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allR||[]).filter(r=>r.weekly_tasks).map(r=>{
       const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
       return{"Full Name":trainee?.full_name||"—","Department":trainee?.department||"—","Week":r.week_start+" to "+r.week_end,"KPI Score":r.kpi_score||"—","Weekly Tasks":r.weekly_tasks||"—","AI Summary":r.report_text||"—"};
     })),"Weekly Reports");
 
-    // Sheet 5 — Sick Leaves
+    // Sheet 6 — Sick Leaves
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allSL||[]).map(sl=>{
       const trainee=(allT||[]).find(t=>t.id===sl.trainee_id);
-      return{"Full Name":trainee?.full_name||"—","Department":trainee?.department||"—","Start Date":sl.start_date,"End Date":sl.end_date,"Total Days":sl.total_days,"Reason":sl.reason||"—","Penalty Days":sl.penalty_days||0,"Penalty Applied":sl.penalty_applied?"Yes":"No","Medical Proof":sl.proof_url?"Yes":"No"};
+      return{"Full Name":trainee?.full_name||"—","Department":trainee?.department||"—","Start":sl.start_date,"End":sl.end_date,"Total Days":sl.total_days,"Reason":sl.reason||"—","Penalty Days":sl.penalty_days||0,"Penalty Applied":sl.penalty_applied?"Yes":"No"};
     })),"Sick Leaves");
 
-    // Sheet 6 — Penalties
+    // Sheet 7 — Penalties
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allP||[]).map(p=>({"Full Name":(allT||[]).find(t=>t.id===p.trainee_id)?.full_name||"—","Date":p.report_date,"Reason":p.reason,"Deduction":`-${p.amount}%`}))),"Penalties");
 
-    // Sheet 7 — Goals
+    // Sheet 8 — Goals
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allG||[]).map(g=>({"Full Name":(allT||[]).find(t=>t.id===g.trainee_id)?.full_name||"—","KRA":g.kra,"Goal":g.goal_title,"Target":g.target_value,"Current":g.current_value,"Unit":g.unit,"Status":g.status,"Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%"}))),"Goals");
 
-    // Sheet 8 — Payment & Laptop
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({"Full Name":t.full_name,"Department":t.department,"Status":t.status,"Payment Status":t.payment_status||"unpaid","Payment Notes":t.payment_notes||"—","Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial Number":t.laptop_serial||"—","Laptop Received Date":t.laptop_received_date||"—","Laptop Returned to HR":t.laptop_returned?"Yes":"No","Laptop Returned Date":t.laptop_returned_date||"—"}))),"Payment & Laptop");
+    // Sheet 9 — Payment & Laptop
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({"Full Name":t.full_name,"Department":t.department,"Status":t.status,"Payment Status":t.payment_status||"unpaid","Payment Notes":t.payment_notes||"—","Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial":t.laptop_serial||"—","Received Date":t.laptop_received_date||"—","Returned to HR":t.laptop_returned?"Yes":"No","Returned Date":t.laptop_returned_date||"—"}))),"Payment & Laptop");
 
-    // Sheet 9 — Access Log
+    // Sheet 10 — Access Log
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allAL||[]).map(al=>({
       "Manager Name":al.manager_name||"—","Manager Email":al.manager_email||"—",
       "Action":al.action_type?.replace(/_/g," ")||"—","Description":al.description||"—",
       "Day":al.metadata?.day||new Date(al.created_at).toLocaleDateString("en-GB",{weekday:"long"}),
       "Date":al.metadata?.date||new Date(al.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
       "Time":al.metadata?.time||new Date(al.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
-      "Details":al.metadata?JSON.stringify(al.metadata):"—",
     }))),"Access Log");
 
     XLSX.writeFile(wb,`HuaweiTechTrack_${new Date().toISOString().split("T")[0]}.xlsx`);
-    setMsg("✅ Excel exported with 9 sheets!");
+    setMsg("✅ Excel exported — 10 sheets!");
+    setTimeout(fetchAccessLogs,500);
   }
 
   async function exportPDF(trainee){
@@ -751,14 +813,24 @@ export default function App(){
     doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont("helvetica","bold");doc.text("Huawei TechTrack — Performance Report",14,18);
     doc.setFontSize(10);doc.setFont("helvetica","normal");doc.text(`Generated: ${new Date().toLocaleDateString("en-GB")}`,14,30);
     doc.setTextColor(0,0,0);doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("Trainee Information",14,52);
-    autoTable(doc,{startY:56,head:[["Field","Details"]],body:[["Full Name",t.full_name||"—"],["Civil ID",t.civil_id||"—"],["Department",t.department||"—"],["Mentor",t.assigned_mentor||"—"],["Status",t.status||"—"],["Joining Date",t.joining_date||"—"],["Payment",t.payment_status||"unpaid"],["Laptop",t.laptop_returned?"Returned to HR":t.laptop_received?`Received — SN: ${t.laptop_serial||"—"}`:"Not Received"]],headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,245,245]}});
+    autoTable(doc,{startY:56,head:[["Field","Details"]],body:[
+      ["Full Name",t.full_name||"—"],["Civil ID",t.civil_id||"—"],
+      ["University",t.university||"—"],
+      ["Department",t.department||"—"],["Mentor",t.assigned_mentor||"—"],
+      ["Status",t.status||"—"],
+      ["Joining Date",t.joining_date||"—"],
+      ["OJT End Date",t.ojt_end_date||"—"],
+      ...(t.quitting_date?[["Quitting Date",t.quitting_date],["Quitting Reason",t.quitting_reason||"—"]]:[]),
+      ["Payment",t.payment_status||"unpaid"],
+      ["Laptop",t.laptop_returned?"Returned to HR":t.laptop_received?`Received — SN: ${t.laptop_serial||"—"}`:"Not Received"],
+    ],headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,245,245]}});
     const penY=doc.lastAutoTable.finalY+10;doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("Penalties",14,penY);
     const{data:pens}=await supabase.from("penalties").select("*").eq("trainee_id",t.id);
     autoTable(doc,{startY:penY+4,head:[["Date","Reason","Deduction"]],body:pens?.length>0?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`]):[["—","No penalties","—"]],headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,245,245]}});
-    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");
-    doc.text("Huawei TechTrack • Powered by Arjwan Sabir • Confidential",14,285);
+    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text("Huawei TechTrack • Powered by Arjwan Sabir • Confidential",14,285);
     doc.save(`${t.full_name}_report.pdf`);
-    await logAccess(currentManagerName,"pdf_export",`Exported PDF for ${t.full_name}`,{trainee:t.full_name});
+    await writeAccessLog(user?.email,currentManagerName,"pdf_export",`Exported PDF for ${t.full_name}`,{trainee:t.full_name});
+    setTimeout(fetchAccessLogs,500);
   }
 
   function getAnalytics(){
@@ -771,7 +843,7 @@ export default function App(){
       const tr=allReports.filter(r=>r.trainee_id===t.id&&r.kpi_score);
       const avg=tr.length>0?tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length:0;
       const tp=allPenalties.filter(p=>p.trainee_id===t.id).length;
-      return{...t,avgKpi:avg.toFixed(1),penalties:tp,reports:allReports.filter(r=>r.trainee_id===t.id).length};
+      return{...t,avgKpi:avg.toFixed(1),penalties:tp};
     }).sort((a,b)=>b.avgKpi-a.avgKpi);
     const atRisk=traineeKpi.filter(t=>parseFloat(t.avgKpi)<60||t.penalties>2);
     return{active,attendanceRate,avgKpi,totalPenalties:allPenalties.length,traineeKpi,atRisk};
@@ -780,8 +852,11 @@ export default function App(){
   const filteredGoals=goalFilter==="all"?goals:goals.filter(g=>g.kra===goalFilter||g.status===goalFilter);
   const filteredTrainees=trainees.filter(t=>{
     if(!searchQuery)return true;const q=searchQuery.toLowerCase();
-    if(q==="active")return t.status==="active";if(q==="paid")return t.payment_status==="paid";if(q==="unpaid")return t.payment_status!=="paid";if(q==="laptop_received")return t.laptop_received&&!t.laptop_returned;if(q==="laptop_returned")return t.laptop_returned;if(q==="transferred")return t.status==="transferred";
-    return(t.full_name?.toLowerCase().includes(q)||t.department?.toLowerCase().includes(q)||t.civil_id?.toLowerCase().includes(q)||t.assigned_mentor?.toLowerCase().includes(q)||t.laptop_serial?.toLowerCase().includes(q));
+    if(q==="active")return t.status==="active";if(q==="paid")return t.payment_status==="paid";
+    if(q==="unpaid")return t.payment_status!=="paid";if(q==="laptop_received")return t.laptop_received&&!t.laptop_returned;
+    if(q==="laptop_returned")return t.laptop_returned;if(q==="transferred")return t.status==="transferred";
+    if(q==="dropped")return t.status==="dropped";
+    return(t.full_name?.toLowerCase().includes(q)||t.department?.toLowerCase().includes(q)||t.civil_id?.toLowerCase().includes(q)||t.assigned_mentor?.toLowerCase().includes(q)||t.laptop_serial?.toLowerCase().includes(q)||t.university?.toLowerCase().includes(q));
   });
 
   const hh=String(currentTime.getHours()).padStart(2,"0");
@@ -800,7 +875,34 @@ export default function App(){
   if(view==="signup")return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:20,background:`linear-gradient(135deg,${HW.dark} 0%,${HW.surface} 50%,${HW.dark} 100%)`,fontFamily:"sans-serif",color:HW.text}}><div style={{width:"100%",maxWidth:420}}><div style={{textAlign:"center",marginBottom:28}}><HuaweiLogo size={48}/><h2 style={{margin:"12px 0 4px",color:HW.text}}>Create Account</h2><p style={{color:HW.muted,fontSize:14}}>Register as a new trainee</p></div><label style={s.label}>Email Address</label><input style={{...s.input,marginBottom:14}} value={email} onChange={e=>setEmail(e.target.value)} placeholder="yourname@example.com" type="email"/><label style={s.label}>Password</label><input style={{...s.input,marginBottom:14}} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Minimum 6 characters"/><label style={s.label}>Confirm Password</label><input style={{...s.input,marginBottom:24}} type="password" value={confirmPwd} onChange={e=>setConfirmPwd(e.target.value)} placeholder="Repeat your password" onKeyDown={e=>e.key==="Enter"&&signup()}/><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:16,fontSize:16,opacity:loading?0.6:1}} onClick={signup} disabled={loading}>{loading?"Creating account…":"Create Account →"}</button><button style={{...s.btn,background:"none",color:HW.muted,width:"100%",padding:14,marginTop:8,fontSize:15}} onClick={()=>{setView("login");setMsg("");}}>← Back to Login</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:14,marginTop:12,textAlign:"center"}}>{msg}</p>}</div></div>);
 
   // ══ SETUP ══
-  if(view==="setup")return(<div style={{...s.page,paddingBottom:32}}><div style={{textAlign:"center",marginBottom:24,paddingTop:20}}><HuaweiLogo size={52}/><h2 style={{margin:"12px 0 6px",fontSize:22,color:HW.text}}>Welcome! 🎉</h2><p style={{color:HW.muted,fontSize:13}}>Complete your profile once to get started.</p></div><div style={s.card}><h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>👤 Personal Info</h3><label style={s.label}>Full Name *</label><input style={{...s.input,marginBottom:12}} placeholder="Ahmed Mohammed Al-Rashidi" value={setupProfile.full_name} onChange={e=>setSetupProfile({...setupProfile,full_name:e.target.value})}/><label style={s.label}>Civil ID *</label><input style={{...s.input,marginBottom:12}} placeholder="10234567" value={setupProfile.civil_id} onChange={e=>setSetupProfile({...setupProfile,civil_id:e.target.value})}/><label style={s.label}>Date of Birth</label><input style={{...s.input,marginBottom:12}} type="date" value={setupProfile.date_of_birth} onChange={e=>setSetupProfile({...setupProfile,date_of_birth:e.target.value})}/><label style={s.label}>Gender</label><select style={{...s.input,marginBottom:12}} value={setupProfile.gender} onChange={e=>setSetupProfile({...setupProfile,gender:e.target.value})}><option value="">Select…</option><option value="Male">Male / ذكر</option><option value="Female">Female / أنثى</option></select><label style={s.label}>Nationality</label><input style={s.input} placeholder="e.g. Omani" value={setupProfile.nationality} onChange={e=>setSetupProfile({...setupProfile,nationality:e.target.value})}/></div><div style={s.card}><h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>📚 Academic Info</h3><label style={s.label}>Department</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Engineering" value={setupProfile.department} onChange={e=>setSetupProfile({...setupProfile,department:e.target.value})}/><label style={s.label}>GPA</label><input style={{...s.input,marginBottom:12}} type="number" placeholder="e.g. 3.85" min="0" max="4" step="0.01" value={setupProfile.gpa} onChange={e=>setSetupProfile({...setupProfile,gpa:e.target.value})}/><label style={s.label}>Assigned Mentor</label><input style={s.input} placeholder="e.g. Dr. Fatima" value={setupProfile.assigned_mentor} onChange={e=>setSetupProfile({...setupProfile,assigned_mentor:e.target.value})}/></div><div style={s.card}><h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>📞 Contact</h3><label style={s.label}>Phone Number</label><input style={s.input} placeholder="+968-9100-0001" value={setupProfile.phone_number} type="tel" onChange={e=>setSetupProfile({...setupProfile,phone_number:e.target.value})}/></div><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:16,fontSize:16,opacity:loading?0.6:1}} onClick={saveSetupProfile} disabled={loading}>{loading?"Saving…":"Complete Profile & Start →"}</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:14,marginTop:12,textAlign:"center"}}>{msg}</p>}</div>);
+  if(view==="setup")return(
+    <div style={{...s.page,paddingBottom:32}}>
+      <div style={{textAlign:"center",marginBottom:24,paddingTop:20}}><HuaweiLogo size={52}/><h2 style={{margin:"12px 0 6px",fontSize:22,color:HW.text}}>Welcome! 🎉</h2><p style={{color:HW.muted,fontSize:13}}>Complete your profile once to get started.</p></div>
+      <div style={s.card}>
+        <h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>👤 Personal Info</h3>
+        <label style={s.label}>Full Name *</label><input style={{...s.input,marginBottom:12}} placeholder="Ahmed Mohammed Al-Rashidi" value={setupProfile.full_name} onChange={e=>setSetupProfile({...setupProfile,full_name:e.target.value})}/>
+        <label style={s.label}>Civil ID *</label><input style={{...s.input,marginBottom:12}} placeholder="10234567" value={setupProfile.civil_id} onChange={e=>setSetupProfile({...setupProfile,civil_id:e.target.value})}/>
+        <label style={s.label}>Date of Birth</label><input style={{...s.input,marginBottom:12}} type="date" value={setupProfile.date_of_birth} onChange={e=>setSetupProfile({...setupProfile,date_of_birth:e.target.value})}/>
+        <label style={s.label}>Gender</label>
+        <select style={{...s.input,marginBottom:12}} value={setupProfile.gender} onChange={e=>setSetupProfile({...setupProfile,gender:e.target.value})}><option value="">Select…</option><option value="Male">Male / ذكر</option><option value="Female">Female / أنثى</option></select>
+        <label style={s.label}>Nationality</label><input style={s.input} placeholder="e.g. Omani" value={setupProfile.nationality} onChange={e=>setSetupProfile({...setupProfile,nationality:e.target.value})}/>
+      </div>
+      <div style={s.card}>
+        <h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>🎓 Academic & OJT Info</h3>
+        <label style={s.label}>University *</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Sultan Qaboos University" value={setupProfile.university} onChange={e=>setSetupProfile({...setupProfile,university:e.target.value})}/>
+        <label style={s.label}>Department</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Engineering" value={setupProfile.department} onChange={e=>setSetupProfile({...setupProfile,department:e.target.value})}/>
+        <label style={s.label}>GPA</label><input style={{...s.input,marginBottom:12}} type="number" placeholder="e.g. 3.85" min="0" max="4" step="0.01" value={setupProfile.gpa} onChange={e=>setSetupProfile({...setupProfile,gpa:e.target.value})}/>
+        <label style={s.label}>OJT End Date</label><input style={{...s.input,marginBottom:12}} type="date" value={setupProfile.ojt_end_date} onChange={e=>setSetupProfile({...setupProfile,ojt_end_date:e.target.value})}/>
+        <label style={s.label}>Assigned Mentor</label><input style={s.input} placeholder="e.g. Dr. Fatima" value={setupProfile.assigned_mentor} onChange={e=>setSetupProfile({...setupProfile,assigned_mentor:e.target.value})}/>
+      </div>
+      <div style={s.card}>
+        <h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>📞 Contact</h3>
+        <label style={s.label}>Phone Number</label><input style={s.input} placeholder="+968-9100-0001" value={setupProfile.phone_number} type="tel" onChange={e=>setSetupProfile({...setupProfile,phone_number:e.target.value})}/>
+      </div>
+      <button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:16,fontSize:16,opacity:loading?0.6:1}} onClick={saveSetupProfile} disabled={loading}>{loading?"Saving…":"Complete Profile & Start →"}</button>
+      {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:14,marginTop:12,textAlign:"center"}}>{msg}</p>}
+    </div>
+  );
 
   // ══ TRAINEE ══
   if(view==="trainee")return(
@@ -829,8 +931,7 @@ export default function App(){
           {isLate&&(<div style={{background:`${HW.red}15`,border:`1px solid ${HW.red}40`,borderRadius:12,padding:14,marginBottom:16,display:"flex",gap:10}}><span style={{fontSize:24}}>🔒</span><div><div style={{fontWeight:700,color:HW.red,fontSize:14}}>Time Locked</div><div style={{fontSize:12,color:HW.muted,marginTop:2}}>Deadline was 9:00 AM. <b style={{color:HW.red}}>8.33% penalty</b> will apply.</div></div></div>)}
           <div style={s.card}>
             <h3 style={{marginBottom:14,color:HW.red,fontSize:16}}>✅ Sign Attendance</h3>
-            <label style={s.label}>Date</label>
-            <input style={{...s.input,marginBottom:14}} type="date" value={attendance.report_date} onChange={e=>setAttendance({...attendance,report_date:e.target.value})}/>
+            <label style={s.label}>Date</label><input style={{...s.input,marginBottom:14}} type="date" value={attendance.report_date} onChange={e=>setAttendance({...attendance,report_date:e.target.value})}/>
             <label style={s.label}>Sign-in Time (auto)</label>
             <div style={{background:HW.surface2,border:`1px solid ${HW.border}`,borderRadius:10,padding:"12px 14px",fontSize:20,color:clockColor,fontWeight:800,fontFamily:"monospace",marginBottom:14}}>{hh}:{mm}:{ss}</div>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,background:HW.surface2,borderRadius:10,padding:14}}>
@@ -856,6 +957,13 @@ export default function App(){
                 <div style={{background:HW.surface,borderRadius:10,padding:12,textAlign:"center"}}><div style={{fontSize:20,marginBottom:4}}>💰</div><div style={{fontSize:11,color:HW.muted,marginBottom:4}}>Payment</div><div style={{fontSize:13,fontWeight:800,color:myTraineeData?.payment_status==="paid"?"#34d399":HW.red}}>{myTraineeData?.payment_status==="paid"?"✅ Paid":"❌ Unpaid"}</div>{myTraineeData?.payment_notes&&<div style={{fontSize:11,color:HW.muted,marginTop:4}}>{myTraineeData.payment_notes}</div>}</div>
                 <div style={{background:HW.surface,borderRadius:10,padding:12,textAlign:"center"}}><div style={{fontSize:20,marginBottom:4}}>💻</div><div style={{fontSize:11,color:HW.muted,marginBottom:4}}>Laptop</div><div style={{fontSize:13,fontWeight:800,color:myTraineeData?.laptop_returned?"#FFA500":myTraineeData?.laptop_received?"#34d399":HW.muted}}>{myTraineeData?.laptop_returned?"🔄 Returned":myTraineeData?.laptop_received?"✅ Received":"❌ Not Yet"}</div>{myTraineeData?.laptop_serial&&<div style={{fontSize:11,color:HW.muted,marginTop:4}}>SN: {myTraineeData.laptop_serial}</div>}</div>
               </div>
+              {myTraineeData?.ojt_end_date&&(
+                <div style={{background:HW.surface,borderRadius:10,padding:12,textAlign:"center",marginBottom:10}}>
+                  <div style={{fontSize:11,color:HW.muted,marginBottom:4}}>🎓 OJT End Date</div>
+                  <div style={{fontSize:13,fontWeight:800,color:HW.red}}>{new Date(myTraineeData.ojt_end_date).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</div>
+                  {(()=>{const days=Math.ceil((new Date(myTraineeData.ojt_end_date)-new Date())/(1000*60*60*24));return days>0?<div style={{fontSize:11,color:HW.muted,marginTop:4}}>{days} days remaining</div>:<div style={{fontSize:11,color:HW.red,marginTop:4}}>OJT period ended</div>;})()}
+                </div>
+              )}
               {myTraineeData?.laptop_received&&!myTraineeData?.laptop_returned&&(<button style={{...s.btn,background:"rgba(255,165,0,.15)",color:"#FFA500",width:"100%",padding:12,fontSize:14,marginBottom:8,border:"1px solid rgba(255,165,0,.3)",opacity:loading?0.6:1}} onClick={()=>traineeLaptopAction("returned")} disabled={loading}>🔄 I Returned My Laptop to HR</button>)}
               {!myTraineeData?.laptop_received&&(<button style={{...s.btn,background:"rgba(52,211,153,.15)",color:"#34d399",width:"100%",padding:12,fontSize:14,border:"1px solid rgba(52,211,153,.3)",opacity:loading?0.6:1}} onClick={()=>traineeLaptopAction("received")} disabled={loading}>✅ I Received My Laptop</button>)}
             </div>
@@ -906,10 +1014,11 @@ export default function App(){
       <div style={s.page}>
         {showMgrGreeting&&<ManagerGreetingPopup onDismiss={()=>setShowMgrGreeting(false)} onLogin={async(name)=>{
           setCurrentManagerName(name);
-          await logToSupabase(user?.email, name, "login", `${name} logged into Management Hub`);
-          fetchAccessLogs();
+          await writeAccessLog(user?.email,name,"login",`${name} logged into Management Hub`);
+          setTimeout(fetchAccessLogs,500);
         }}/>}
         {showTransferPopup&&selected&&<TransferPopup trainee={selected} onConfirm={handleTransferConfirm} onCancel={()=>setShowTransferPopup(false)}/>}
+        {showDropPopup&&selected&&<DropPopup trainee={selected} onConfirm={handleDropConfirm} onCancel={()=>setShowDropPopup(false)}/>}
         <MgmtNav/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,paddingTop:4}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}><HuaweiLogo size={28}/><div><div style={{fontWeight:700,fontSize:14,color:HW.text}}>Huawei TechTrack {currentManagerName&&`— ${currentManagerName}`}</div><div style={{fontSize:10,color:HW.muted}}>{user?.email}</div></div></div>
@@ -927,27 +1036,29 @@ export default function App(){
           <div>
             <h3 style={{marginBottom:12,fontSize:16,color:HW.text}}>👥 All Trainees</h3>
             <div style={{position:"relative",marginBottom:12}}>
-              <input style={{...s.input,paddingLeft:16}} placeholder="🔍 Search by name, department, civil ID, serial number..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}/>
+              <input style={{...s.input}} placeholder="🔍 Search by name, department, civil ID, university, serial..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}/>
               {searchQuery&&<button onClick={()=>setSearchQuery("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:HW.muted,cursor:"pointer",fontSize:18}}>✕</button>}
             </div>
             <div style={{display:"flex",gap:8,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
-              {[{key:"",label:"👥 All"},{key:"active",label:"✅ Active"},{key:"transferred",label:"🔄 Transferred"},{key:"paid",label:"💰 Paid"},{key:"unpaid",label:"❌ Unpaid"},{key:"laptop_received",label:"💻 Has Laptop"},{key:"laptop_returned",label:"🔄 Returned"}].map(f=>(
+              {[{key:"",label:"👥 All"},{key:"active",label:"✅ Active"},{key:"transferred",label:"🔄 Transferred"},{key:"dropped",label:"🔴 Dropped"},{key:"paid",label:"💰 Paid"},{key:"unpaid",label:"❌ Unpaid"},{key:"laptop_received",label:"💻 Has Laptop"}].map(f=>(
                 <button key={f.key} style={{...s.btn,padding:"6px 12px",fontSize:11,whiteSpace:"nowrap",background:searchQuery===f.key?HW.red:HW.surface2,color:searchQuery===f.key?HW.white:HW.muted,border:`1px solid ${HW.border}`}} onClick={()=>setSearchQuery(searchQuery===f.key?"":f.key)}>{f.label}</button>
               ))}
             </div>
             <div style={{fontSize:12,color:HW.muted,marginBottom:10}}>{filteredTrainees.length} of {trainees.length} trainees</div>
-            {filteredTrainees.length===0?(<div style={{...s.card,textAlign:"center",padding:32}}><div style={{fontSize:36,marginBottom:10}}>🔍</div><p style={{color:HW.muted}}>No trainees match your search.</p></div>):(
+            {filteredTrainees.length===0?(<div style={{...s.card,textAlign:"center",padding:32}}><p style={{color:HW.muted}}>No trainees match your search.</p></div>):(
               filteredTrainees.map(t=>(
-                <div key={t.id} style={{...s.card,cursor:"pointer",opacity:t.status==="dropped"?0.5:1,display:"flex",alignItems:"center",gap:12,padding:14}} onClick={()=>openProfile(t)}>
+                <div key={t.id} style={{...s.card,cursor:"pointer",opacity:t.status==="dropped"?0.6:1,display:"flex",alignItems:"center",gap:12,padding:14}} onClick={()=>openProfile(t)}>
                   <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:HW.white,flexShrink:0}}>{t.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontWeight:700,fontSize:15,color:HW.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.full_name}</div>
-                    <div style={{fontSize:12,color:HW.muted,marginTop:2}}>{t.department} · GPA {t.gpa||"—"}</div>
+                    <div style={{fontSize:12,color:HW.muted,marginTop:2}}>{t.department}{t.university?` · ${t.university}`:""} · GPA {t.gpa||"—"}</div>
+                    {t.status==="transferred"&&<div style={{fontSize:11,color:"#FFA500",marginTop:2}}>🔄 Transferred to: <b>{t.department}</b> {t.assigned_mentor?`· Mentor: ${t.assigned_mentor}`:""}</div>}
+                    {t.status==="dropped"&&t.quitting_reason&&<div style={{fontSize:11,color:"#666",marginTop:2}}>🔴 Reason: {t.quitting_reason.substring(0,50)}{t.quitting_reason.length>50?"…":""}</div>}
                     <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:t.payment_status==="paid"?"#34d399":HW.red,background:t.payment_status==="paid"?"rgba(52,211,153,.1)":`${HW.red}15`}}>💰 {t.payment_status||"unpaid"}</span>
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:t.laptop_returned?"#FFA500":t.laptop_received?"#34d399":HW.muted,background:t.laptop_returned?"rgba(255,165,0,.1)":t.laptop_received?"rgba(52,211,153,.1)":"rgba(136,136,136,.1)"}}>💻 {t.laptop_returned?"returned":t.laptop_received?"received":"not received"}</span>
                       {t.laptop_serial&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:"#4f8ef7",background:"rgba(79,142,247,.1)"}}>SN: {t.laptop_serial}</span>}
-                      {t.status==="transferred"&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:"#FFA500",background:"rgba(255,165,0,.1)"}}>🔄 Transferred</span>}
+                      {t.ojt_end_date&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:"#7c5cfc",background:"rgba(124,92,252,.1)"}}>🎓 OJT: {t.ojt_end_date}</span>}
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
@@ -969,8 +1080,18 @@ export default function App(){
                 <div style={{width:52,height:52,borderRadius:14,background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:HW.white,flexShrink:0}}>{selected.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:17,color:HW.text}}>{selected.full_name}</div>
-                  <div style={{fontSize:12,color:HW.muted}}>{selected.department} · {selected.assigned_mentor}</div>
-                  {selected.status==="transferred"&&<div style={{fontSize:11,color:"#FFA500",marginTop:2}}>🔄 Transferred to: <b>{selected.department}</b></div>}
+                  <div style={{fontSize:12,color:HW.muted}}>{selected.department}{selected.university?` · ${selected.university}`:""}</div>
+                  {selected.status==="transferred"&&(
+                    <div style={{fontSize:12,color:"#FFA500",marginTop:2}}>
+                      🔄 Transferred to: <b>{selected.department}</b>
+                      {selected.assigned_mentor&&<> · Mentor: <b>{selected.assigned_mentor}</b></>}
+                    </div>
+                  )}
+                  {selected.status==="dropped"&&selected.quitting_date&&(
+                    <div style={{fontSize:12,color:"#666",marginTop:2}}>
+                      🔴 Quit: {selected.quitting_date}{selected.quitting_reason&&` — ${selected.quitting_reason}`}
+                    </div>
+                  )}
                   <span style={{padding:"3px 8px",borderRadius:20,fontSize:11,fontWeight:700,marginTop:4,display:"inline-block",background:statusColors[selected.status]?.bg,color:statusColors[selected.status]?.color}}>{selected.status}</span>
                 </div>
               </div>
@@ -994,7 +1115,33 @@ export default function App(){
 
             {profileTab==="timeline"&&(<div style={s.card}><h3 style={{marginBottom:16,fontSize:16,color:HW.text}}>Activity Timeline</h3>{logs.length===0?<p style={{color:HW.muted}}>No activity yet.</p>:logs.map((log,i)=>(<div key={log.id} style={{display:"flex",gap:12,marginBottom:16,position:"relative"}}>{i<logs.length-1&&<div style={{position:"absolute",left:15,top:32,width:2,height:"calc(100% + 4px)",background:HW.border}}/>}<div style={{width:32,height:32,borderRadius:"50%",background:HW.surface2,border:`2px solid ${HW.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,zIndex:1}}>{eventIcons[log.event_type]||"📌"}</div><div style={{flex:1,paddingTop:4}}><div style={{fontWeight:600,fontSize:13,color:HW.text}}>{log.description}</div><div style={{fontSize:11,color:HW.muted,marginTop:3}}>{new Date(log.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</div></div></div>))}</div>)}
 
-            {profileTab==="edit"&&(<div style={s.card}><h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>Edit Profile</h3><label style={s.label}>Department</label><input style={{...s.input,marginBottom:12}} value={selected.department||""} onChange={e=>setSelected({...selected,department:e.target.value,_original:selected._original||{...selected}})}/><label style={s.label}>Assigned Mentor</label><input style={{...s.input,marginBottom:12}} value={selected.assigned_mentor||""} onChange={e=>setSelected({...selected,assigned_mentor:e.target.value,_original:selected._original||{...selected}})}/><label style={s.label}>GPA</label><input style={{...s.input,marginBottom:12}} type="number" step="0.01" min="0" max="4" value={selected.gpa||""} onChange={e=>setSelected({...selected,gpa:e.target.value})}/><label style={s.label}>Joining Date</label><input style={{...s.input,marginBottom:14}} type="date" value={selected.joining_date||""} onChange={e=>setSelected({...selected,joining_date:e.target.value})}/><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:14}} onClick={saveProfile}>Save Changes</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}</div>)}
+            {profileTab==="edit"&&(
+              <div style={s.card}>
+                <h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>Edit Profile</h3>
+                <label style={s.label}>University</label>
+                <input style={{...s.input,marginBottom:12}} placeholder="e.g. Sultan Qaboos University" value={selected.university||""} onChange={e=>setSelected({...selected,university:e.target.value})}/>
+                <label style={s.label}>Department</label>
+                <input style={{...s.input,marginBottom:12}} value={selected.department||""} onChange={e=>setSelected({...selected,department:e.target.value,_original:selected._original||{...selected}})}/>
+                <label style={s.label}>Assigned Mentor</label>
+                <input style={{...s.input,marginBottom:12}} value={selected.assigned_mentor||""} onChange={e=>setSelected({...selected,assigned_mentor:e.target.value,_original:selected._original||{...selected}})}/>
+                <label style={s.label}>GPA</label>
+                <input style={{...s.input,marginBottom:12}} type="number" step="0.01" min="0" max="4" value={selected.gpa||""} onChange={e=>setSelected({...selected,gpa:e.target.value})}/>
+                <label style={s.label}>Joining Date</label>
+                <input style={{...s.input,marginBottom:12}} type="date" value={selected.joining_date||""} onChange={e=>setSelected({...selected,joining_date:e.target.value})}/>
+                <label style={s.label}>OJT End Date</label>
+                <input style={{...s.input,marginBottom:14}} type="date" value={selected.ojt_end_date||""} onChange={e=>setSelected({...selected,ojt_end_date:e.target.value})}/>
+                {(selected.status==="dropped")&&(
+                  <>
+                    <label style={s.label}>Quitting Date</label>
+                    <input style={{...s.input,marginBottom:12}} type="date" value={selected.quitting_date||""} onChange={e=>setSelected({...selected,quitting_date:e.target.value})}/>
+                    <label style={s.label}>Quitting Reason</label>
+                    <textarea style={{...s.input,height:70,resize:"vertical",marginBottom:14}} value={selected.quitting_reason||""} onChange={e=>setSelected({...selected,quitting_reason:e.target.value})}/>
+                  </>
+                )}
+                <button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:14}} onClick={saveProfile}>Save Changes</button>
+                {msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}
+              </div>
+            )}
 
             {profileTab==="reports"&&(<div>{reports.length===0?<p style={{color:HW.muted,padding:16}}>No reports yet.</p>:reports.map(r=>{let pie=null;try{pie=r.pie_chart_json?JSON.parse(r.pie_chart_json):null;}catch(e){}const isWeekly=!!r.weekly_tasks;return(<div key={r.id} style={{...s.card,borderLeft:`4px solid ${isWeekly?"#7c5cfc":HW.red}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div><span style={{padding:"2px 8px",borderRadius:8,fontSize:10,fontWeight:700,marginRight:6,background:isWeekly?"rgba(124,92,252,.15)":`${HW.red}15`,color:isWeekly?"#7c5cfc":HW.red}}>{isWeekly?"📅 Weekly":"📋 Daily"}</span><span style={{fontSize:13,fontWeight:600,color:HW.text}}>{isWeekly?`${r.week_start} → ${r.week_end||""}`:r.report_date}</span></div>{r.kpi_score&&<div style={{fontSize:20,fontWeight:800,color:kpiColor(r.kpi_score)}}>{r.kpi_score}<span style={{fontSize:10,color:HW.muted,fontWeight:400}}> KPI</span></div>}</div>{!isWeekly&&(<div style={{display:"flex",gap:12,marginBottom:10,background:HW.surface,borderRadius:8,padding:"8px 12px"}}><div style={{textAlign:"center",flex:1}}><div style={{fontSize:10,color:HW.muted,fontWeight:700,marginBottom:2}}>TIME IN</div><div style={{fontSize:14,fontWeight:800,color:"#34d399",fontFamily:"monospace"}}>{r.signin_time||"—"}</div></div><div style={{width:1,background:HW.border}}/><div style={{textAlign:"center",flex:1}}><div style={{fontSize:10,color:HW.muted,fontWeight:700,marginBottom:2}}>TIME OUT</div><div style={{fontSize:14,fontWeight:800,color:"#4f8ef7",fontFamily:"monospace"}}>{r.signout_time||"—"}</div></div><div style={{width:1,background:HW.border}}/><div style={{textAlign:"center",flex:1}}><div style={{fontSize:10,color:HW.muted,fontWeight:700,marginBottom:2}}>STATUS</div><div style={{fontSize:12,fontWeight:700,color:r.attended?"#34d399":HW.red}}>{r.attended?"● Present":"○ Absent"}</div></div></div>)}{isWeekly&&r.weekly_tasks&&<div style={{fontSize:13,marginBottom:10,borderLeft:"3px solid #7c5cfc",paddingLeft:10,lineHeight:1.6,color:HW.muted}}>{r.weekly_tasks.substring(0,200)}{r.weekly_tasks.length>200?"…":""}</div>}{r.penalty_applied&&<div style={{fontSize:12,color:HW.red,fontWeight:700,marginBottom:6}}>⚠️ Penalty: -{r.penalty_amount}%</div>}{pie&&<PieChart data={pie}/>}{r.talent_notes&&<div style={{background:`${HW.red}10`,borderRadius:8,padding:10,marginTop:10,borderLeft:`3px solid ${HW.red}`}}><div style={{fontSize:10,color:HW.red,fontWeight:700,marginBottom:4}}>🌟 AI TALENT NOTES</div><div style={{fontSize:12,lineHeight:1.6,color:HW.text}}>{r.talent_notes}</div></div>}</div>);})}</div>)}
 
@@ -1022,7 +1169,7 @@ export default function App(){
         {/* ANALYTICS */}
         {mgmtTab==="analytics"&&(
           <div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>{[{label:"Active Trainees",value:analytics.active.length,icon:"👥",color:HW.red},{label:"Avg KPI",value:analytics.avgKpi,icon:"📊",color:"#FFA500"},{label:"Attendance Rate",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},{label:"Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},{label:"Sick Leaves",value:allSickLeaves.length,icon:"🏥",color:"#4f8ef7"},{label:"Paid",value:trainees.filter(t=>t.payment_status==="paid").length,icon:"💰",color:"#34d399"},{label:"Laptops Given",value:trainees.filter(t=>t.laptop_received).length,icon:"💻",color:"#7c5cfc"},{label:"Transferred",value:trainees.filter(t=>t.status==="transferred").length,icon:"🔄",color:"#FFA500"}].map((stat,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}><div style={{fontSize:20,marginBottom:6}}>{stat.icon}</div><div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:2}}>{stat.label}</div></div>))}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>{[{label:"Active",value:analytics.active.length,icon:"👥",color:HW.red},{label:"Avg KPI",value:analytics.avgKpi,icon:"📊",color:"#FFA500"},{label:"Attendance",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},{label:"Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},{label:"Sick Leaves",value:allSickLeaves.length,icon:"🏥",color:"#4f8ef7"},{label:"Paid",value:trainees.filter(t=>t.payment_status==="paid").length,icon:"💰",color:"#34d399"},{label:"Transferred",value:trainees.filter(t=>t.status==="transferred").length,icon:"🔄",color:"#FFA500"},{label:"Dropped",value:trainees.filter(t=>t.status==="dropped").length,icon:"🔴",color:"#666"}].map((stat,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}><div style={{fontSize:20,marginBottom:6}}>{stat.icon}</div><div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:2}}>{stat.label}</div></div>))}</div>
             <div style={s.card}><h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>🏆 KPI Leaderboard</h3>{analytics.traineeKpi.length===0?<p style={{color:HW.muted}}>No data yet.</p>:analytics.traineeKpi.slice(0,8).map((t,i)=>(<div key={t.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${HW.border}`}}><div style={{width:28,height:28,borderRadius:"50%",background:i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":HW.surface2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:i<3?"#000":HW.muted,flexShrink:0}}>{i+1}</div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:14,color:HW.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.full_name}</div><div style={{fontSize:11,color:HW.muted}}>{t.department}</div></div><div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:18,fontWeight:800,color:kpiColor(parseFloat(t.avgKpi))}}>{t.avgKpi}</div><div style={{fontSize:10,color:HW.muted}}>KPI</div></div></div>))}</div>
             {analytics.atRisk.length>0&&(<div style={{...s.card,border:"1px solid rgba(248,113,113,.3)"}}><h3 style={{marginBottom:12,color:"#f87171",fontSize:16}}>⚠️ At Risk</h3>{analytics.atRisk.map(t=>(<div key={t.id} style={{background:HW.surface2,borderRadius:10,padding:12,marginBottom:8,borderLeft:"3px solid #f87171"}}><div style={{fontWeight:700,fontSize:14,color:HW.text}}>{t.full_name}</div><div style={{fontSize:12,color:HW.muted,marginBottom:6}}>{t.department}</div><div style={{display:"flex",gap:16}}><div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#f87171"}}>{t.avgKpi}</div><div style={{fontSize:10,color:HW.muted}}>Avg KPI</div></div><div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#f87171"}}>{t.penalties}</div><div style={{fontSize:10,color:HW.muted}}>Penalties</div></div></div></div>))}</div>)}
           </div>
@@ -1035,7 +1182,7 @@ export default function App(){
             <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:14}}>{[{label:"Total",value:okrs.length,color:HW.red},{label:"On Track",value:okrs.filter(o=>(o.current/o.target)>=.8).length,color:"#34d399"},{label:"In Progress",value:okrs.filter(o=>(o.current/o.target)>=.5&&(o.current/o.target)<.8).length,color:"#FFA500"},{label:"Behind",value:okrs.filter(o=>(o.current/o.target)<.5).length,color:"#f87171"}].map((s2,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,textAlign:"center",borderTop:`3px solid ${s2.color}`}}><div style={{fontSize:24,fontWeight:800,color:s2.color}}>{s2.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:2}}>{s2.label}</div></div>))}</div>
             {showAddOkr&&(<div style={{...s.card,border:`1px solid ${HW.red}40`,marginBottom:14}}><h4 style={{marginBottom:14,color:HW.red,fontSize:15}}>Add OKR</h4><label style={s.label}>Department</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Engineering" value={newOkr.department} onChange={e=>setNewOkr({...newOkr,department:e.target.value})}/><label style={s.label}>Objective</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Improve Skills" value={newOkr.objective} onChange={e=>setNewOkr({...newOkr,objective:e.target.value})}/><label style={s.label}>Key Result</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Complete 20 sessions" value={newOkr.key_result} onChange={e=>setNewOkr({...newOkr,key_result:e.target.value})}/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}><div><label style={s.label}>Target</label><input style={s.input} type="number" value={newOkr.target} onChange={e=>setNewOkr({...newOkr,target:parseFloat(e.target.value)})}/></div><div><label style={s.label}>Unit</label><select style={s.input} value={newOkr.unit} onChange={e=>setNewOkr({...newOkr,unit:e.target.value})}><option value="%">%</option><option value="sessions">Sessions</option><option value="reports">Reports</option><option value="tasks">Tasks</option></select></div></div><label style={s.label}>Due Date</label><input style={{...s.input,marginBottom:14}} type="date" value={newOkr.due_date} onChange={e=>setNewOkr({...newOkr,due_date:e.target.value})}/><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:14}} onClick={addOkr}>Add OKR</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}</div>)}
             {[...new Set(okrs.map(o=>o.department))].map(dept=>(<div key={dept} style={s.card}><h4 style={{marginBottom:12,color:HW.red,fontSize:15}}>🏢 {dept}</h4>{okrs.filter(o=>o.department===dept).map(okr=><OKRBar key={okr.id} okr={okr} onUpdate={updateOkr}/>)}</div>))}
-            {okrs.length===0&&<div style={{...s.card,textAlign:"center",padding:32}}><div style={{fontSize:36,marginBottom:10}}>🎯</div><p style={{color:HW.muted}}>No OKRs yet.</p></div>}
+            {okrs.length===0&&<div style={{...s.card,textAlign:"center",padding:32}}><p style={{color:HW.muted}}>No OKRs yet.</p></div>}
           </div>
         )}
 
@@ -1055,7 +1202,7 @@ export default function App(){
                 {label:"Status Changes",value:accessLogs.filter(l=>l.action_type==="status_change").length,color:"#FFA500",icon:"🔄"},
                 {label:"Payment Updates",value:accessLogs.filter(l=>l.action_type==="payment_update").length,color:"#34d399",icon:"💰"},
                 {label:"Laptop Updates",value:accessLogs.filter(l=>l.action_type==="laptop_update").length,color:"#0891B2",icon:"💻"},
-                {label:"Exports",value:accessLogs.filter(l=>l.action_type==="excel_export"||l.action_type==="pdf_export").length,color:"#f87171",icon:"📤"},
+                {label:"Exports",value:accessLogs.filter(l=>["excel_export","pdf_export"].includes(l.action_type)).length,color:"#f87171",icon:"📤"},
               ].map((stat,i)=>(
                 <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}>
                   <div style={{fontSize:20,marginBottom:6}}>{stat.icon}</div>
@@ -1078,20 +1225,25 @@ export default function App(){
                       <div style={{fontWeight:700,fontSize:15,color:HW.text}}>{name}</div>
                       <div style={{fontSize:11,color:HW.muted,marginTop:2}}>
                         {userLogs.length} actions · {userLogs.filter(l=>l.action_type==="login").length} logins
-                        {lastLogin&&` · Last: ${lastLogin.metadata?.day||""} ${lastLogin.metadata?.date||new Date(lastLogin.created_at).toLocaleDateString("en-GB")} at ${lastLogin.metadata?.time||new Date(lastLogin.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`}
+                        {lastLogin&&` · Last: ${lastLogin.metadata?.day||""} ${lastLogin.metadata?.date||""} at ${lastLogin.metadata?.time||""}`}
                       </div>
                     </div>
                   </div>
                 );
               })}
-              {accessLogs.filter(l=>l.manager_name&&!["Unknown","Manager"].includes(l.manager_name)).length===0&&<p style={{color:HW.muted,fontSize:13}}>No named access yet. Select a name on the greeting popup.</p>}
+              {accessLogs.filter(l=>l.manager_name&&!["Unknown","Manager"].includes(l.manager_name)).length===0&&(
+                <div style={{textAlign:"center",padding:20}}>
+                  <p style={{color:HW.muted,fontSize:13}}>No named access yet.</p>
+                  <p style={{color:HW.muted,fontSize:12}}>Select your name on the greeting popup to start tracking.</p>
+                </div>
+              )}
             </div>
 
             {/* Full Log */}
             <div style={s.card}>
               <h4 style={{marginBottom:12,fontSize:15,color:HW.text}}>📋 Full Activity Log ({accessLogs.length})</h4>
               {accessLogs.length===0?(
-                <div style={{textAlign:"center",padding:24}}><div style={{fontSize:32,marginBottom:8}}>🔐</div><p style={{color:HW.muted}}>No activity yet. Log in with your name to start tracking.</p></div>
+                <div style={{textAlign:"center",padding:24}}><div style={{fontSize:32,marginBottom:8}}>🔐</div><p style={{color:HW.muted}}>No activity yet.</p><p style={{color:HW.muted,fontSize:12}}>Log in with your name to start tracking all actions.</p></div>
               ):(
                 accessLogs.map(log=>{
                   const acMap={login:{color:"#34d399",icon:"🔑"},logout:{color:HW.muted,icon:"🚪"},profile_view:{color:"#4f8ef7",icon:"👁"},profile_edit:{color:"#7c5cfc",icon:"✏️"},status_change:{color:"#FFA500",icon:"🔄"},payment_update:{color:"#34d399",icon:"💰"},laptop_update:{color:"#0891B2",icon:"💻"},okr_add:{color:"#34d399",icon:"🎯"},excel_export:{color:"#f87171",icon:"📊"},pdf_export:{color:HW.red,icon:"📄"}};
@@ -1103,7 +1255,7 @@ export default function App(){
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                           <div style={{fontWeight:700,fontSize:13,color:HW.text}}>{log.manager_name||"Unknown"}</div>
                           <div style={{fontSize:10,color:HW.muted,flexShrink:0,marginLeft:8,textAlign:"right"}}>
-                            <div>{log.metadata?.day||new Date(log.created_at).toLocaleDateString("en-GB",{weekday:"long"})}</div>
+                            <div style={{fontWeight:600}}>{log.metadata?.day||new Date(log.created_at).toLocaleDateString("en-GB",{weekday:"long"})}</div>
                             <div>{log.metadata?.date||new Date(log.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
                             <div style={{color:ac.color,fontWeight:700}}>{log.metadata?.time||new Date(log.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</div>
                           </div>
