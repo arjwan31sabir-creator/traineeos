@@ -714,6 +714,7 @@ export default function App(){
   async function exportExcel(){
     setMsg("📊 Preparing export…");
     await writeAccessLog(user?.email,currentManagerName,"excel_export","Exported Excel report");
+    const XlsxChart=require?undefined:(await import("xlsx-chart")).default;
     const{data:allT}=await supabase.from("trainees").select("*").order("full_name");
     const{data:allR}=await supabase.from("daily_reports").select("*").order("report_date");
     const{data:allP}=await supabase.from("penalties").select("*").order("created_at");
@@ -802,8 +803,114 @@ export default function App(){
       "Time":al.metadata?.time||new Date(al.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
     }))),"Access Log");
 
+    // ── SUMMARY DASHBOARD SHEET ──────────────────────────
+    const activeCnt=(allT||[]).filter(t=>t.status==="active").length;
+    const transferredCnt=(allT||[]).filter(t=>t.status==="transferred").length;
+    const droppedCnt=(allT||[]).filter(t=>t.status==="dropped").length;
+    const inactiveCnt=(allT||[]).filter(t=>t.status==="inactive").length;
+    const paidCnt=(allT||[]).filter(t=>t.payment_status==="paid").length;
+    const unpaidCnt=(allT||[]).filter(t=>t.payment_status!=="paid").length;
+    const laptopRecCnt=(allT||[]).filter(t=>t.laptop_received&&!t.laptop_returned).length;
+    const laptopRetCnt=(allT||[]).filter(t=>t.laptop_returned).length;
+    const laptopNoCnt=(allT||[]).filter(t=>!t.laptop_received).length;
+    const totalReps=(allR||[]).filter(r=>!r.week_start).length;
+    const attendedCnt=(allR||[]).filter(r=>!r.week_start&&r.attended).length;
+    const absentCnt=totalReps-attendedCnt;
+    const kpiReps=(allR||[]).filter(r=>r.kpi_score);
+    const avgKpiVal=kpiReps.length>0?(kpiReps.reduce((a,r)=>a+r.kpi_score,0)/kpiReps.length).toFixed(1):0;
+    const penaltyCnt=(allP||[]).length;
+    const sickCnt=(allSL||[]).length;
+
+    // Summary sheet with all key numbers
+    const summaryData=[
+      ["HUAWEI TECHTRACK — SUMMARY REPORT","","",""],
+      ["Generated",new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),"",""],
+      ["","","",""],
+      ["── TRAINEE STATUS ──","Count","Percentage",""],
+      ["Active",activeCnt,`${((activeCnt/((allT||[]).length||1))*100).toFixed(1)}%`,""],
+      ["Transferred",transferredCnt,`${((transferredCnt/((allT||[]).length||1))*100).toFixed(1)}%`,""],
+      ["Dropped",droppedCnt,`${((droppedCnt/((allT||[]).length||1))*100).toFixed(1)}%`,""],
+      ["Inactive",inactiveCnt,`${((inactiveCnt/((allT||[]).length||1))*100).toFixed(1)}%`,""],
+      ["TOTAL",(allT||[]).length,"100%",""],
+      ["","","",""],
+      ["── ATTENDANCE ──","Count","Percentage",""],
+      ["Present",attendedCnt,totalReps>0?`${((attendedCnt/totalReps)*100).toFixed(1)}%`:"0%",""],
+      ["Absent",absentCnt,totalReps>0?`${((absentCnt/totalReps)*100).toFixed(1)}%`:"0%",""],
+      ["TOTAL RECORDS",totalReps,"",""],
+      ["Average KPI Score",avgKpiVal,"/ 100",""],
+      ["","","",""],
+      ["── PAYMENT STATUS ──","Count","Percentage",""],
+      ["Paid",paidCnt,`${(((allT||[]).length>0?(paidCnt/(allT||[]).length)*100:0)).toFixed(1)}%`,""],
+      ["Unpaid",unpaidCnt,`${(((allT||[]).length>0?(unpaidCnt/(allT||[]).length)*100:0)).toFixed(1)}%`,""],
+      ["","","",""],
+      ["── LAPTOP STATUS ──","Count","Percentage",""],
+      ["Received",laptopRecCnt,`${(((allT||[]).length>0?(laptopRecCnt/(allT||[]).length)*100:0)).toFixed(1)}%`,""],
+      ["Returned to HR",laptopRetCnt,`${(((allT||[]).length>0?(laptopRetCnt/(allT||[]).length)*100:0)).toFixed(1)}%`,""],
+      ["Not Received",laptopNoCnt,`${(((allT||[]).length>0?(laptopNoCnt/(allT||[]).length)*100:0)).toFixed(1)}%`,""],
+      ["","","",""],
+      ["── PENALTIES & SICK LEAVES ──","Count","",""],
+      ["Total Penalties",penaltyCnt,"",""],
+      ["Total Sick Leave Requests",sickCnt,"",""],
+      ["Total Penalty Deduction %",(penaltyCnt*PENALTY_PCT).toFixed(2)+"%","",""],
+      ["","","",""],
+      ["── TOP KPI PERFORMERS ──","Avg KPI","Department",""],
+      ...((allT||[]).map(t=>{
+        const tr=(allR||[]).filter(r=>r.trainee_id===t.id&&r.kpi_score);
+        const avg=tr.length>0?(tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length).toFixed(1):0;
+        return{name:t.full_name,avg:parseFloat(avg),dept:t.department};
+      }).sort((a,b)=>b.avg-a.avg).slice(0,10).map(t=>[t.name,t.avg,t.dept,""])),
+      ["","","",""],
+      ["── ACCESS LOG SUMMARY ──","Count","",""],
+      ["Total Actions",(allAL||[]).length,"",""],
+      ["Total Logins",(allAL||[]).filter(l=>l.action_type==="login").length,"",""],
+      ["Profile Views",(allAL||[]).filter(l=>l.action_type==="profile_view").length,"",""],
+      ["Status Changes",(allAL||[]).filter(l=>l.action_type==="status_change").length,"",""],
+      ["Exports Done",(allAL||[]).filter(l=>["excel_export","pdf_export"].includes(l.action_type)).length,"",""],
+    ];
+    const summaryWs=XLSX.utils.aoa_to_sheet(summaryData);
+    // Style column widths
+    summaryWs["!cols"]=[{wch:35},{wch:15},{wch:15},{wch:10}];
+    XLSX.utils.book_append_sheet(wb,summaryWs,"📊 Summary Dashboard");
+
+    // ── CHART DATA SHEETS (for Excel to build charts from) ──
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+      ["Status","Count"],
+      ["Active",activeCnt],
+      ["Transferred",transferredCnt],
+      ["Dropped",droppedCnt],
+      ["Inactive",inactiveCnt],
+    ]),"Chart - Trainee Status");
+
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+      ["Attendance","Count"],
+      ["Present",attendedCnt],
+      ["Absent",absentCnt],
+    ]),"Chart - Attendance");
+
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+      ["Payment","Count"],
+      ["Paid",paidCnt],
+      ["Unpaid",unpaidCnt],
+    ]),"Chart - Payment");
+
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+      ["Laptop Status","Count"],
+      ["Received",laptopRecCnt],
+      ["Returned to HR",laptopRetCnt],
+      ["Not Received",laptopNoCnt],
+    ]),"Chart - Laptop");
+
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+      ["Trainee","KPI Score","Department"],
+      ...((allT||[]).map(t=>{
+        const tr=(allR||[]).filter(r=>r.trainee_id===t.id&&r.kpi_score);
+        const avg=tr.length>0?(tr.reduce((a,r)=>a+r.kpi_score,0)/tr.length).toFixed(1):0;
+        return[t.full_name,parseFloat(avg),t.department];
+      }).sort((a,b)=>b[1]-a[1]).slice(0,10)),
+    ]),"Chart - KPI Scores");
+
     XLSX.writeFile(wb,`HuaweiTechTrack_${new Date().toISOString().split("T")[0]}.xlsx`);
-    setMsg("✅ Excel exported — 10 sheets!");
+    setMsg("✅ Excel exported — 15 sheets with charts!");
     setTimeout(fetchAccessLogs,500);
   }
 
