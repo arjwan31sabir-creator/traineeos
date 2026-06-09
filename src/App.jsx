@@ -347,6 +347,9 @@ export default function App(){
   const [currentWeek]                = useState(getCurrentWeek());
   const [weeklyText,setWeeklyText]   = useState("");
   const [weeklySubmitted,setWeeklySubmitted] = useState(false);
+  const [showAttendanceExport,setShowAttendanceExport] = useState(false);
+  const [attendanceExportMonth,setAttendanceExportMonth] = useState(String(new Date().getMonth()+1).padStart(2,"0"));
+  const [attendanceExportYear,setAttendanceExportYear] = useState(String(new Date().getFullYear()));
   const [setupProfile,setSetupProfile] = useState({full_name:"",civil_id:"",phone_number:"",department:"",assigned_mentor:"",gpa:"",date_of_birth:"",gender:"",nationality:"Omani",university:"",ojt_end_date:""});
 
   const excuseRef=useRef(),weeklyPhotoRef=useRef(),sickProofRef=useRef();
@@ -708,6 +711,162 @@ export default function App(){
     await supabase.from("okrs").insert({...newOkr,created_by:user?.email});
     setShowAddOkr(false);setNewOkr({department:"",objective:"",key_result:"",target:100,current:0,unit:"%",due_date:""});fetchOkrs();setMsg("✅ OKR added!");
     await writeAccessLog(user?.email,currentManagerName,"okr_add",`Added OKR: ${newOkr.objective}`,{department:newOkr.department});
+    setTimeout(fetchAccessLogs,500);
+  }
+
+  async function exportAttendanceSheets(){
+    setMsg("📋 Generating attendance sheets…");
+    setShowAttendanceExport(false);
+    await writeAccessLog(user?.email,currentManagerName,"excel_export","Exported attendance sheets");
+
+    const year=parseInt(attendanceExportYear);
+    const month=parseInt(attendanceExportMonth);
+    const monthName=new Date(year,month-1,1).toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+    const daysInMonth=new Date(year,month,0).getDate();
+    const monthPad=String(month).padStart(2,"0");
+
+    const{data:allT}=await supabase.from("trainees").select("*").in("status",["active","transferred"]).order("full_name");
+    const{data:allR}=await supabase.from("daily_reports").select("*")
+      .gte("report_date",`${year}-${monthPad}-01`)
+      .lte("report_date",`${year}-${monthPad}-${String(daysInMonth).padStart(2,"0")}`);
+
+    const XL=XLSX;
+    const wb=XL.utils.book_new();
+
+    // Color fills for remarks
+    const remarkColor=(remark)=>{
+      if(remark==="P") return "C6EFCE";      // green
+      if(remark==="LATE") return "FFEB9C";   // yellow
+      if(remark==="A") return "FFC7CE";      // red
+      if(remark==="V") return "D9D9D9";      // gray - visit site
+      if(remark==="H") return "BDD7EE";      // blue - holiday
+      if(remark==="SL") return "E2EFDA";     // light green - sick
+      if(remark==="WK") return "D9D9D9";     // gray - weekend
+      return "FFFFFF";
+    };
+
+    for(const trainee of (allT||[])){
+      // Build days array
+      const days=[];
+      for(let d=1;d<=daysInMonth;d++){
+        const dateStr=`${year}-${monthPad}-${String(d).padStart(2,"0")}`;
+        const dateObj=new Date(dateStr+"T00:00:00");
+        const dow=dateObj.getDay(); // 0=Sun,5=Fri,6=Sat
+        const isWeekend=dow===5||dow===6;
+        const report=(allR||[]).find(rep=>rep.trainee_id===trainee.id&&rep.report_date===dateStr&&!rep.week_start);
+        let remark="";
+        if(isWeekend) remark="WK";
+        else if(report){
+          if(report.attended){
+            remark=report.signin_time&&report.signin_time>MAX_SIGNIN?"LATE":"P";
+          } else if(report.excuse_type==="medical"||report.excuse_type==="sick") remark="SL";
+          else remark="A";
+        }
+        days.push({
+          date:dateStr,
+          label:dateObj.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}).replace(/ /g,"-"),
+          isWeekend,report,remark,
+        });
+      }
+
+      const counts={P:0,LATE:0,A:0,SL:0,WK:0,H:0,V:0};
+      days.forEach(d=>{if(counts[d.remark]!==undefined)counts[d.remark]++;});
+
+      // Split into two columns
+      const half=Math.ceil(days.length/2);
+      const left=days.slice(0,half);
+      const right=days.slice(half);
+      const maxR=Math.max(left.length,right.length);
+
+      // Build AOA (array of arrays)
+      const aoa=[];
+
+      // Row 1 — Title
+      aoa.push(["Project Name: Internship Program","","","","Huawei Tech Investment (Oman) LLC","","","","","Attendance Sheet for "+monthName,"",""]);
+      aoa.push(["","","","","","","","","","","",""]);
+      // Row 3 — Trainee info
+      aoa.push([`Trainee Name: ${trainee.full_name}`,"","","",`HUAWEI ID: ${trainee.civil_id||"—"}`,"","","","",`Position/Designation: ${trainee.department||"—"}`,"",""]);
+      aoa.push(["","","","","","","","","","","",""]);
+      // Row 5 — Column headers
+      aoa.push(["Date","Time In","Time Out","Attendance/Remark","Date","Time In","Time Out","Attendance/Remark","Attendance Summary","Info","Days",""]);
+
+      // Day rows
+      for(let i=0;i<maxR;i++){
+        const ld=left[i];
+        const rd=right[i];
+        const row=["","","","","","","","","","","",""];
+        if(ld){
+          row[0]=ld.label;
+          if(ld.isWeekend){row[1]="Weekend";row[2]="";row[3]="WK";}
+          else{row[1]=ld.report?.signin_time||"";row[2]=ld.report?.signout_time||"";row[3]=ld.remark;}
+        }
+        if(rd){
+          row[4]=rd.label;
+          if(rd.isWeekend){row[5]="Weekend";row[6]="";row[7]="WK";}
+          else{row[5]=rd.report?.signin_time||"";row[6]=rd.report?.signout_time||"";row[7]=rd.remark;}
+        }
+        // Summary column (first few rows only)
+        if(i===0){row[8]="Present";row[9]="P";row[10]=counts.P;}
+        if(i===1){row[8]="Absent";row[9]="A";row[10]=counts.A;}
+        if(i===2){row[8]="Late";row[9]="LATE";row[10]=counts.LATE;}
+        if(i===3){row[8]="Sick Leave";row[9]="SL";row[10]=counts.SL;}
+        if(i===4){row[8]="Weekend";row[9]="WK";row[10]=counts.WK;}
+        if(i===5){row[8]="Holiday";row[9]="H";row[10]=counts.H;}
+        if(i===6){row[8]="Visit Site";row[9]="V";row[10]=counts.V;}
+        if(i===7){row[8]="Total days in month";row[9]="";row[10]=daysInMonth;}
+        aoa.push(row);
+      }
+
+      // Footer rows
+      aoa.push(["","","","","","","","","","","",""]);
+      aoa.push(["Before signing make sure the details are correct. If the student is found to be absent, strict action shall be taken against the student and supervisor both.","","","","","","","","","","",""]);
+      aoa.push(["","","","","","","","","","","",""]);
+      aoa.push(["Trainee Signature:","","","HR Manager Signature:","","","","Approved By PM/Manager:","","","",""]);
+      aoa.push(["","","","","","","","","","","",""]);
+      aoa.push(["","","","","","","","","","","",""]);
+
+      const ws=XL.utils.aoa_to_sheet(aoa);
+
+      // Column widths
+      ws["!cols"]=[
+        {wch:16},{wch:10},{wch:10},{wch:14},
+        {wch:16},{wch:10},{wch:10},{wch:14},
+        {wch:20},{wch:8},{wch:8},{wch:8},
+      ];
+
+      // Merges
+      const merges=[
+        // Title row
+        {s:{r:0,c:0},e:{r:0,c:3}},{s:{r:0,c:4},e:{r:0,c:8}},{s:{r:0,c:9},e:{r:0,c:11}},
+        // Trainee info
+        {s:{r:2,c:0},e:{r:2,c:3}},{s:{r:2,c:4},e:{r:2,c:8}},{s:{r:2,c:9},e:{r:2,c:11}},
+        // Footer note
+        {s:{r:aoa.length-5,c:0},e:{r:aoa.length-5,c:11}},
+        // Signatures
+        {s:{r:aoa.length-3,c:0},e:{r:aoa.length-3,c:2}},
+        {s:{r:aoa.length-3,c:3},e:{r:aoa.length-3,c:6}},
+        {s:{r:aoa.length-3,c:7},e:{r:aoa.length-3,c:11}},
+        {s:{r:aoa.length-2,c:0},e:{r:aoa.length-2,c:2}},
+        {s:{r:aoa.length-2,c:3},e:{r:aoa.length-2,c:6}},
+        {s:{r:aoa.length-2,c:7},e:{r:aoa.length-2,c:11}},
+      ];
+
+      // Weekend merges in day rows
+      const startRow=5;
+      for(let i=0;i<maxR;i++){
+        const ld=left[i];const rd=right[i];
+        if(ld?.isWeekend) merges.push({s:{r:startRow+i,c:1},e:{r:startRow+i,c:3}});
+        if(rd?.isWeekend) merges.push({s:{r:startRow+i,c:5},e:{r:startRow+i,c:7}});
+      }
+      ws["!merges"]=merges;
+
+      // Sheet name = trainee first name (max 31 chars for Excel)
+      const sheetName=trainee.full_name.substring(0,28).replace(/[\\/?*[\]]/g,"");
+      XL.utils.book_append_sheet(wb,ws,sheetName);
+    }
+
+    XL.writeFile(wb,`Attendance_${monthName.replace(" ","_")}.xlsx`);
+    setMsg(`✅ Attendance sheets exported for ${(allT||[]).length} trainees!`);
     setTimeout(fetchAccessLogs,500);
   }
 
@@ -1135,6 +1294,39 @@ export default function App(){
           setTimeout(fetchAccessLogs,800);
         }}/>}
         {showTransferPopup&&selected&&<TransferPopup trainee={selected} onConfirm={handleTransferConfirm} onCancel={()=>setShowTransferPopup(false)}/>}
+        {showAttendanceExport&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(6px)",padding:16}}>
+            <div style={{background:HW.surface,border:`2px solid ${HW.red}`,borderRadius:24,padding:28,width:"100%",maxWidth:380,textAlign:"center"}}>
+              <div style={{fontSize:36,marginBottom:12}}>📋</div>
+              <h3 style={{fontSize:20,fontWeight:800,color:HW.red,margin:"0 0 6px"}}>Export Attendance Sheets</h3>
+              <p style={{fontSize:13,color:HW.muted,marginBottom:20}}>Select month and year to generate attendance sheets for all active trainees</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6}}>Month</label>
+                  <select style={{background:HW.surface2,border:`1px solid ${HW.border}`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"}}
+                    value={attendanceExportMonth} onChange={e=>setAttendanceExportMonth(e.target.value)}>
+                    {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m,i)=>(
+                      <option key={m} value={m}>{new Date(2026,i,1).toLocaleDateString("en-GB",{month:"long"})}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6}}>Year</label>
+                  <select style={{background:HW.surface2,border:`1px solid ${HW.border}`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"}}
+                    value={attendanceExportYear} onChange={e=>setAttendanceExportYear(e.target.value)}>
+                    {["2025","2026","2027"].map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <button style={{padding:14,borderRadius:12,border:`1px solid ${HW.border}`,background:HW.surface2,color:HW.muted,fontWeight:700,fontSize:14,cursor:"pointer"}}
+                  onClick={()=>setShowAttendanceExport(false)}>Cancel</button>
+                <button style={{padding:14,borderRadius:12,border:"none",background:HW.red,color:HW.white,fontWeight:800,fontSize:14,cursor:"pointer"}}
+                  onClick={exportAttendanceSheets}>📋 Export</button>
+              </div>
+            </div>
+          </div>
+        )}
         {showDropPopup&&selected&&<DropPopup trainee={selected} onConfirm={handleDropConfirm} onCancel={()=>setShowDropPopup(false)}/>}
         <MgmtNav/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,paddingTop:4}}>
@@ -1143,6 +1335,7 @@ export default function App(){
         </div>
         <div style={{display:"flex",gap:6,marginBottom:12}}>
           <button style={{...s.btn,background:`${HW.red}20`,color:HW.red,fontSize:12,padding:"8px 12px"}} onClick={exportExcel}>📊 Export Excel</button>
+          <button style={{...s.btn,background:`${HW.red}20`,color:HW.red,fontSize:12,padding:"8px 12px"}} onClick={()=>setShowAttendanceExport(true)}>📋 Attendance Sheets</button>
           <button style={{...s.btn,background:HW.surface2,color:HW.muted,fontSize:12,padding:"8px 12px"}} onClick={()=>setShowMgrGreeting(true)}>👋 Greeting</button>
           <button style={{...s.btn,background:`${HW.red}20`,color:HW.red,fontSize:12,padding:"8px 12px",marginLeft:"auto"}} onClick={logout}>Sign out</button>
         </div>
