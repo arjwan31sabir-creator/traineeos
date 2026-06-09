@@ -1014,8 +1014,18 @@ export default function App(){
       <div style={s.page}>
         {showMgrGreeting&&<ManagerGreetingPopup onDismiss={()=>setShowMgrGreeting(false)} onLogin={async(name)=>{
           setCurrentManagerName(name);
-          await writeAccessLog(user?.email,name,"login",`${name} logged into Management Hub`);
-          setTimeout(fetchAccessLogs,500);
+          await supabase.from("access_logs").insert({
+            manager_name:name,
+            manager_email:user?.email||"—",
+            action_type:"login",
+            description:`${name} logged into Management Hub`,
+            metadata:{
+              day:new Date().toLocaleDateString("en-GB",{weekday:"long"}),
+              date:new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
+              time:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
+            },
+          });
+          setTimeout(fetchAccessLogs,800);
         }}/>}
         {showTransferPopup&&selected&&<TransferPopup trainee={selected} onConfirm={handleTransferConfirm} onCancel={()=>setShowTransferPopup(false)}/>}
         {showDropPopup&&selected&&<DropPopup trainee={selected} onConfirm={handleDropConfirm} onCancel={()=>setShowDropPopup(false)}/>}
