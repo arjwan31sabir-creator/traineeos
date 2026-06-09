@@ -10,7 +10,6 @@ const WORK_LNG    = 58.4125277;
 const WORK_RADIUS = 1000;
 const MAX_SIGNIN  = "09:00";
 const PENALTY_PCT = 8.33;
-
 const MANAGER_NAMES = ["Arjwan","Sultan","Mohammed","Sana","Osama"];
 
 const KRA_CATEGORIES = [
@@ -70,10 +69,25 @@ function speak(text){
   else window.speechSynthesis.onvoiceschanged=setVoice;
 }
 
+function logToSupabase(userEmail, managerName, actionType, description, metadata={}){
+  return supabase.from("access_logs").insert({
+    manager_name: managerName||"Unknown",
+    manager_email: userEmail||"—",
+    action_type: actionType,
+    description: description,
+    metadata: {
+      ...metadata,
+      day: new Date().toLocaleDateString("en-GB",{weekday:"long"}),
+      date: new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
+      time: new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
+    },
+  });
+}
+
 function getCurrentWeek(){
-  const now=new Date();const day=now.getDay();
-  const sunday=new Date(now);sunday.setDate(now.getDate()-day);
-  const thursday=new Date(sunday);thursday.setDate(sunday.getDate()+4);
+  const now=new Date(); const day=now.getDay();
+  const sunday=new Date(now); sunday.setDate(now.getDate()-day);
+  const thursday=new Date(sunday); thursday.setDate(sunday.getDate()+4);
   const fmt=(d)=>d.toISOString().split("T")[0];
   return{week_start:fmt(sunday),week_end:fmt(thursday),label:`${sunday.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} – ${thursday.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}`};
 }
@@ -96,7 +110,7 @@ async function analyzeReport(text){
 
 function PieChart({data}){
   const colors=[HW.red,"#FF6B6B","#FF9999","#FFB3B3"];
-  const entries=Object.entries(data);let cum=0;
+  const entries=Object.entries(data); let cum=0;
   const slices=entries.map(([label,pct],i)=>{
     const val=pct/100,s=cum*2*Math.PI;cum+=val;const e=cum*2*Math.PI;
     const x1=Math.cos(s-Math.PI/2),y1=Math.sin(s-Math.PI/2),x2=Math.cos(e-Math.PI/2),y2=Math.sin(e-Math.PI/2);
@@ -124,13 +138,54 @@ function ReminderPopup({onDismiss}){
   return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:999,backdropFilter:"blur(4px)"}}><div style={{background:HW.surface,border:`2px solid ${HW.red}`,borderRadius:"24px 24px 0 0",padding:32,width:"100%",textAlign:"center"}}><div style={{fontSize:48,marginBottom:12}}>⏰</div><h3 style={{color:HW.red,fontSize:20,marginBottom:8}}>Weekly Report Reminder</h3><p style={{color:HW.muted,fontSize:14,lineHeight:1.6,marginBottom:20}}>Don't forget to submit your weekly report before Thursday!</p><button onClick={onDismiss} style={{background:HW.red,color:HW.white,border:"none",borderRadius:12,padding:"14px 32px",fontWeight:700,fontSize:16,cursor:"pointer",width:"100%"}}>Got it!</button></div></div>);
 }
 
-function ManagerGreetingPopup({onDismiss,onLogin}){
+// ── Transfer Popup ──────────────────────────────────
+function TransferPopup({trainee, onConfirm, onCancel}){
+  const [newDept, setNewDept] = useState(trainee?.department||"");
+  const [newMentor, setNewMentor] = useState(trainee?.assigned_mentor||"");
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(6px)",padding:16}}>
+      <div style={{background:HW.surface,border:`2px solid #FFA500`,borderRadius:24,padding:28,width:"100%",maxWidth:420,textAlign:"center"}}>
+        <div style={{fontSize:36,marginBottom:12}}>🔄</div>
+        <h3 style={{fontSize:20,fontWeight:800,color:"#FFA500",margin:"0 0 6px"}}>Transfer Trainee</h3>
+        <p style={{fontSize:13,color:HW.muted,marginBottom:20}}>
+          Transferring <b style={{color:HW.text}}>{trainee?.full_name}</b><br/>
+          Current department: <b style={{color:"#FFA500"}}>{trainee?.department||"—"}</b>
+        </p>
+        <div style={{textAlign:"left",marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6}}>New Department *</label>
+          <input style={{background:HW.surface2,border:`1px solid #FFA50060`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"}}
+            placeholder="e.g. IT Infrastructure"
+            value={newDept} onChange={e=>setNewDept(e.target.value)}
+            autoFocus/>
+        </div>
+        <div style={{textAlign:"left",marginBottom:20}}>
+          <label style={{fontSize:11,fontWeight:700,color:HW.muted,textTransform:"uppercase",letterSpacing:".06em",display:"block",marginBottom:6}}>New Mentor (optional)</label>
+          <input style={{background:HW.surface2,border:`1px solid ${HW.border}`,color:HW.text,borderRadius:10,padding:"12px 14px",width:"100%",fontFamily:"inherit",fontSize:16,boxSizing:"border-box"}}
+            placeholder="e.g. Dr. Ahmed"
+            value={newMentor} onChange={e=>setNewMentor(e.target.value)}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <button style={{padding:"14px",borderRadius:12,border:`1px solid ${HW.border}`,background:HW.surface2,color:HW.muted,fontWeight:700,fontSize:14,cursor:"pointer"}}
+            onClick={onCancel}>Cancel</button>
+          <button style={{padding:"14px",borderRadius:12,border:"none",background:"#FFA500",color:"#000",fontWeight:800,fontSize:14,cursor:"pointer",opacity:!newDept.trim()?0.5:1}}
+            disabled={!newDept.trim()}
+            onClick={()=>onConfirm(newDept.trim(), newMentor.trim())}>
+            🔄 Confirm Transfer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Manager Greeting Popup ──────────────────────────
+function ManagerGreetingPopup({onDismiss, onLogin}){
   const [selectedName,setSelectedName]=useState("");
   const [greeted,setGreeted]=useState(false);
-  const now=new Date();const hour=now.getHours();
+  const now=new Date(); const hour=now.getHours();
   const timeGreeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
   function doGreet(name){
-    setSelectedName(name);setGreeted(true);
+    setSelectedName(name); setGreeted(true);
     speak(`${timeGreeting}, ${name}! Welcome to Huawei TechTrack, Management Hub. Your insights drive our success. Let's review team performance, track attendance data, and empower the next generation of talent today.`);
     if(onLogin) onLogin(name);
   }
@@ -172,8 +227,9 @@ function ManagerGreetingPopup({onDismiss,onLogin}){
   );
 }
 
+// ── Trainee Greeting Popup ──────────────────────────
 function TraineeGreetingPopup({name,onDismiss}){
-  const now=new Date();const hour=now.getHours();
+  const now=new Date(); const hour=now.getHours();
   const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
   const greetingAr=hour<12?"صباح الخير":hour<17?"مساء الخير":"مساء النور";
   const quote=CHINESE_QUOTES[Math.floor(Math.random()*CHINESE_QUOTES.length)];
@@ -247,6 +303,7 @@ export default function App(){
   const [showReminder,setShowReminder] = useState(false);
   const [showGreeting,setShowGreeting] = useState(false);
   const [showMgrGreeting,setShowMgrGreeting] = useState(false);
+  const [showTransferPopup,setShowTransferPopup] = useState(false);
   const [traineeName,setTraineeName] = useState("");
   const [currentManagerName,setCurrentManagerName] = useState("");
   const [trafficCount,setTrafficCount] = useState(0);
@@ -294,7 +351,7 @@ export default function App(){
   useEffect(()=>{
     const check=()=>{const now=new Date();if(now.getHours()===16&&now.getMinutes()===30){setShowReminder(true);if(Notification.permission==="granted")new Notification("Huawei TechTrack",{body:"Reminder: Submit your weekly report!"});}};
     if(Notification.permission==="default")Notification.requestPermission();
-    const interval=setInterval(check,60000);return ()=>clearInterval(interval);
+    const interval=setInterval(check,60000); return ()=>clearInterval(interval);
   },[]);
 
   useEffect(()=>{
@@ -367,14 +424,9 @@ export default function App(){
     if(data)setAccessLogs(data);
   }
 
-  async function logAccess(managerName,actionType,description,metadata={}){
-    await supabase.from("access_logs").insert({
-      manager_name:managerName||currentManagerName||"Unknown",
-      manager_email:user?.email||"—",
-      action_type:actionType,
-      description:description,
-      metadata:metadata,
-    });
+  async function logAccess(name, actionType, description, metadata={}){
+    const resolvedName = name||currentManagerName||"Unknown";
+    await logToSupabase(user?.email, resolvedName, actionType, description, metadata);
     fetchAccessLogs();
   }
 
@@ -428,17 +480,18 @@ export default function App(){
   }
 
   async function logout(){
-    if(currentManagerName)await logAccess(currentManagerName,"logout",`${currentManagerName} logged out of Management Hub`);
+    if(currentManagerName){
+      await logToSupabase(user?.email, currentManagerName, "logout", `${currentManagerName} logged out of Management Hub`);
+    }
     await supabase.auth.signOut();
     setView("login");setUser(null);setSelected(null);setMsg("");
     setAiResult(null);setWeeklyPhotoFile(null);setWeeklyPhotoPreview(null);
     setLocationOk(false);setGeoStatus("idle");setGeoMsg("");
     setTraineeId(null);setGoals([]);setLiveSignins([]);
     setShowGreeting(false);setShowMgrGreeting(false);setTraineeName("");
-    setSignedOut(false);setSignoutTime("");
-    setWeeklySubmitted(false);setWeeklyText("");
+    setSignedOut(false);setSignoutTime("");setWeeklySubmitted(false);setWeeklyText("");
     setSickLeaves([]);setMyTraineeData(null);setSearchQuery("");
-    setAccessLogs([]);setCurrentManagerName("");
+    setAccessLogs([]);setCurrentManagerName("");setShowTransferPopup(false);
     window.speechSynthesis?.cancel();
   }
 
@@ -502,7 +555,6 @@ export default function App(){
   }
 
   async function fetchGoals(tid){const{data}=await supabase.from("goals").select("*").eq("trainee_id",tid).order("created_at",{ascending:false});if(data)setGoals(data);}
-
   async function addGoal(){
     if(!newGoal.goal_title){setMsg("Please enter a goal title.");return;}
     setLoading(true);setMsg("");
@@ -511,26 +563,22 @@ export default function App(){
     else{setMsg("✅ Goal added!");setShowAddGoal(false);setNewGoal({kra:"attendance",goal_title:"",description:"",target_value:100,current_value:0,unit:"%",start_date:new Date().toISOString().split("T")[0],due_date:"",status:"not_started"});fetchGoals(traineeId);}
     setLoading(false);
   }
-
   async function updateGoal(id,newValue,newStatus){
     const updates={current_value:newValue};
     if(newStatus)updates.status=newStatus;
     else if(newValue>=goals.find(g=>g.id===id)?.target_value)updates.status="completed";
     await supabase.from("goals").update(updates).eq("id",id);fetchGoals(traineeId);setMsg("✅ Goal updated!");
   }
-
   async function deleteGoal(id){await supabase.from("goals").delete().eq("id",id);fetchGoals(traineeId);setMsg("✅ Goal deleted.");}
   async function fetchSelectedGoals(tid){const{data}=await supabase.from("goals").select("*").eq("trainee_id",tid).order("created_at",{ascending:false});if(data)setSelectedGoals(data);}
   async function fetchTrainees(){const{data}=await supabase.from("trainees").select("*").order("full_name");if(data)setTrainees(data);}
   async function fetchOkrs(){const{data}=await supabase.from("okrs").select("*").order("department");if(data)setOkrs(data);}
-
   async function fetchAllData(){
     const{data:reps}=await supabase.from("daily_reports").select("*");
     const{data:pens}=await supabase.from("penalties").select("*");
     const{data:sick}=await supabase.from("sick_leaves").select("*");
     if(reps)setAllReports(reps);if(pens)setAllPenalties(pens);if(sick)setAllSickLeaves(sick);
   }
-
   async function fetchReports(tid){const{data}=await supabase.from("daily_reports").select("*").eq("trainee_id",tid).order("report_date",{ascending:false});if(data)setReports(data);}
   async function fetchLogs(tid){const{data}=await supabase.from("trainee_logs").select("*").eq("trainee_id",tid).order("created_at",{ascending:false});if(data)setLogs(data);}
   async function fetchPenalties(tid){const{data}=await supabase.from("penalties").select("*").eq("trainee_id",tid).order("created_at",{ascending:false});if(data)setPenalties(data);}
@@ -538,21 +586,21 @@ export default function App(){
   async function openProfile(t){
     setSelected({...t});setProfileTab("timeline");setMsg("");
     await fetchReports(t.id);await fetchLogs(t.id);await fetchPenalties(t.id);await fetchSelectedGoals(t.id);await fetchSelectedSickLeaves(t.id);
-    await logAccess(currentManagerName,"profile_view",`Viewed profile of ${t.full_name}`,{trainee:t.full_name});
+    await logAccess(currentManagerName,"profile_view",`Viewed profile of ${t.full_name}`,{trainee:t.full_name,department:t.department});
   }
 
   async function updatePaymentStatus(status,notes){
     await supabase.from("trainees").update({payment_status:status,payment_notes:notes||null}).eq("id",selected.id);
     setSelected({...selected,payment_status:status,payment_notes:notes});
     fetchTrainees();setMsg("✅ Payment status updated!");
-    await logAccess(currentManagerName,"payment_update",`Updated payment for ${selected.full_name} to ${status}`,{trainee:selected.full_name,payment_status:status,notes:notes});
+    await logAccess(currentManagerName,"payment_update",`Updated payment for ${selected.full_name} to ${status}`,{trainee:selected.full_name,payment_status:status,notes});
   }
 
   async function updateLaptopStatus(received,serial,date,returned,returnedDate){
     await supabase.from("trainees").update({laptop_received:received||false,laptop_serial:serial||null,laptop_received_date:date||null,laptop_returned:returned||false,laptop_returned_date:returnedDate||null}).eq("id",selected.id);
     setSelected({...selected,laptop_received:received,laptop_serial:serial,laptop_received_date:date,laptop_returned:returned,laptop_returned_date:returnedDate});
     fetchTrainees();setMsg("✅ Laptop status updated!");
-    await logAccess(currentManagerName,"laptop_update",`Updated laptop for ${selected.full_name} — ${returned?"Returned to HR":received?"Received":"Not received"}`,{trainee:selected.full_name,serial:serial,received,returned});
+    await logAccess(currentManagerName,"laptop_update",`Updated laptop for ${selected.full_name} — ${returned?"Returned to HR":received?"Received":"Not received"}`,{trainee:selected.full_name,serial,received,returned});
   }
 
   async function logEvent(tid,type,desc,old="",nw=""){await supabase.from("trainee_logs").insert({trainee_id:tid,event_type:type,description:desc,old_value:old,new_value:nw,logged_by:user?.email||"manager"});}
@@ -561,15 +609,39 @@ export default function App(){
     const changes=[];
     if(selected.department!==selected._original?.department)changes.push(logEvent(selected.id,"dept_changed","Department changed",selected._original?.department,selected.department));
     if(selected.assigned_mentor!==selected._original?.assigned_mentor)changes.push(logEvent(selected.id,"mentor_changed","Mentor changed",selected._original?.assigned_mentor,selected.assigned_mentor));
-    const{error}=await supabase.from("trainees").update({department:selected.department,assigned_mentor:selected.assigned_mentor,gpa:selected.gpa}).eq("id",selected.id);
+    const{error}=await supabase.from("trainees").update({department:selected.department,assigned_mentor:selected.assigned_mentor,gpa:selected.gpa,joining_date:selected.joining_date}).eq("id",selected.id);
     if(error){setMsg(error.message);return;}
     await Promise.all(changes);
     setMsg("✅ Saved!");fetchTrainees();fetchLogs(selected.id);
     await logAccess(currentManagerName,"profile_edit",`Edited profile of ${selected.full_name}`,{trainee:selected.full_name,department:selected.department,mentor:selected.assigned_mentor,gpa:selected.gpa});
   }
 
+  // ── TRANSFER WITH POPUP ──
+  async function handleTransferConfirm(newDept, newMentor){
+    setShowTransferPopup(false);
+    const oldDept = selected.department;
+    const oldMentor = selected.assigned_mentor;
+    const updateData = {
+      status:"transferred",
+      department: newDept,
+      assigned_mentor: newMentor || selected.assigned_mentor,
+    };
+    const{error}=await supabase.from("trainees").update(updateData).eq("id",selected.id);
+    if(error){setMsg(error.message);return;}
+    await logEvent(selected.id,"transferred",`Transferred to ${newDept}${newMentor?` under ${newMentor}`:""}`,oldDept,newDept);
+    if(newMentor&&newMentor!==oldMentor) await logEvent(selected.id,"mentor_changed",`Mentor changed to ${newMentor}`,oldMentor,newMentor);
+    setSelected({...selected,...updateData});
+    fetchTrainees();fetchLogs(selected.id);
+    setMsg(`✅ Transferred to ${newDept}${newMentor?` — Mentor: ${newMentor}`:""}`);
+    await logAccess(currentManagerName,"status_change",`Transferred ${selected.full_name} from ${oldDept} to ${newDept}`,{trainee:selected.full_name,old_department:oldDept,new_department:newDept,new_mentor:newMentor||oldMentor,old_status:"active",new_status:"transferred"});
+  }
+
   async function changeStatus(newStatus){
-    const messages={dropped:"Trainee dropped",inactive:"Trainee inactive",transferred:"Trainee transferred",active:"Trainee reactivated"};
+    if(newStatus==="transferred"){
+      setShowTransferPopup(true);
+      return;
+    }
+    const messages={dropped:"Trainee dropped",inactive:"Trainee inactive",active:"Trainee reactivated"};
     const updateData={status:newStatus};
     if(newStatus==="dropped")updateData.quitting_date=new Date().toISOString().split("T")[0];
     if(newStatus==="active")updateData.quitting_date=null;
@@ -582,7 +654,6 @@ export default function App(){
   }
 
   async function updateOkr(id,newValue){await supabase.from("okrs").update({current:newValue}).eq("id",id);fetchOkrs();}
-
   async function addOkr(){
     if(!newOkr.department||!newOkr.objective||!newOkr.key_result){setMsg("Please fill all OKR fields.");return;}
     await supabase.from("okrs").insert({...newOkr,created_by:user?.email});
@@ -601,46 +672,77 @@ export default function App(){
     const{data:allAL}=await supabase.from("access_logs").select("*").order("created_at",{ascending:false});
     const wb=XLSX.utils.book_new();
 
+    // Sheet 1 — Trainees (includes transfer department)
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({
-      "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,"Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,"Status":t.status,"Joining Date":t.joining_date,
+      "Full Name":t.full_name,"Civil ID":t.civil_id,"Phone":t.phone_number,
+      "Current Department":t.department,"Mentor":t.assigned_mentor,"GPA":t.gpa,
+      "Status":t.status,"Joining Date":t.joining_date,
       "Payment Status":t.payment_status||"unpaid","Payment Notes":t.payment_notes||"—",
-      "Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial Number":t.laptop_serial||"—","Laptop Received Date":t.laptop_received_date||"—","Laptop Returned to HR":t.laptop_returned?"Yes":"No","Laptop Returned Date":t.laptop_returned_date||"—",
+      "Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial Number":t.laptop_serial||"—",
+      "Laptop Received Date":t.laptop_received_date||"—",
+      "Laptop Returned to HR":t.laptop_returned?"Yes":"No","Laptop Returned Date":t.laptop_returned_date||"—",
     }))),"Trainees");
 
+    // Sheet 2 — Transferred Trainees (dedicated sheet)
+    const transferred=(allT||[]).filter(t=>t.status==="transferred");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(transferred.length>0?transferred.map(t=>({
+      "Full Name":t.full_name,"Civil ID":t.civil_id,
+      "Transferred To (Department)":t.department||"—",
+      "New Mentor":t.assigned_mentor||"—",
+      "GPA":t.gpa,"Phone":t.phone_number,
+      "Transfer Date":(()=>{
+        const tLog=allAL?.find(l=>l.action_type==="status_change"&&l.metadata?.trainee===t.full_name&&l.metadata?.new_status==="transferred");
+        return tLog?new Date(tLog.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}):"—";
+      })(),
+      "Transferred By":(()=>{
+        const tLog=allAL?.find(l=>l.action_type==="status_change"&&l.metadata?.trainee===t.full_name&&l.metadata?.new_status==="transferred");
+        return tLog?.manager_name||"—";
+      })(),
+      "Previous Department":(()=>{
+        const tLog=allAL?.find(l=>l.action_type==="status_change"&&l.metadata?.trainee===t.full_name&&l.metadata?.new_status==="transferred");
+        return tLog?.metadata?.old_department||"—";
+      })(),
+    })):[{"Info":"No transferred trainees yet"}]),"Transferred Trainees");
+
+    // Sheet 3 — Daily Attendance
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allR||[]).filter(r=>!r.week_start).map(r=>{
       const trainee=(allT||[]).find(t=>t.id===r.trainee_id);const dateObj=new Date(r.report_date+"T00:00:00");
       return{"Full Name":trainee?.full_name||"—","Department":trainee?.department||"—","Day":dateObj.toLocaleDateString("en-GB",{weekday:"long"}),"Date":dateObj.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),"Attended":r.attended?"Yes":"No","Time In":r.signin_time||"—","Time Out":r.signout_time||"—","Penalty":r.penalty_applied?`-${r.penalty_amount}%`:"None"};
     })),"Daily Attendance");
 
+    // Sheet 4 — Weekly Reports
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allR||[]).filter(r=>r.weekly_tasks).map(r=>{
       const trainee=(allT||[]).find(t=>t.id===r.trainee_id);
       return{"Full Name":trainee?.full_name||"—","Department":trainee?.department||"—","Week":r.week_start+" to "+r.week_end,"KPI Score":r.kpi_score||"—","Weekly Tasks":r.weekly_tasks||"—","AI Summary":r.report_text||"—"};
     })),"Weekly Reports");
 
+    // Sheet 5 — Sick Leaves
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allSL||[]).map(sl=>{
       const trainee=(allT||[]).find(t=>t.id===sl.trainee_id);
       return{"Full Name":trainee?.full_name||"—","Department":trainee?.department||"—","Start Date":sl.start_date,"End Date":sl.end_date,"Total Days":sl.total_days,"Reason":sl.reason||"—","Penalty Days":sl.penalty_days||0,"Penalty Applied":sl.penalty_applied?"Yes":"No","Medical Proof":sl.proof_url?"Yes":"No"};
     })),"Sick Leaves");
 
+    // Sheet 6 — Penalties
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allP||[]).map(p=>({"Full Name":(allT||[]).find(t=>t.id===p.trainee_id)?.full_name||"—","Date":p.report_date,"Reason":p.reason,"Deduction":`-${p.amount}%`}))),"Penalties");
 
+    // Sheet 7 — Goals
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allG||[]).map(g=>({"Full Name":(allT||[]).find(t=>t.id===g.trainee_id)?.full_name||"—","KRA":g.kra,"Goal":g.goal_title,"Target":g.target_value,"Current":g.current_value,"Unit":g.unit,"Status":g.status,"Progress":Math.min((g.current_value/g.target_value)*100,100).toFixed(0)+"%"}))),"Goals");
 
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({"Full Name":t.full_name,"Department":t.department,"Payment Status":t.payment_status||"unpaid","Payment Notes":t.payment_notes||"—","Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial Number":t.laptop_serial||"—","Laptop Received Date":t.laptop_received_date||"—","Laptop Returned to HR":t.laptop_returned?"Yes":"No","Laptop Returned Date":t.laptop_returned_date||"—"}))),"Payment & Laptop");
+    // Sheet 8 — Payment & Laptop
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allT||[]).map(t=>({"Full Name":t.full_name,"Department":t.department,"Status":t.status,"Payment Status":t.payment_status||"unpaid","Payment Notes":t.payment_notes||"—","Laptop Received":t.laptop_received?"Yes":"No","Laptop Serial Number":t.laptop_serial||"—","Laptop Received Date":t.laptop_received_date||"—","Laptop Returned to HR":t.laptop_returned?"Yes":"No","Laptop Returned Date":t.laptop_returned_date||"—"}))),"Payment & Laptop");
 
+    // Sheet 9 — Access Log
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((allAL||[]).map(al=>({
-      "Manager Name":al.manager_name||"—",
-      "Manager Email":al.manager_email||"—",
-      "Action":al.action_type?.replace(/_/g," ")||"—",
-      "Description":al.description||"—",
-      "Day":new Date(al.created_at).toLocaleDateString("en-GB",{weekday:"long"}),
-      "Date":new Date(al.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
-      "Time":new Date(al.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
+      "Manager Name":al.manager_name||"—","Manager Email":al.manager_email||"—",
+      "Action":al.action_type?.replace(/_/g," ")||"—","Description":al.description||"—",
+      "Day":al.metadata?.day||new Date(al.created_at).toLocaleDateString("en-GB",{weekday:"long"}),
+      "Date":al.metadata?.date||new Date(al.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),
+      "Time":al.metadata?.time||new Date(al.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),
       "Details":al.metadata?JSON.stringify(al.metadata):"—",
     }))),"Access Log");
 
     XLSX.writeFile(wb,`HuaweiTechTrack_${new Date().toISOString().split("T")[0]}.xlsx`);
-    setMsg("✅ Excel exported!");
+    setMsg("✅ Excel exported with 9 sheets!");
   }
 
   async function exportPDF(trainee){
@@ -653,7 +755,8 @@ export default function App(){
     const penY=doc.lastAutoTable.finalY+10;doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("Penalties",14,penY);
     const{data:pens}=await supabase.from("penalties").select("*").eq("trainee_id",t.id);
     autoTable(doc,{startY:penY+4,head:[["Date","Reason","Deduction"]],body:pens?.length>0?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`]):[["—","No penalties","—"]],headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,245,245]}});
-    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text("Huawei TechTrack • Powered by Arjwan Sabir • Confidential",14,285);
+    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");
+    doc.text("Huawei TechTrack • Powered by Arjwan Sabir • Confidential",14,285);
     doc.save(`${t.full_name}_report.pdf`);
     await logAccess(currentManagerName,"pdf_export",`Exported PDF for ${t.full_name}`,{trainee:t.full_name});
   }
@@ -677,7 +780,7 @@ export default function App(){
   const filteredGoals=goalFilter==="all"?goals:goals.filter(g=>g.kra===goalFilter||g.status===goalFilter);
   const filteredTrainees=trainees.filter(t=>{
     if(!searchQuery)return true;const q=searchQuery.toLowerCase();
-    if(q==="active")return t.status==="active";if(q==="paid")return t.payment_status==="paid";if(q==="unpaid")return t.payment_status!=="paid";if(q==="laptop_received")return t.laptop_received&&!t.laptop_returned;if(q==="laptop_returned")return t.laptop_returned;
+    if(q==="active")return t.status==="active";if(q==="paid")return t.payment_status==="paid";if(q==="unpaid")return t.payment_status!=="paid";if(q==="laptop_received")return t.laptop_received&&!t.laptop_returned;if(q==="laptop_returned")return t.laptop_returned;if(q==="transferred")return t.status==="transferred";
     return(t.full_name?.toLowerCase().includes(q)||t.department?.toLowerCase().includes(q)||t.civil_id?.toLowerCase().includes(q)||t.assigned_mentor?.toLowerCase().includes(q)||t.laptop_serial?.toLowerCase().includes(q));
   });
 
@@ -769,9 +872,7 @@ export default function App(){
               <div style={{background:weeklySubmitted?"rgba(52,211,153,.15)":"rgba(255,165,0,.15)",border:weeklySubmitted?"1px solid rgba(52,211,153,.3)":"1px solid rgba(255,165,0,.3)",borderRadius:12,padding:"10px 14px",textAlign:"center"}}><div style={{fontSize:20}}>{weeklySubmitted?"✅":"📝"}</div><div style={{fontSize:11,fontWeight:700,marginTop:4,color:weeklySubmitted?"#34d399":"#FFA500"}}>{weeklySubmitted?"Submitted":"Pending"}</div></div>
             </div>
           </div>
-          {weeklySubmitted&&aiResult?(<div><div style={{...s.card,border:"1px solid rgba(52,211,153,.3)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h3 style={{margin:0,color:"#34d399",fontSize:16}}>✅ Report Submitted</h3><button style={{...s.btn,background:`${HW.red}15`,color:HW.red,fontSize:12,padding:"6px 12px"}} onClick={()=>setWeeklySubmitted(false)}>✏️ Edit</button></div><div style={{background:HW.surface2,borderRadius:10,padding:12,borderLeft:`3px solid ${HW.red}`,fontSize:13,lineHeight:1.7,color:HW.text}}>{weeklyText}</div></div><div style={{...s.card,border:`1px solid ${HW.red}40`}}><h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>🤖 AI Analysis</h3><div style={{background:HW.surface2,borderRadius:12,padding:16,textAlign:"center",marginBottom:16}}><div style={{fontSize:11,color:HW.muted,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Weekly KPI Score</div><div style={{fontSize:56,fontWeight:800,color:kpiColor(aiResult.kpi_score)}}>{aiResult.kpi_score}</div><div style={{fontSize:11,color:HW.muted}}>out of 100</div></div>{aiResult.pie_chart&&<PieChart data={aiResult.pie_chart}/>}{aiResult.summary&&<div style={{background:HW.surface2,borderRadius:10,padding:12,marginTop:12,borderLeft:`3px solid ${HW.red}`}}><div style={{fontSize:10,color:HW.muted,fontWeight:700,marginBottom:4,textTransform:"uppercase"}}>Week Summary</div><div style={{fontSize:13,color:HW.text}}>{aiResult.summary}</div></div>}{aiResult.talent_notes&&<div style={{background:HW.surface2,borderRadius:10,padding:12,marginTop:10,borderLeft:"3px solid #FFA500"}}><div style={{fontSize:10,color:"#FFA500",fontWeight:700,marginBottom:4,textTransform:"uppercase"}}>🌟 Talent Notes</div><div style={{fontSize:13,lineHeight:1.6,color:HW.text}}>{aiResult.talent_notes}</div></div>}</div></div>):(
-            <div style={s.card}><h3 style={{marginBottom:8,color:HW.red,fontSize:16}}>📅 This Week's Tasks</h3><p style={{color:HW.muted,fontSize:13,marginBottom:12,lineHeight:1.5}}>Write what you did each day. AI will analyze and score your report.</p><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>{["Sun","Mon","Tue","Wed","Thu"].map(day=>(<span key={day} style={{background:HW.surface2,borderRadius:6,padding:"4px 10px",fontSize:12,color:HW.muted,border:`1px solid ${HW.border}`}}>{day}</span>))}</div><label style={s.label}>Weekly Tasks *</label><textarea style={{...s.input,height:200,resize:"vertical",marginBottom:14,fontSize:14,lineHeight:1.6}} placeholder="Sunday: ...\nMonday: ...\nTuesday: ...\nWednesday: ...\nThursday: ..." value={weeklyText} onChange={e=>setWeeklyText(e.target.value)}/><label style={s.label}>📸 Proof Photo (optional)</label><div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16}}><button style={{...s.btn,background:HW.surface2,color:HW.text,border:`1px dashed ${HW.border}`,flex:1}} onClick={()=>weeklyPhotoRef.current.click()}>{weeklyPhotoFile?"📷 Change Photo":"📷 Upload Proof"}</button><input ref={weeklyPhotoRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleWeeklyPhoto}/>{weeklyPhotoPreview&&<img src={weeklyPhotoPreview} alt="proof" style={{width:70,height:70,objectFit:"cover",borderRadius:10,border:`2px solid ${HW.border}`}}/>}</div><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:16,fontSize:16,opacity:(loading||aiLoading)?0.6:1}} onClick={submitWeeklyReport} disabled={loading||aiLoading}>{aiLoading?"🤖 AI Analyzing…":loading?"Saving…":"📅 Submit Weekly Report"}</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":msg.startsWith("🤖")?"#FFA500":HW.red,fontSize:14,marginTop:12,textAlign:"center"}}>{msg}</p>}</div>
-          )}
+          {weeklySubmitted&&aiResult?(<div><div style={{...s.card,border:"1px solid rgba(52,211,153,.3)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h3 style={{margin:0,color:"#34d399",fontSize:16}}>✅ Report Submitted</h3><button style={{...s.btn,background:`${HW.red}15`,color:HW.red,fontSize:12,padding:"6px 12px"}} onClick={()=>setWeeklySubmitted(false)}>✏️ Edit</button></div><div style={{background:HW.surface2,borderRadius:10,padding:12,borderLeft:`3px solid ${HW.red}`,fontSize:13,lineHeight:1.7,color:HW.text}}>{weeklyText}</div></div><div style={{...s.card,border:`1px solid ${HW.red}40`}}><h3 style={{marginBottom:16,color:HW.red,fontSize:16}}>🤖 AI Analysis</h3><div style={{background:HW.surface2,borderRadius:12,padding:16,textAlign:"center",marginBottom:16}}><div style={{fontSize:11,color:HW.muted,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Weekly KPI Score</div><div style={{fontSize:56,fontWeight:800,color:kpiColor(aiResult.kpi_score)}}>{aiResult.kpi_score}</div><div style={{fontSize:11,color:HW.muted}}>out of 100</div></div>{aiResult.pie_chart&&<PieChart data={aiResult.pie_chart}/>}{aiResult.summary&&<div style={{background:HW.surface2,borderRadius:10,padding:12,marginTop:12,borderLeft:`3px solid ${HW.red}`}}><div style={{fontSize:10,color:HW.muted,fontWeight:700,marginBottom:4,textTransform:"uppercase"}}>Week Summary</div><div style={{fontSize:13,color:HW.text}}>{aiResult.summary}</div></div>}{aiResult.talent_notes&&<div style={{background:HW.surface2,borderRadius:10,padding:12,marginTop:10,borderLeft:"3px solid #FFA500"}}><div style={{fontSize:10,color:"#FFA500",fontWeight:700,marginBottom:4,textTransform:"uppercase"}}>🌟 Talent Notes</div><div style={{fontSize:13,lineHeight:1.6,color:HW.text}}>{aiResult.talent_notes}</div></div>}</div></div>):(<div style={s.card}><h3 style={{marginBottom:8,color:HW.red,fontSize:16}}>📅 This Week's Tasks</h3><p style={{color:HW.muted,fontSize:13,marginBottom:12,lineHeight:1.5}}>Write what you did each day. AI will analyze and score your report.</p><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>{["Sun","Mon","Tue","Wed","Thu"].map(day=>(<span key={day} style={{background:HW.surface2,borderRadius:6,padding:"4px 10px",fontSize:12,color:HW.muted,border:`1px solid ${HW.border}`}}>{day}</span>))}</div><label style={s.label}>Weekly Tasks *</label><textarea style={{...s.input,height:200,resize:"vertical",marginBottom:14,fontSize:14,lineHeight:1.6}} placeholder="Sunday: ...\nMonday: ...\nTuesday: ...\nWednesday: ...\nThursday: ..." value={weeklyText} onChange={e=>setWeeklyText(e.target.value)}/><label style={s.label}>📸 Proof Photo (optional)</label><div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16}}><button style={{...s.btn,background:HW.surface2,color:HW.text,border:`1px dashed ${HW.border}`,flex:1}} onClick={()=>weeklyPhotoRef.current.click()}>{weeklyPhotoFile?"📷 Change Photo":"📷 Upload Proof"}</button><input ref={weeklyPhotoRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleWeeklyPhoto}/>{weeklyPhotoPreview&&<img src={weeklyPhotoPreview} alt="proof" style={{width:70,height:70,objectFit:"cover",borderRadius:10,border:`2px solid ${HW.border}`}}/>}</div><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:16,fontSize:16,opacity:(loading||aiLoading)?0.6:1}} onClick={submitWeeklyReport} disabled={loading||aiLoading}>{aiLoading?"🤖 AI Analyzing…":loading?"Saving…":"📅 Submit Weekly Report"}</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":msg.startsWith("🤖")?"#FFA500":HW.red,fontSize:14,marginTop:12,textAlign:"center"}}>{msg}</p>}</div>)}
         </div>
       )}
 
@@ -780,7 +881,7 @@ export default function App(){
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>{[{label:"Total",value:sickLeaves.length,color:"#4f8ef7"},{label:"Free Days",value:sickLeaves.reduce((a,sl)=>a+Math.min(sl.total_days,2),0),color:"#34d399"},{label:"Penalty Days",value:sickLeaves.reduce((a,sl)=>a+(sl.penalty_days||0),0),color:HW.red}].map((stat,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,textAlign:"center",borderTop:`3px solid ${stat.color}`}}><div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:3}}>{stat.label}</div></div>))}</div>
           <div style={{...s.card,background:"rgba(79,142,247,.08)",border:"1px solid rgba(79,142,247,.3)"}}><div style={{fontSize:14,fontWeight:700,color:"#4f8ef7",marginBottom:6}}>ℹ️ Sick Leave Policy</div><div style={{fontSize:13,color:HW.muted,lineHeight:1.6}}>First <b style={{color:HW.text}}>2 days (48 hours)</b> — No penalty ✅<br/>After 48 hours — <b style={{color:HW.red}}>8.33% penalty per day</b> ⚠️</div></div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h3 style={{margin:0,fontSize:16,color:HW.text}}>🏥 My Sick Leaves ({sickLeaves.length})</h3><button style={{...s.btn,background:HW.red,color:HW.white,padding:"10px 16px"}} onClick={()=>setShowAddSick(!showAddSick)}>{showAddSick?"✕ Cancel":"+ Submit"}</button></div>
-          {showAddSick&&(<div style={{...s.card,border:`1px solid ${HW.red}40`,marginBottom:12}}><h4 style={{marginBottom:14,color:HW.red,fontSize:15}}>🏥 Submit Sick Leave</h4><label style={s.label}>Start Date</label><input style={{...s.input,marginBottom:12}} type="date" value={newSick.start_date} onChange={e=>setNewSick({...newSick,start_date:e.target.value})}/><label style={s.label}>End Date</label><input style={{...s.input,marginBottom:12}} type="date" value={newSick.end_date} onChange={e=>setNewSick({...newSick,end_date:e.target.value})}/>{newSick.start_date&&newSick.end_date&&(()=>{const days=Math.ceil((new Date(newSick.end_date)-new Date(newSick.start_date))/(1000*60*60*24))+1;const penDays=Math.max(0,days-2);return(<div style={{background:penDays>0?`${HW.red}15`:"rgba(52,211,153,.1)",border:penDays>0?`1px solid ${HW.red}40`:"1px solid rgba(52,211,153,.3)",borderRadius:10,padding:12,marginBottom:12}}><div style={{fontSize:13,fontWeight:700,color:penDays>0?HW.red:"#34d399"}}>{days} day{days!==1?"s":""} — {penDays>0?`⚠️ ${penDays} penalty day(s) = ${(penDays*8.33).toFixed(2)}% deduction`:"✅ No penalty (within 48 hours)"}</div></div>);})()}<label style={s.label}>Reason *</label><textarea style={{...s.input,height:80,resize:"vertical",marginBottom:12}} placeholder="Describe your illness…" value={newSick.reason} onChange={e=>setNewSick({...newSick,reason:e.target.value})}/><label style={s.label}>📸 Medical Proof (Recommended)</label><div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}><button style={{...s.btn,background:HW.surface2,color:HW.text,border:`1px dashed ${HW.border}`,flex:1}} onClick={()=>sickProofRef.current.click()}>{sickProofFile?"📷 Change":"📷 Upload Proof"}</button><input ref={sickProofRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleSickProof}/>{sickProofPreview&&<img src={sickProofPreview} alt="proof" style={{width:70,height:70,objectFit:"cover",borderRadius:10,border:`2px solid ${HW.border}`}}/>}</div><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:14,opacity:loading?0.6:1}} onClick={submitSickLeave} disabled={loading}>{loading?"Submitting…":"🏥 Submit Sick Leave"}</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}</div>)}
+          {showAddSick&&(<div style={{...s.card,border:`1px solid ${HW.red}40`,marginBottom:12}}><h4 style={{marginBottom:14,color:HW.red,fontSize:15}}>🏥 Submit Sick Leave</h4><label style={s.label}>Start Date</label><input style={{...s.input,marginBottom:12}} type="date" value={newSick.start_date} onChange={e=>setNewSick({...newSick,start_date:e.target.value})}/><label style={s.label}>End Date</label><input style={{...s.input,marginBottom:12}} type="date" value={newSick.end_date} onChange={e=>setNewSick({...newSick,end_date:e.target.value})}/>{newSick.start_date&&newSick.end_date&&(()=>{const days=Math.ceil((new Date(newSick.end_date)-new Date(newSick.start_date))/(1000*60*60*24))+1;const penDays=Math.max(0,days-2);return(<div style={{background:penDays>0?`${HW.red}15`:"rgba(52,211,153,.1)",border:penDays>0?`1px solid ${HW.red}40`:"1px solid rgba(52,211,153,.3)",borderRadius:10,padding:12,marginBottom:12}}><div style={{fontSize:13,fontWeight:700,color:penDays>0?HW.red:"#34d399"}}>{days} day{days!==1?"s":""} — {penDays>0?`⚠️ ${penDays} penalty = ${(penDays*8.33).toFixed(2)}%`:"✅ No penalty"}</div></div>);})()}<label style={s.label}>Reason *</label><textarea style={{...s.input,height:80,resize:"vertical",marginBottom:12}} placeholder="Describe your illness…" value={newSick.reason} onChange={e=>setNewSick({...newSick,reason:e.target.value})}/><label style={s.label}>📸 Medical Proof (Recommended)</label><div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}><button style={{...s.btn,background:HW.surface2,color:HW.text,border:`1px dashed ${HW.border}`,flex:1}} onClick={()=>sickProofRef.current.click()}>{sickProofFile?"📷 Change":"📷 Upload Proof"}</button><input ref={sickProofRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleSickProof}/>{sickProofPreview&&<img src={sickProofPreview} alt="proof" style={{width:70,height:70,objectFit:"cover",borderRadius:10,border:`2px solid ${HW.border}`}}/>}</div><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:14,opacity:loading?0.6:1}} onClick={submitSickLeave} disabled={loading}>{loading?"Submitting…":"🏥 Submit Sick Leave"}</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}</div>)}
           {sickLeaves.length===0?(<div style={{...s.card,textAlign:"center",padding:32}}><div style={{fontSize:36,marginBottom:10}}>🏥</div><p style={{color:HW.muted}}>No sick leaves recorded.</p></div>):(sickLeaves.map(sl=>(<div key={sl.id} style={{...s.card,borderLeft:`4px solid ${sl.penalty_applied?HW.red:"#34d399"}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div><div style={{fontWeight:700,fontSize:14,color:HW.text}}>📅 {sl.start_date} → {sl.end_date}</div><div style={{fontSize:12,color:HW.muted,marginTop:2}}>{sl.reason}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:700,color:sl.penalty_applied?HW.red:"#34d399"}}>{sl.total_days} day{sl.total_days!==1?"s":""}</div><div style={{fontSize:11,color:HW.muted}}>{sl.penalty_applied?`⚠️ -${(sl.penalty_days*PENALTY_PCT).toFixed(2)}%`:"✅ No penalty"}</div></div></div>{sl.proof_url&&<div style={{fontSize:12,color:"#4f8ef7"}}>📎 Medical proof attached</div>}</div>)))}
         </div>
       )}
@@ -803,7 +904,12 @@ export default function App(){
     const analytics=getAnalytics();
     return(
       <div style={s.page}>
-        {showMgrGreeting&&<ManagerGreetingPopup onDismiss={()=>setShowMgrGreeting(false)} onLogin={async(name)=>{setCurrentManagerName(name);await logAccess(name,"login",`${name} logged into Management Hub`,{day:new Date().toLocaleDateString("en-GB",{weekday:"long"}),date:new Date().toLocaleDateString("en-GB"),time:new Date().toLocaleTimeString("en-GB")});}}/>}
+        {showMgrGreeting&&<ManagerGreetingPopup onDismiss={()=>setShowMgrGreeting(false)} onLogin={async(name)=>{
+          setCurrentManagerName(name);
+          await logToSupabase(user?.email, name, "login", `${name} logged into Management Hub`);
+          fetchAccessLogs();
+        }}/>}
+        {showTransferPopup&&selected&&<TransferPopup trainee={selected} onConfirm={handleTransferConfirm} onCancel={()=>setShowTransferPopup(false)}/>}
         <MgmtNav/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,paddingTop:4}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}><HuaweiLogo size={28}/><div><div style={{fontWeight:700,fontSize:14,color:HW.text}}>Huawei TechTrack {currentManagerName&&`— ${currentManagerName}`}</div><div style={{fontSize:10,color:HW.muted}}>{user?.email}</div></div></div>
@@ -816,7 +922,7 @@ export default function App(){
         </div>
         <div style={{height:1,background:HW.border,marginBottom:16}}/>
 
-        {/* TRAINEES */}
+        {/* TRAINEES LIST */}
         {mgmtTab==="trainees"&&!selected&&(
           <div>
             <h3 style={{marginBottom:12,fontSize:16,color:HW.text}}>👥 All Trainees</h3>
@@ -825,7 +931,7 @@ export default function App(){
               {searchQuery&&<button onClick={()=>setSearchQuery("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:HW.muted,cursor:"pointer",fontSize:18}}>✕</button>}
             </div>
             <div style={{display:"flex",gap:8,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
-              {[{key:"",label:"👥 All"},{key:"active",label:"✅ Active"},{key:"paid",label:"💰 Paid"},{key:"unpaid",label:"❌ Unpaid"},{key:"laptop_received",label:"💻 Has Laptop"},{key:"laptop_returned",label:"🔄 Returned"}].map(f=>(
+              {[{key:"",label:"👥 All"},{key:"active",label:"✅ Active"},{key:"transferred",label:"🔄 Transferred"},{key:"paid",label:"💰 Paid"},{key:"unpaid",label:"❌ Unpaid"},{key:"laptop_received",label:"💻 Has Laptop"},{key:"laptop_returned",label:"🔄 Returned"}].map(f=>(
                 <button key={f.key} style={{...s.btn,padding:"6px 12px",fontSize:11,whiteSpace:"nowrap",background:searchQuery===f.key?HW.red:HW.surface2,color:searchQuery===f.key?HW.white:HW.muted,border:`1px solid ${HW.border}`}} onClick={()=>setSearchQuery(searchQuery===f.key?"":f.key)}>{f.label}</button>
               ))}
             </div>
@@ -841,6 +947,7 @@ export default function App(){
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:t.payment_status==="paid"?"#34d399":HW.red,background:t.payment_status==="paid"?"rgba(52,211,153,.1)":`${HW.red}15`}}>💰 {t.payment_status||"unpaid"}</span>
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:t.laptop_returned?"#FFA500":t.laptop_received?"#34d399":HW.muted,background:t.laptop_returned?"rgba(255,165,0,.1)":t.laptop_received?"rgba(52,211,153,.1)":"rgba(136,136,136,.1)"}}>💻 {t.laptop_returned?"returned":t.laptop_received?"received":"not received"}</span>
                       {t.laptop_serial&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:"#4f8ef7",background:"rgba(79,142,247,.1)"}}>SN: {t.laptop_serial}</span>}
+                      {t.status==="transferred"&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,color:"#FFA500",background:"rgba(255,165,0,.1)"}}>🔄 Transferred</span>}
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
@@ -853,13 +960,19 @@ export default function App(){
           </div>
         )}
 
+        {/* TRAINEE PROFILE */}
         {mgmtTab==="trainees"&&selected&&(
           <div>
             <button style={{...s.btn,background:HW.surface2,color:HW.text,marginBottom:12,border:`1px solid ${HW.border}`,fontSize:13}} onClick={()=>{setSelected(null);setMsg("");}}>← Back</button>
             <div style={s.card}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
                 <div style={{width:52,height:52,borderRadius:14,background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:HW.white,flexShrink:0}}>{selected.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
-                <div style={{flex:1}}><div style={{fontWeight:700,fontSize:17,color:HW.text}}>{selected.full_name}</div><div style={{fontSize:12,color:HW.muted}}>{selected.department} · {selected.assigned_mentor}</div><span style={{padding:"3px 8px",borderRadius:20,fontSize:11,fontWeight:700,marginTop:4,display:"inline-block",background:statusColors[selected.status]?.bg,color:statusColors[selected.status]?.color}}>{selected.status}</span></div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:17,color:HW.text}}>{selected.full_name}</div>
+                  <div style={{fontSize:12,color:HW.muted}}>{selected.department} · {selected.assigned_mentor}</div>
+                  {selected.status==="transferred"&&<div style={{fontSize:11,color:"#FFA500",marginTop:2}}>🔄 Transferred to: <b>{selected.department}</b></div>}
+                  <span style={{padding:"3px 8px",borderRadius:20,fontSize:11,fontWeight:700,marginTop:4,display:"inline-block",background:statusColors[selected.status]?.bg,color:statusColors[selected.status]?.color}}>{selected.status}</span>
+                </div>
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 <button style={{...s.btn,background:`${HW.red}15`,color:HW.red,fontSize:12,padding:"8px 12px"}} onClick={()=>exportPDF()}>📄 PDF</button>
@@ -869,6 +982,7 @@ export default function App(){
                 {selected.status!=="dropped"&&<button style={{...s.btn,background:"rgba(100,100,100,.2)",color:"#666",fontSize:12,padding:"8px 12px"}} onClick={()=>changeStatus("dropped")}>🔴 Drop</button>}
               </div>
             </div>
+
             <div style={{display:"flex",gap:0,background:HW.surface2,borderRadius:12,padding:4,marginBottom:14,overflowX:"auto"}}>
               {["timeline","edit","reports","penalties","sick","payment","laptop","goals"].map(tab=>(
                 <button key={tab} onClick={()=>setProfileTab(tab)} style={{...s.btn,flex:1,padding:"10px 4px",background:profileTab===tab?HW.surface:"none",color:profileTab===tab?HW.text:HW.muted,fontSize:9,borderRadius:8,whiteSpace:"nowrap",borderBottom:profileTab===tab?`2px solid ${HW.red}`:"none"}}>
@@ -901,18 +1015,14 @@ export default function App(){
         {mgmtTab==="live"&&(
           <div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>{[{label:"Signed In",value:liveSignins.filter(s=>s.attended).length,icon:"✅",color:"#34d399"},{label:"Absent",value:liveSignins.filter(s=>!s.attended).length,icon:"❌",color:HW.red},{label:"On Time",value:liveSignins.filter(s=>s.signin_time&&s.signin_time<=MAX_SIGNIN).length,icon:"⏰",color:"#4f8ef7"},{label:"Late",value:liveSignins.filter(s=>s.signin_time&&s.signin_time>MAX_SIGNIN).length,icon:"⚠️",color:"#FFA500"}].map((stat,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}><div style={{fontSize:20,marginBottom:6}}>{stat.icon}</div><div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:2}}>{stat.label}</div></div>))}</div>
-            <div style={s.card}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><h3 style={{margin:0,fontSize:16,color:HW.text}}>📡 Live Feed</h3><div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.3)",borderRadius:20,padding:"4px 10px"}}><div style={{width:7,height:7,borderRadius:"50%",background:"#34d399",animation:"pulse 1.5s infinite"}}/><span style={{fontSize:11,color:"#34d399",fontWeight:700}}>LIVE</span></div></div>
-              <style>{`@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}@keyframes slideIn{from{transform:translateX(-20px);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
-              {liveSignins.length===0?(<div style={{textAlign:"center",padding:32}}><div style={{fontSize:36,marginBottom:10}}>📡</div><p style={{color:HW.muted}}>Waiting for sign-ins…</p></div>):(liveSignins.map((signin,i)=>(<div key={signin.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${HW.border}`,animation:i===0?"slideIn .4s ease":"none"}}><div style={{width:40,height:40,borderRadius:"50%",background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:HW.white,flexShrink:0}}>{signin.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14,color:HW.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{signin.full_name}</div><div style={{fontSize:11,color:HW.muted}}>{signin.department}</div></div><div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:16,fontWeight:800,fontFamily:"monospace",color:signin.signin_time>MAX_SIGNIN?HW.red:"#34d399"}}>{signin.signin_time||"—"}</div><span style={{fontSize:10,fontWeight:700,color:signin.attended?"#34d399":HW.red}}>{signin.attended?"● Present":"○ Absent"}</span></div></div>)))}
-            </div>
+            <div style={s.card}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><h3 style={{margin:0,fontSize:16,color:HW.text}}>📡 Live Feed</h3><div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.3)",borderRadius:20,padding:"4px 10px"}}><div style={{width:7,height:7,borderRadius:"50%",background:"#34d399",animation:"pulse 1.5s infinite"}}/><span style={{fontSize:11,color:"#34d399",fontWeight:700}}>LIVE</span></div></div><style>{`@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}@keyframes slideIn{from{transform:translateX(-20px);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>{liveSignins.length===0?(<div style={{textAlign:"center",padding:32}}><div style={{fontSize:36,marginBottom:10}}>📡</div><p style={{color:HW.muted}}>Waiting for sign-ins…</p></div>):(liveSignins.map((signin,i)=>(<div key={signin.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${HW.border}`,animation:i===0?"slideIn .4s ease":"none"}}><div style={{width:40,height:40,borderRadius:"50%",background:`linear-gradient(135deg,${HW.red},${HW.darkRed})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:HW.white,flexShrink:0}}>{signin.full_name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14,color:HW.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{signin.full_name}</div><div style={{fontSize:11,color:HW.muted}}>{signin.department}</div></div><div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:16,fontWeight:800,fontFamily:"monospace",color:signin.signin_time>MAX_SIGNIN?HW.red:"#34d399"}}>{signin.signin_time||"—"}</div><span style={{fontSize:10,fontWeight:700,color:signin.attended?"#34d399":HW.red}}>{signin.attended?"● Present":"○ Absent"}</span></div></div>)))}</div>
           </div>
         )}
 
         {/* ANALYTICS */}
         {mgmtTab==="analytics"&&(
           <div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>{[{label:"Active Trainees",value:analytics.active.length,icon:"👥",color:HW.red},{label:"Avg KPI",value:analytics.avgKpi,icon:"📊",color:"#FFA500"},{label:"Attendance Rate",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},{label:"Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},{label:"Sick Leaves",value:allSickLeaves.length,icon:"🏥",color:"#4f8ef7"},{label:"Paid",value:trainees.filter(t=>t.payment_status==="paid").length,icon:"💰",color:"#34d399"},{label:"Laptops Given",value:trainees.filter(t=>t.laptop_received).length,icon:"💻",color:"#7c5cfc"},{label:"Laptops Returned",value:trainees.filter(t=>t.laptop_returned).length,icon:"🔄",color:"#FFA500"}].map((stat,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}><div style={{fontSize:20,marginBottom:6}}>{stat.icon}</div><div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:2}}>{stat.label}</div></div>))}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>{[{label:"Active Trainees",value:analytics.active.length,icon:"👥",color:HW.red},{label:"Avg KPI",value:analytics.avgKpi,icon:"📊",color:"#FFA500"},{label:"Attendance Rate",value:`${analytics.attendanceRate}%`,icon:"✅",color:"#34d399"},{label:"Penalties",value:analytics.totalPenalties,icon:"⚠️",color:"#f87171"},{label:"Sick Leaves",value:allSickLeaves.length,icon:"🏥",color:"#4f8ef7"},{label:"Paid",value:trainees.filter(t=>t.payment_status==="paid").length,icon:"💰",color:"#34d399"},{label:"Laptops Given",value:trainees.filter(t=>t.laptop_received).length,icon:"💻",color:"#7c5cfc"},{label:"Transferred",value:trainees.filter(t=>t.status==="transferred").length,icon:"🔄",color:"#FFA500"}].map((stat,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}><div style={{fontSize:20,marginBottom:6}}>{stat.icon}</div><div style={{fontSize:24,fontWeight:800,color:stat.color}}>{stat.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:2}}>{stat.label}</div></div>))}</div>
             <div style={s.card}><h3 style={{marginBottom:14,fontSize:16,color:HW.text}}>🏆 KPI Leaderboard</h3>{analytics.traineeKpi.length===0?<p style={{color:HW.muted}}>No data yet.</p>:analytics.traineeKpi.slice(0,8).map((t,i)=>(<div key={t.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${HW.border}`}}><div style={{width:28,height:28,borderRadius:"50%",background:i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":HW.surface2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:i<3?"#000":HW.muted,flexShrink:0}}>{i+1}</div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:14,color:HW.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.full_name}</div><div style={{fontSize:11,color:HW.muted}}>{t.department}</div></div><div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:18,fontWeight:800,color:kpiColor(parseFloat(t.avgKpi))}}>{t.avgKpi}</div><div style={{fontSize:10,color:HW.muted}}>KPI</div></div></div>))}</div>
             {analytics.atRisk.length>0&&(<div style={{...s.card,border:"1px solid rgba(248,113,113,.3)"}}><h3 style={{marginBottom:12,color:"#f87171",fontSize:16}}>⚠️ At Risk</h3>{analytics.atRisk.map(t=>(<div key={t.id} style={{background:HW.surface2,borderRadius:10,padding:12,marginBottom:8,borderLeft:"3px solid #f87171"}}><div style={{fontWeight:700,fontSize:14,color:HW.text}}>{t.full_name}</div><div style={{fontSize:12,color:HW.muted,marginBottom:6}}>{t.department}</div><div style={{display:"flex",gap:16}}><div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#f87171"}}>{t.avgKpi}</div><div style={{fontSize:10,color:HW.muted}}>Avg KPI</div></div><div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#f87171"}}>{t.penalties}</div><div style={{fontSize:10,color:HW.muted}}>Penalties</div></div></div></div>))}</div>)}
           </div>
@@ -925,7 +1035,7 @@ export default function App(){
             <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:14}}>{[{label:"Total",value:okrs.length,color:HW.red},{label:"On Track",value:okrs.filter(o=>(o.current/o.target)>=.8).length,color:"#34d399"},{label:"In Progress",value:okrs.filter(o=>(o.current/o.target)>=.5&&(o.current/o.target)<.8).length,color:"#FFA500"},{label:"Behind",value:okrs.filter(o=>(o.current/o.target)<.5).length,color:"#f87171"}].map((s2,i)=>(<div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,textAlign:"center",borderTop:`3px solid ${s2.color}`}}><div style={{fontSize:24,fontWeight:800,color:s2.color}}>{s2.value}</div><div style={{fontSize:11,color:HW.muted,marginTop:2}}>{s2.label}</div></div>))}</div>
             {showAddOkr&&(<div style={{...s.card,border:`1px solid ${HW.red}40`,marginBottom:14}}><h4 style={{marginBottom:14,color:HW.red,fontSize:15}}>Add OKR</h4><label style={s.label}>Department</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Engineering" value={newOkr.department} onChange={e=>setNewOkr({...newOkr,department:e.target.value})}/><label style={s.label}>Objective</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Improve Skills" value={newOkr.objective} onChange={e=>setNewOkr({...newOkr,objective:e.target.value})}/><label style={s.label}>Key Result</label><input style={{...s.input,marginBottom:12}} placeholder="e.g. Complete 20 sessions" value={newOkr.key_result} onChange={e=>setNewOkr({...newOkr,key_result:e.target.value})}/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}><div><label style={s.label}>Target</label><input style={s.input} type="number" value={newOkr.target} onChange={e=>setNewOkr({...newOkr,target:parseFloat(e.target.value)})}/></div><div><label style={s.label}>Unit</label><select style={s.input} value={newOkr.unit} onChange={e=>setNewOkr({...newOkr,unit:e.target.value})}><option value="%">%</option><option value="sessions">Sessions</option><option value="reports">Reports</option><option value="tasks">Tasks</option></select></div></div><label style={s.label}>Due Date</label><input style={{...s.input,marginBottom:14}} type="date" value={newOkr.due_date} onChange={e=>setNewOkr({...newOkr,due_date:e.target.value})}/><button style={{...s.btn,background:HW.red,color:HW.white,width:"100%",padding:14}} onClick={addOkr}>Add OKR</button>{msg&&<p style={{color:msg.startsWith("✅")?"#34d399":HW.red,fontSize:13,marginTop:8,textAlign:"center"}}>{msg}</p>}</div>)}
             {[...new Set(okrs.map(o=>o.department))].map(dept=>(<div key={dept} style={s.card}><h4 style={{marginBottom:12,color:HW.red,fontSize:15}}>🏢 {dept}</h4>{okrs.filter(o=>o.department===dept).map(okr=><OKRBar key={okr.id} okr={okr} onUpdate={updateOkr}/>)}</div>))}
-            {okrs.length===0&&<div style={{...s.card,textAlign:"center",padding:32}}><div style={{fontSize:36,marginBottom:10}}>🎯</div><p style={{color:HW.muted}}>No OKRs yet. Tap "+ Add"!</p></div>}
+            {okrs.length===0&&<div style={{...s.card,textAlign:"center",padding:32}}><div style={{fontSize:36,marginBottom:10}}>🎯</div><p style={{color:HW.muted}}>No OKRs yet.</p></div>}
           </div>
         )}
 
@@ -933,19 +1043,19 @@ export default function App(){
         {mgmtTab==="access"&&(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <div><h3 style={{margin:0,fontSize:16,color:HW.text}}>🔐 Access Log</h3><p style={{fontSize:12,color:HW.muted,margin:"4px 0 0"}}>All logins and changes by HR team</p></div>
+              <div><h3 style={{margin:0,fontSize:16,color:HW.text}}>🔐 Access Log</h3><p style={{fontSize:12,color:HW.muted,margin:"4px 0 0"}}>Logged in as: <b style={{color:HW.red}}>{currentManagerName||"— select name on greeting —"}</b></p></div>
               <button style={{...s.btn,background:`${HW.red}20`,color:HW.red,fontSize:12,padding:"8px 12px"}} onClick={fetchAccessLogs}>🔄 Refresh</button>
             </div>
-
-            {/* Stats */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
               {[
                 {label:"Total Actions",value:accessLogs.length,color:HW.red,icon:"📊"},
                 {label:"Logins",value:accessLogs.filter(l=>l.action_type==="login").length,color:"#34d399",icon:"🔑"},
-                {label:"Profile Edits",value:accessLogs.filter(l=>l.action_type==="profile_edit").length,color:"#4f8ef7",icon:"✏️"},
+                {label:"Profile Views",value:accessLogs.filter(l=>l.action_type==="profile_view").length,color:"#4f8ef7",icon:"👁"},
+                {label:"Profile Edits",value:accessLogs.filter(l=>l.action_type==="profile_edit").length,color:"#7c5cfc",icon:"✏️"},
                 {label:"Status Changes",value:accessLogs.filter(l=>l.action_type==="status_change").length,color:"#FFA500",icon:"🔄"},
-                {label:"Payment Updates",value:accessLogs.filter(l=>l.action_type==="payment_update").length,color:"#7c5cfc",icon:"💰"},
+                {label:"Payment Updates",value:accessLogs.filter(l=>l.action_type==="payment_update").length,color:"#34d399",icon:"💰"},
                 {label:"Laptop Updates",value:accessLogs.filter(l=>l.action_type==="laptop_update").length,color:"#0891B2",icon:"💻"},
+                {label:"Exports",value:accessLogs.filter(l=>l.action_type==="excel_export"||l.action_type==="pdf_export").length,color:"#f87171",icon:"📤"},
               ].map((stat,i)=>(
                 <div key={i} style={{background:HW.surface,border:`1px solid ${HW.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${stat.color}`}}>
                   <div style={{fontSize:20,marginBottom:6}}>{stat.icon}</div>
@@ -955,10 +1065,10 @@ export default function App(){
               ))}
             </div>
 
-            {/* Who accessed */}
+            {/* By Person */}
             <div style={{...s.card,marginBottom:14}}>
               <h4 style={{marginBottom:12,fontSize:15,color:HW.text}}>👤 Access by Person</h4>
-              {[...new Set(accessLogs.filter(l=>l.manager_name&&l.manager_name!=="Unknown"&&l.manager_name!=="Manager").map(l=>l.manager_name))].map(name=>{
+              {[...new Set(accessLogs.filter(l=>l.manager_name&&!["Unknown","Manager"].includes(l.manager_name)).map(l=>l.manager_name))].map(name=>{
                 const userLogs=accessLogs.filter(l=>l.manager_name===name);
                 const lastLogin=userLogs.find(l=>l.action_type==="login");
                 return(
@@ -967,28 +1077,25 @@ export default function App(){
                     <div style={{flex:1}}>
                       <div style={{fontWeight:700,fontSize:15,color:HW.text}}>{name}</div>
                       <div style={{fontSize:11,color:HW.muted,marginTop:2}}>
-                        {userLogs.length} action{userLogs.length!==1?"s":""}
-                        {lastLogin&&` · Last: ${new Date(lastLogin.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} at ${new Date(lastLogin.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`}
+                        {userLogs.length} actions · {userLogs.filter(l=>l.action_type==="login").length} logins
+                        {lastLogin&&` · Last: ${lastLogin.metadata?.day||""} ${lastLogin.metadata?.date||new Date(lastLogin.created_at).toLocaleDateString("en-GB")} at ${lastLogin.metadata?.time||new Date(lastLogin.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`}
                       </div>
-                    </div>
-                    <div style={{textAlign:"right"}}>
-                      <div style={{fontSize:16,fontWeight:800,color:HW.red}}>{userLogs.filter(l=>l.action_type==="login").length}</div>
-                      <div style={{fontSize:10,color:HW.muted}}>logins</div>
                     </div>
                   </div>
                 );
               })}
-              {accessLogs.filter(l=>l.manager_name&&l.manager_name!=="Unknown"&&l.manager_name!=="Manager").length===0&&<p style={{color:HW.muted,fontSize:13}}>No named access recorded yet. Select a name on login to track.</p>}
+              {accessLogs.filter(l=>l.manager_name&&!["Unknown","Manager"].includes(l.manager_name)).length===0&&<p style={{color:HW.muted,fontSize:13}}>No named access yet. Select a name on the greeting popup.</p>}
             </div>
 
-            {/* Full log */}
+            {/* Full Log */}
             <div style={s.card}>
               <h4 style={{marginBottom:12,fontSize:15,color:HW.text}}>📋 Full Activity Log ({accessLogs.length})</h4>
               {accessLogs.length===0?(
-                <div style={{textAlign:"center",padding:24}}><div style={{fontSize:32,marginBottom:8}}>🔐</div><p style={{color:HW.muted}}>No activity recorded yet.</p></div>
+                <div style={{textAlign:"center",padding:24}}><div style={{fontSize:32,marginBottom:8}}>🔐</div><p style={{color:HW.muted}}>No activity yet. Log in with your name to start tracking.</p></div>
               ):(
                 accessLogs.map(log=>{
-                  const ac={login:{color:"#34d399",icon:"🔑"},profile_view:{color:"#4f8ef7",icon:"👁"},profile_edit:{color:"#4f8ef7",icon:"✏️"},status_change:{color:"#FFA500",icon:"🔄"},payment_update:{color:"#7c5cfc",icon:"💰"},laptop_update:{color:"#0891B2",icon:"💻"},okr_add:{color:"#34d399",icon:"🎯"},excel_export:{color:"#34d399",icon:"📊"},pdf_export:{color:HW.red,icon:"📄"},logout:{color:HW.muted,icon:"🚪"}}[log.action_type]||{color:HW.muted,icon:"📌"};
+                  const acMap={login:{color:"#34d399",icon:"🔑"},logout:{color:HW.muted,icon:"🚪"},profile_view:{color:"#4f8ef7",icon:"👁"},profile_edit:{color:"#7c5cfc",icon:"✏️"},status_change:{color:"#FFA500",icon:"🔄"},payment_update:{color:"#34d399",icon:"💰"},laptop_update:{color:"#0891B2",icon:"💻"},okr_add:{color:"#34d399",icon:"🎯"},excel_export:{color:"#f87171",icon:"📊"},pdf_export:{color:HW.red,icon:"📄"}};
+                  const ac=acMap[log.action_type]||{color:HW.muted,icon:"📌"};
                   return(
                     <div key={log.id} style={{display:"flex",gap:12,padding:"12px 0",borderBottom:`1px solid ${HW.border}`}}>
                       <div style={{width:36,height:36,borderRadius:"50%",background:`${ac.color}20`,border:`2px solid ${ac.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{ac.icon}</div>
@@ -996,15 +1103,13 @@ export default function App(){
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                           <div style={{fontWeight:700,fontSize:13,color:HW.text}}>{log.manager_name||"Unknown"}</div>
                           <div style={{fontSize:10,color:HW.muted,flexShrink:0,marginLeft:8,textAlign:"right"}}>
-                            <div>{new Date(log.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
-                            <div>{new Date(log.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</div>
+                            <div>{log.metadata?.day||new Date(log.created_at).toLocaleDateString("en-GB",{weekday:"long"})}</div>
+                            <div>{log.metadata?.date||new Date(log.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div>
+                            <div style={{color:ac.color,fontWeight:700}}>{log.metadata?.time||new Date(log.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</div>
                           </div>
                         </div>
                         <div style={{fontSize:12,color:HW.muted,marginTop:2}}>{log.description}</div>
-                        <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
-                          <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,background:`${ac.color}15`,color:ac.color}}>{log.action_type?.replace(/_/g," ")}</span>
-                          <span style={{fontSize:10,color:HW.muted}}>{new Date(log.created_at).toLocaleDateString("en-GB",{weekday:"long"})}</span>
-                        </div>
+                        <span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:6,background:`${ac.color}15`,color:ac.color,marginTop:4,display:"inline-block"}}>{log.action_type?.replace(/_/g," ")}</span>
                       </div>
                     </div>
                   );
