@@ -15,7 +15,7 @@ const MANAGER_NAMES = ["Arjwan","Sultan","Mohammed","Sana","Osama"];
 // ── TRANSLATIONS ────────────────────────────────────
 const T = {
   en: {
-    appName:"Huawei TechTrack", poweredBy:"Powered by Arjwan Sabir",
+    appName:"TechTrack", poweredBy:"Powered by Arjwan Sabir",
     signIn:"Sign In →", signingIn:"Signing in…", createAccount:"Create Trainee Account",
     email:"Email", password:"Password", confirmPassword:"Confirm Password",
     welcome:"Welcome! 🎉", completeProfile:"Complete your profile once to get started.",
@@ -427,7 +427,7 @@ function ManagerGreetingPopup({onDismiss,onLogin,lang}){
   const timeGreeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
   function doGreet(name){
     setSelectedName(name);setGreeted(true);
-    speak(`${timeGreeting}, ${name}! Welcome to Huawei TechTrack, Management Hub. Your insights drive our success. Let's review team performance, track attendance data, and empower the next generation of talent today.`);
+    speak(`${timeGreeting}, ${name}! Welcome to TechTrack, Management Hub. Your insights drive our success. Let's review team performance, track attendance data, and empower the next generation of talent today.`);
     if(onLogin) onLogin(name);
   }
   return(
@@ -457,7 +457,7 @@ function ManagerGreetingPopup({onDismiss,onLogin,lang}){
             <div style={{fontSize:32,marginBottom:8}}>👋</div>
             <h3 style={{fontSize:22,fontWeight:800,color:HW.text,margin:"0 0 8px"}}>{timeGreeting}, {selectedName}!</h3>
             <div style={{background:HW.surface2,borderRadius:14,padding:16,marginBottom:20,border:`1px solid ${HW.border}`}}>
-              <p style={{fontSize:13,color:HW.muted,lineHeight:1.7,margin:0}}>{lang==="ar"?`أهلاً بك في هواوي تيك تراك، مركز الإدارة.\nرؤيتك تقود نجاحنا.\nلنستعرض أداء الفريق، ونتابع بيانات الحضور،\nونمكّن الجيل القادم من المواهب اليوم.`:"Welcome to Huawei TechTrack, Management Hub.\nYour insights drive our success.\nLet's review team performance, track attendance data,\nand empower the next generation of talent today."}</p>
+              <p style={{fontSize:13,color:HW.muted,lineHeight:1.7,margin:0}}>{lang==="ar"?`أهلاً بك في هواوي تيك تراك، مركز الإدارة.\nرؤيتك تقود نجاحنا.\nلنستعرض أداء الفريق، ونتابع بيانات الحضور،\nونمكّن الجيل القادم من المواهب اليوم.`:"Welcome to TechTrack, Management Hub.\nYour insights drive our success.\nLet's review team performance, track attendance data,\nand empower the next generation of talent today."}</p>
             </div>
             <div style={{fontSize:13,color:HW.muted,marginBottom:20}}>{now.toLocaleDateString(lang==="ar"?"ar-SA":"en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
             <button onClick={onDismiss} style={{background:HW.red,color:HW.white,border:"none",borderRadius:12,padding:"16px 40px",fontWeight:800,fontSize:16,cursor:"pointer",width:"100%"}}>{t.enterDashboard}</button>
@@ -475,7 +475,7 @@ function TraineeGreetingPopup({name,onDismiss,lang}){
   const greetingAr=hour<12?"صباح الخير":hour<17?"مساء الخير":"مساء النور";
   const quote=CHINESE_QUOTES[Math.floor(Math.random()*CHINESE_QUOTES.length)];
   useEffect(()=>{
-    speak(`${hour<12?"Good morning":hour<17?"Good afternoon":"Good evening"}, ${name}! Welcome to Huawei TechTrack. Together, we step into the future of talent. Let's track your progress, celebrate your milestones, and build your success today. Have a productive session!`);
+    speak(`${hour<12?"Good morning":hour<17?"Good afternoon":"Good evening"}, ${name}! Welcome to TechTrack. Together, we step into the future of talent. Let's track your progress, celebrate your milestones, and build your success today. Have a productive session!`);
     return ()=>window.speechSynthesis?.cancel();
   },[]);
   return(
@@ -494,7 +494,7 @@ function TraineeGreetingPopup({name,onDismiss,lang}){
           <div style={{fontSize:11,color:HW.red,fontWeight:600}}>— {quote.author}</div>
         </div>
         <div style={{background:HW.surface2,borderRadius:12,padding:14,marginBottom:16,border:`1px solid ${HW.border}`}}>
-          <p style={{fontSize:13,color:HW.muted,lineHeight:1.7,margin:0}}>{lang==="ar"?"أهلاً بك في هواوي تيك تراك. معاً نخطو نحو مستقبل المواهب. لنتابع تقدمك، ونحتفل بإنجازاتك، ونبني نجاحك اليوم. أتمنى لك جلسة منتجة!":"Welcome to Huawei TechTrack. Together, we step into the future of talent. Let's track your progress, celebrate your milestones, and build your success today. Have a productive session!"}</p>
+          <p style={{fontSize:13,color:HW.muted,lineHeight:1.7,margin:0}}>{lang==="ar"?"أهلاً بك في هواوي تيك تراك. معاً نخطو نحو مستقبل المواهب. لنتابع تقدمك، ونحتفل بإنجازاتك، ونبني نجاحك اليوم. أتمنى لك جلسة منتجة!":"Welcome to TechTrack. Together, we step into the future of talent. Let's track your progress, celebrate your milestones, and build your success today. Have a productive session!"}</p>
         </div>
         <div style={{fontSize:13,color:HW.muted,marginBottom:16}}>{now.toLocaleDateString(lang==="ar"?"ar-SA":"en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
         <div style={{fontSize:12,color:HW.red,fontWeight:700,marginBottom:16,background:`${HW.red}15`,borderRadius:8,padding:"6px 12px",display:"inline-block"}}>🎨 {randomTheme.name}</div>
@@ -599,7 +599,7 @@ export default function App(){
   },[]);
 
   useEffect(()=>{
-    const check=()=>{const now=new Date();if(now.getHours()===16&&now.getMinutes()===30){setShowReminder(true);if(Notification.permission==="granted")new Notification("Huawei TechTrack",{body:"Reminder: Submit your weekly report!"});}};
+    const check=()=>{const now=new Date();if(now.getHours()===16&&now.getMinutes()===30){setShowReminder(true);if(Notification.permission==="granted")new Notification("TechTrack",{body:"Reminder: Submit your weekly report!"});}};
     if(Notification.permission==="default")Notification.requestPermission();
     const interval=setInterval(check,60000);return ()=>clearInterval(interval);
   },[]);
@@ -1030,14 +1030,14 @@ export default function App(){
   async function exportPDF(trainee){
     const doc=new jsPDF();const tt=trainee||selected;
     doc.setFillColor(207,10,44);doc.rect(0,0,210,40,"F");
-    doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont("helvetica","bold");doc.text("Huawei TechTrack — Performance Report",14,18);
+    doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont("helvetica","bold");doc.text("TechTrack — Performance Report",14,18);
     doc.setFontSize(10);doc.setFont("helvetica","normal");doc.text(`Generated: ${new Date().toLocaleDateString("en-GB")}`,14,30);
     doc.setTextColor(0,0,0);doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("Trainee Information",14,52);
     autoTable(doc,{startY:56,head:[["Field","Details"]],body:[["Full Name",tt.full_name||"—"],["Civil ID",tt.civil_id||"—"],["University",tt.university||"—"],["Department",tt.department||"—"],["Mentor",tt.assigned_mentor||"—"],["Status",tt.status||"—"],["Joining Date",tt.joining_date||"—"],["OJT End Date",tt.ojt_end_date||"—"],...(tt.quitting_date?[["Quitting Date",tt.quitting_date],["Quitting Reason",tt.quitting_reason||"—"]]:[]),["Payment",tt.payment_status||"unpaid"],["Laptop",tt.laptop_returned?"Returned to HR":tt.laptop_received?`Received — SN: ${tt.laptop_serial||"—"}`:"Not Received"]],headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,245,245]}});
     const penY=doc.lastAutoTable.finalY+10;doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("Penalties",14,penY);
     const{data:pens}=await supabase.from("penalties").select("*").eq("trainee_id",tt.id);
     autoTable(doc,{startY:penY+4,head:[["Date","Reason","Deduction"]],body:pens?.length>0?pens.map(p=>[p.report_date,p.reason,`-${p.amount}%`]):[["—","No penalties","—"]],headStyles:{fillColor:[207,10,44],textColor:[255,255,255]},alternateRowStyles:{fillColor:[245,245,245]}});
-    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text("Huawei TechTrack • Powered by Arjwan Sabir • Confidential",14,285);
+    doc.setTextColor(150,150,150);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text("TechTrack • Powered by Arjwan Sabir • Confidential",14,285);
     doc.save(`${tt.full_name}_report.pdf`);
     await writeAccessLog(user?.email,currentManagerName,"pdf_export",`Exported PDF for ${tt.full_name}`,{trainee:tt.full_name});
     setTimeout(fetchAccessLogs,500);
